@@ -1,0 +1,153 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body><title>試作ゲーム展</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 美術館の一室。濃い壁にスポットライト、金の額縁を縦横に掛け、下に真鍮の解説プレート */
+:root {
+  --wall: #1f2a27;
+  --wall-deep: #151d1b;
+  --light: rgba(255, 236, 196, 0.10);
+  --gold-1: #c9a45c;
+  --gold-2: #8a6a2e;
+  --gold-3: #f0d79a;
+  --mat: #efe9dc;
+  --plaque: #b89a5e;
+  --plaque-ink: #2a2116;
+  --ink: #ece6d8;
+  --ink-dim: #a9b3ad;
+  --pick: #e8c56d;
+  --hold: #7d8a84;
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: auto; }
+body {
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, var(--light), transparent 70%),
+    linear-gradient(var(--wall), var(--wall-deep));
+  background-color: var(--wall);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.7;
+}
+.room {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header { display: grid; gap: 10px; justify-items: center; text-align: center; margin-bottom: 40px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.32em; color: var(--ink-dim); }
+h1 {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(30px, 6vw, 48px); letter-spacing: 0.12em; margin: 0;
+  text-wrap: balance;
+}
+.lead { max-width: 34em; color: var(--ink-dim); font-size: 14px; margin: 0; text-wrap: pretty; }
+.wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 48px 36px;
+  align-items: start;
+}
+.piece { display: grid; gap: 16px; justify-items: center; min-width: 0; text-decoration: none; color: inherit; }
+.spot { position: relative; width: 100%; display: grid; justify-items: center; }
+.spot::before {
+  content: ""; position: absolute; inset: -28px -12px auto; height: 70%;
+  background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(255, 233, 186, 0.16), transparent 75%);
+  pointer-events: none;
+}
+.frame {
+  position: relative; width: min(100%, 300px);
+  padding: 14px;
+  background:
+    linear-gradient(135deg, var(--gold-3), var(--gold-1) 30%, var(--gold-2) 55%, var(--gold-1) 80%, var(--gold-3));
+  box-shadow:
+    inset 0 0 0 2px rgba(0,0,0,0.25),
+    inset 0 0 0 6px rgba(255,240,200,0.18),
+    0 18px 30px rgba(0,0,0,0.45), 0 4px 8px rgba(0,0,0,0.35);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.mat { background: var(--mat); padding: 12px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.25); }
+.mat img { display: block; width: 100%; height: auto; aspect-ratio: 480 / 685; object-fit: cover; }
+.piece:hover .frame, .piece:focus-visible .frame { transform: translateY(-4px) rotate(-0.4deg); box-shadow: inset 0 0 0 2px rgba(0,0,0,0.25), inset 0 0 0 6px rgba(255,240,200,0.18), 0 26px 40px rgba(0,0,0,0.5), 0 6px 10px rgba(0,0,0,0.35); }
+.piece:focus-visible { outline: none; }
+.piece:focus-visible .plaque { outline: 2px solid var(--gold-3); outline-offset: 4px; }
+.ribbon {
+  position: absolute; top: -10px; right: -10px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 4px 10px; background: var(--pick); color: #2a1f08;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.35);
+}
+.ribbon.second { background: var(--mat); }
+.ribbon.hold { background: var(--hold); color: #101614; }
+.plaque {
+  width: min(100%, 300px);
+  background: linear-gradient(180deg, #cdb177, var(--plaque) 60%, #9c7f47);
+  color: var(--plaque-ink);
+  padding: 12px 16px 14px;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.35);
+  display: grid; gap: 4px;
+}
+.plaque h2 { font-family: var(--font-display); font-weight: 700; font-size: 19px; margin: 0; letter-spacing: 0.06em; }
+.plaque p { margin: 0; font-size: 13px; line-height: 1.6; }
+.meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; letter-spacing: 0.08em; opacity: 0.8; padding-top: 4px; border-top: 1px solid rgba(42,33,22,0.25); font-variant-numeric: tabular-nums; }
+.play { font-weight: 700; }
+footer { margin-top: 56px; text-align: center; color: var(--ink-dim); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .frame { transition: none; } .piece:hover .frame { transform: none; } }
+</style>
+
+<main class="room">
+  <header>
+    <div class="eyebrow">PROTOTYPE GALLERY</div>
+    <h1>試作ゲーム展</h1>
+    <p class="lead">ひとつの仕掛けだけで遊べる、スマホゲームの試作です。気になった額縁をタップすると、そのまま遊べます。どれも数分で終わります。</p>
+  </header>
+
+  <section class="wall" id="wall" aria-label="展示作品"></section>
+
+  <footer>どの作品が面白そうだったか、作者に教えてください。</footer>
+</main>
+
+<script>
+const works = [
+  { id: "komawari", title: "コマ割りダンジョン", line: "漫画のコマの境界線を指で動かし、コマの広さを変えて出口へ。", size: "20ページ", status: "本命", cls: "", url: "p/komawari/" },
+  { id: "kotodama", title: "Solin Nen", line: "知らない世界の言葉で紡ぐ物語。街の言葉を集めて、少しずつ意味を解き明かす。", size: "村ひとつ", status: "新作", cls: "second", url: "p/kotodama/" },
+  { id: "kinou", title: "昨日の私のダンジョン", line: "前回の自分の動きが再生される。過去の自分と協力して部屋を抜ける。", size: "6部屋", status: "注目", cls: "second", url: "p/kinou/" },
+  { id: "yokokusen", title: "ねじれ予告", line: "敵の攻撃の予告線を指で曲げる。放てば、全員が一斉に動き出す。", size: "8問", status: "新作", cls: "second", url: "p/yokokusen/" },
+  { id: "hpbar", title: "いのちの物差し", line: "HPバーを引き抜いて、橋や足場にする。使うほど、自分は弱くなる。", size: "8問", status: "新作", cls: "second", url: "p/hpbar/" },
+  { id: "otodorobo", title: "オトドロボウ", line: "「ガチャ」「ゴトン」をはがして貼り替える。音が移れば、性質も移る。", size: "7問", status: "新作", cls: "second", url: "p/otodorobo/" },
+  { id: "hata", title: "ハタナゲ", line: "復活地点の旗を投げて、わざと倒れる。格子の向こうで、起き上がる。", size: "7面", status: "新作", cls: "second", url: "p/hata/" },
+  { id: "tanken", title: "チズソダテ", line: "生き物の習性を観察して書き留める。知っていれば、通れる道が増える。", size: "島2つ", status: "新作", cls: "second", url: "p/tanken/" },
+  { id: "gyosho", title: "帰り道の行商人", line: "荷車の中で隣り合った品が、旅のあいだに変わっていく。", size: "村3つ", status: "保留", cls: "hold", url: "p/gyosho/" }
+];
+const wall = document.getElementById("wall");
+works.forEach((w, i) => {
+  const a = document.createElement("a");
+  a.className = "piece"; a.href = w.url; 
+  a.setAttribute("aria-label", w.title + "を遊ぶ");
+  a.innerHTML = `
+    <div class="spot"><div class="frame">
+      <span class="ribbon ${w.cls}"></span>
+      <div class="mat"><img alt="" loading="${i < 3 ? "eager" : "lazy"}" width="480" height="685"></div>
+    </div></div>
+    <div class="plaque"><h2></h2><p></p>
+      <div class="meta"><span class="no"></span><span class="play">遊ぶ →</span></div></div>`;
+  a.querySelector(".ribbon").textContent = w.status;
+  a.querySelector("img").src = "thumbs/" + w.id + ".jpg";
+  a.querySelector("img").alt = w.title + "の画面";
+  a.querySelector("h2").textContent = w.title;
+  a.querySelector("p").textContent = w.line;
+  a.querySelector(".no").textContent = "No." + String(i + 1).padStart(2, "0") + "　" + w.size;
+  wall.appendChild(a);
+});
+</script>
+</body></html>

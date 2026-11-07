@@ -1,0 +1,1921 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body><title>コマ割りダンジョン</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap');
+/* 単一テーマ：原稿用紙の白に墨。色は水の青と火の朱、言葉の3色（ここ！＝黄土／しーっ＝緑青／わっ！＝朱）だけ */
+:root{
+  color-scheme: light;
+  --paper:#fcfcfa; --paper2:#f1f1ee; --guide:#e3e3df;
+  --ink:#151515; --ink2:#4a4a48; --ink3:#8d8d89; --floor-line:#dcdcd8;
+  --tone:#151515;
+  --water:#2f78cf; --water-lt:#d5e6f8; --water-ink:#1d4f8c;
+  --fire:#e5432a; --fire-lt:#fde1d9; --fire-ink:#9b2412;
+  --koko:#d99a12; --koko-lt:#fbecc4; --koko-ink:#7a5300;
+  --shh:#23876b; --shh-lt:#d6efe6; --shh-ink:#125440;
+  --white:#ffffff;
+  --sfx:'Dela Gothic One','Hiragino Kaku Gothic StdN','Hiragino Sans','Noto Sans JP',sans-serif;
+  --sans:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Hiragino Sans','Noto Sans JP','Yu Gothic',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+
+.wrap{height:100%;max-width:560px;margin:0 auto;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.inner{position:relative;height:100%}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:max(8px,env(safe-area-inset-top,0px)) 0 max(10px,env(safe-area-inset-bottom,0px))}
+.screen[hidden]{display:none}
+#game{touch-action:none}
+
+/* ヘッダ：原稿の欄外 */
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;height:40px;flex:none}
+.logo{font-family:var(--sfx);font-size:17px;letter-spacing:.02em;line-height:1}
+.logo small{display:block;font-family:var(--sans);font-weight:700;font-size:10px;color:var(--ink3);letter-spacing:.2em;margin-top:3px}
+.pno{font-family:var(--sfx);font-size:15px;display:flex;align-items:baseline;gap:6px}
+.pno b{font-size:24px;font-weight:400}
+.pno span{color:var(--ink3);font-size:12px}
+.tocbtn{height:34px;padding:0 12px;border:2px solid var(--ink);font-weight:900;font-size:13px;background:var(--white)}
+
+/* ナレーション枠（一言） */
+.cap{flex:none;align-self:flex-start;margin:4px 0 8px;background:var(--white);border:2px solid var(--ink);
+  padding:5px 10px 6px;font-weight:900;font-size:14px;letter-spacing:.06em;box-shadow:3px 3px 0 var(--ink);
+  transition:opacity .3s}
+.cap:empty{opacity:0}
+
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+#cv{display:block;touch-action:none}
+
+.bottom{flex:none;display:flex;gap:8px;align-items:stretch;margin-top:10px;height:58px}
+.sub{flex:none;width:58px;border:2px solid var(--ink);background:var(--white);font-weight:900;font-size:12px;line-height:1.15;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0 2px}
+.sub:active{background:var(--paper2)}
+.sub:disabled{color:var(--ink3);border-color:var(--ink3);cursor:default}
+.sub:disabled .ic{opacity:.4}
+/* 1手戻す：左回りの矢印／最初から：二重の左向き */
+.ic{display:block;position:relative;width:18px;height:12px}
+.ic.undo::before{content:'';position:absolute;left:4px;top:1px;width:12px;height:10px;border:2.5px solid currentColor;border-left:0;border-radius:0 7px 7px 0;box-sizing:border-box}
+.ic.undo::after{content:'';position:absolute;left:0;top:-2px;border-right:7px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.ic.rst::before,.ic.rst::after{content:'';position:absolute;top:1px;border-right:9px solid currentColor;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.ic.rst::before{left:1px}.ic.rst::after{left:8px}
+.go{flex:1;background:var(--ink);color:var(--white);font-family:var(--sfx);font-size:24px;letter-spacing:.1em;
+  display:flex;align-items:center;justify-content:center;gap:10px;position:relative;overflow:hidden}
+.go:active{transform:translateY(1px)}
+.go:disabled{opacity:.45}
+.go i{display:block;width:0;height:0;border-left:13px solid var(--white);border-top:9px solid transparent;border-bottom:9px solid transparent}
+
+/* クリアの札 */
+.card{position:absolute;left:0;right:0;bottom:84px;display:flex;justify-content:center;pointer-events:none}
+.card[hidden]{display:none}
+.card .in{pointer-events:auto;background:var(--white);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--ink);
+  padding:14px 16px;display:flex;align-items:center;gap:14px;animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+.card .t{font-family:var(--sfx);font-size:22px;line-height:1.1}
+.card .t small{display:block;font-family:var(--sans);font-weight:700;font-size:12px;color:var(--ink2);margin-top:4px}
+.card button{background:var(--ink);color:var(--white);font-weight:900;font-size:15px;padding:12px 16px;white-space:nowrap}
+@keyframes pop{from{transform:scale(.6) rotate(-4deg);opacity:0}to{transform:none;opacity:1}}
+
+/* 目次・終了画面（スクロールは中身だけ） */
+.scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-bottom:12px}
+.h1{font-family:var(--sfx);font-size:30px;line-height:1.15;margin:10px 0 2px}
+.lead{font-size:13px;color:var(--ink2);font-weight:700;margin-bottom:14px}
+.sec{font-weight:900;font-size:14px;border-bottom:2px solid var(--ink);padding-bottom:4px;margin:18px 0 10px;display:flex;justify-content:space-between;align-items:baseline}
+.sec span{font-size:11px;color:var(--ink3);font-weight:700}
+.pages{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.pg{aspect-ratio:3/4;border:2.5px solid var(--ink);background:var(--white);position:relative;font-family:var(--sfx);font-size:20px;
+  display:flex;align-items:center;justify-content:center}
+.pg:nth-child(3n+2){transform:rotate(-1.2deg)} .pg:nth-child(4n+3){transform:rotate(1deg)}
+.pg.done::after{content:'済';position:absolute;right:-3px;top:-8px;width:26px;height:26px;border-radius:50%;
+  border:2px solid var(--fire);color:var(--fire);background:var(--white);font-size:12px;display:flex;align-items:center;justify-content:center;transform:rotate(12deg)}
+.pg.next{box-shadow:4px 4px 0 var(--ink)}
+.pg.lock,.pg.paid{color:var(--ink3);cursor:default;
+  background-color:var(--paper2);background-image:radial-gradient(var(--ink3) 1px,transparent 1.3px);background-size:6px 6px}
+.pg .lk{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:14px;height:11px;background:var(--ink);border-radius:2px}
+.pg .lk::before{content:'';position:absolute;left:2.5px;top:-7px;width:9px;height:9px;border:2px solid var(--ink);border-bottom:0;border-radius:6px 6px 0 0;box-sizing:border-box}
+.pg.paid{font-size:15px}
+.chap2{border:2.5px dashed var(--ink3);padding:12px;margin-top:4px}
+.chap2 .ttl{font-family:var(--sfx);font-size:18px;margin-bottom:2px}
+.chap2 .ttl small{font-family:var(--sans);font-size:11px;font-weight:700;color:var(--ink3);margin-left:6px}
+.chap2 .pages{margin-top:10px}
+.chap2 p{font-size:12px;color:var(--ink2);font-weight:700}
+.chh{font-size:16px}
+.sec .cht{font-family:var(--sfx);font-weight:400;font-size:18px;color:var(--ink)}
+.sec .cht small{font-family:var(--sans);font-weight:700;font-size:12px;color:var(--ink2);margin-left:8px}
+.chlead{font-size:12px;color:var(--ink2);font-weight:700;margin:-4px 0 10px}
+.big{display:block;width:100%;height:54px;background:var(--ink);color:var(--white);font-family:var(--sfx);font-size:20px;letter-spacing:.08em;margin-top:16px}
+.ghost{display:block;width:100%;height:46px;border:2px solid var(--ink);background:var(--white);font-weight:900;font-size:15px;margin-top:8px}
+
+.score{display:flex;align-items:baseline;gap:8px;font-family:var(--sfx);margin:6px 0 2px}
+.score b{font-size:56px;font-weight:400;line-height:1}
+.score span{font-size:20px;color:var(--ink2)}
+.chs{list-style:none;border:2.5px solid var(--ink);background:var(--white)}
+.chs li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1.5px solid var(--ink)}
+.chs li:first-child{border-top:0}
+.chs .n{font-family:var(--sfx);font-size:13px;width:44px;flex:none}
+.chs .nm{flex:1;font-weight:900;font-size:14px}
+.chs .nm small{display:block;font-weight:700;font-size:11px;color:var(--ink3)}
+.chs .st{flex:none;font-size:11px;font-weight:900;padding:3px 6px;border:1.5px solid var(--ink)}
+.chs li.lockd{background-image:radial-gradient(#d4d4d0 1px,transparent 1.3px);background-size:6px 6px;color:var(--ink2)}
+.chs li.lockd .st{background:var(--ink);color:var(--white)}
+.q{margin-top:20px;font-weight:900;font-size:15px;line-height:1.5}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.opt{height:50px;border:2px solid var(--ink);background:var(--white);font-weight:900;font-size:16px}
+.opt[aria-pressed="true"]{background:var(--ink);color:var(--white)}
+.thanks{font-size:12px;font-weight:700;color:var(--ink2);margin-top:8px;min-height:1em}
+
+@media (prefers-reduced-motion: reduce){
+  .card .in{animation:none}
+  .cap{transition:none}
+}
+</style>
+
+<div class="wrap"><div class="inner">
+  <!-- ゲーム -->
+  <section id="game" class="screen" hidden>
+    <div class="top">
+      <div class="logo">コマ割りダンジョン<small id="chname">序章</small></div>
+      <div class="pno"><span>P.</span><b id="pno">1</b><span id="pmax">/ 10</span></div>
+      <button class="tocbtn" id="toToc" type="button">目次</button>
+    </div>
+    <div class="cap" id="cap"></div>
+    <div class="stage" id="stage"><canvas id="cv" aria-label="漫画のページ。コマの境界線をドラッグして動かす。吹き出しは相手のいるコマへドラッグして置く"></canvas></div>
+    <div class="card" id="card" hidden><div class="in"><div class="t" id="cardT">脱出！<small id="cardS"></small></div><button id="next" type="button">次のページ</button></div></div>
+    <div class="bottom">
+      <button class="sub" id="quit" type="button">やめる</button>
+      <button class="sub" id="undo" type="button" aria-label="1手戻す"><b class="ic undo"></b>1手戻す</button>
+      <button class="sub" id="reset" type="button" aria-label="最初の配置に戻す"><b class="ic rst"></b>最初から</button>
+      <button class="go" id="go" type="button">進む<i></i></button>
+    </div>
+  </section>
+
+  <!-- 目次 -->
+  <section id="toc" class="screen" hidden>
+    <div class="top">
+      <div class="logo">コマ割りダンジョン<small>目次</small></div>
+    </div>
+    <div class="scroll">
+      <div class="sec chh"><span class="cht">序章<small>はじまりのページ</small></span><span id="tocN1"></span></div>
+      <div class="pages" id="tocPages1"></div>
+      <div class="sec chh"><span class="cht">第2章<small>ふたりと見張り</small></span><span id="tocN2"></span></div>
+      <p class="chlead">主人公がふたりに。見張りの目と、相手に届ける一言。</p>
+      <div class="pages" id="tocPages2"></div>
+      <div class="sec">本編 <span>完全版</span></div>
+      <div class="chap2">
+        <div class="ttl">第3章：風と歯車<small>12ページ</small></div>
+        <p>風がコマを押し、歯車がとなりのコマを回す。</p>
+        <div class="pages" id="tocPaid"></div>
+      </div>
+      <button class="big" id="tocGo" type="button">つづきから</button>
+      <button class="ghost" id="tocEnd" type="button">おわる</button>
+    </div>
+  </section>
+
+  <!-- 終了 -->
+  <section id="end" class="screen" hidden>
+    <div class="top">
+      <div class="logo">コマ割りダンジョン<small id="endSub">序章</small></div>
+    </div>
+    <div class="scroll">
+      <div class="h1" id="endTitle">序章 おわり</div>
+      <div class="score"><b id="endN">0</b><span id="endMax">/ 20 ページ脱出</span></div>
+      <div class="sec">本編 <span id="endSec">全5章・57ページ</span></div>
+      <ul class="chs" id="chs"></ul>
+      <div class="q">有料の完全版があったら、いくらなら買いますか？</div>
+      <div class="opts" id="opts"></div>
+      <div class="thanks" id="thanks"></div>
+      <button class="big" id="again" type="button">もう一度遊ぶ</button>
+      <button class="ghost" id="endToc" type="button">目次へ</button>
+    </div>
+  </section>
+</div></div>
+
+<script id="logic">
+const L = (() => {
+  'use strict';
+  /* ---- ルール ----
+   * ページ = W×H のマス。境界線（縦・横の直線）でコマ A〜D に分かれる。
+   * 各コマは「自分の場面（ページ大のマス目）」を窓として見せる。コマにあるマス＝その窓から見えるマスだけ。
+   *   境界を動かす → あるマスがどのコマの場面を見せるかが変わる（広げると隠れていたマスが現れ、縮めると消える）。
+   * マス: '#' 壁, '.' 床, 'S' 主人公, 'E' 出口, 'F' 火, 'W' 水
+   * 移動: 上下左右。床・出口・消えた火のマスだけ通れる。境界をまたぐ移動も同じ（両側が通れる位置＝扉）。
+   * 水: 見えている水マスが境界に接すると、隣のコマに流れ込み、そのコマの中で（壁と水を除く）つながったマスに広がり、火を消す。
+   *     流れ込んだ水はさらに隣へは流れない。水マス自体は通れない。
+   * 火: 見えている限り燃えていて通れない（隠せば無い）。
+   * 制約: 各コマは縦横 MIN マス以上。主人公のマスは主人公のコマから外れない。
+   *
+   * ---- 第2章で増えるもの ----
+   * 'T' 2人目の主人公：S と T の両方が出口（どれでも・同じでも可）に着けばクリア。T も自分のコマから外れない。
+   * '>' '<' 'v' '^' 見張り：そのマスは通れない。向いている方向へ、見張りのコマの端（見えている範囲の端）まで視線が届く（壁も越える）。
+   *     視線のマスを歩くと見つかって失敗。視線は自分のコマの中だけ。見張りが隠れれば（コマの外）視線も無い。
+   * 'O' 穴：通れない。
+   * 言葉（def.words）：主人公（by:0）かヒロイン（by:1）が持つ一言。相手のいるコマのマスに置く（put[k] = [x, y]）。
+   *     置ける所は言葉ごとに決まっている：ここ！＝穴・水 → 足場（通れる）／しーっ＝見張り → 眠る（視線なし）／わっ！＝見張り → 反対を向く。
+   *     効くのは「声が届いている」間だけ：話し手のコマと相手のコマが境界を接している（辺が1マス以上重なる）こと。
+   *     置いた物は相手のコマの絵に貼られる＝そのマスがコマの外に出たら（窓から見えなくなったら）効かない。
+   *     状態は境界の位置 b と置き場所 put だけで決まる（置いた順番には依らない）。 */
+  const MIN = 2;
+  const GUARD = { '>': [1, 0], '<': [-1, 0], 'v': [0, 1], '^': [0, -1] };
+  const WORDS = {
+    koko: { text: 'ここ！', on: t => t === 'O' || t === 'W' },
+    shh: { text: 'しーっ', on: t => !!GUARD[t] },
+    wa: { text: 'わっ！', on: t => !!GUARD[t] },
+  };
+
+  function panelsOf(node, out = []) {
+    if (typeof node === 'string') { out.push(node); return out; }
+    panelsOf(node[2], out); panelsOf(node[3], out); return out;
+  }
+  function boundariesOf(node, out = []) {
+    if (typeof node === 'string') return out;
+    out.push({ id: node[1], axis: node[0] }); boundariesOf(node[2], out); boundariesOf(node[3], out); return out;
+  }
+
+  function parse(def) {
+    const W = def.w, H = def.h, ids = panelsOf(def.layout).sort();
+    const layers = {}; ids.forEach(id => (layers[id] = []));
+    if (def.rows.length !== H) throw new Error(def.name + ': rows ' + def.rows.length + ' != ' + H);
+    def.rows.forEach((r, y) => {
+      const parts = r.trim().split(/\s+/);
+      if (parts.length !== ids.length) throw new Error(def.name + ': row ' + y + ' needs ' + ids.length + ' parts');
+      ids.forEach((id, i) => { if (parts[i].length !== W) throw new Error(def.name + ': row ' + y + ' ' + id + ' width'); layers[id].push(parts[i]); });
+    });
+    const heroes = [], exits = [];
+    ids.forEach(id => layers[id].forEach((row, y) => [...row].forEach((ch, x) => {
+      if (ch === 'S' || ch === 'T') {
+        const kind = ch === 'S' ? 0 : 1;
+        if (heroes.some(h => h.kind === kind)) throw new Error(def.name + ': two ' + ch);
+        heroes.push({ panel: id, x, y, kind });
+      }
+      if (ch === 'E') exits.push({ panel: id, x, y });
+    })));
+    heroes.sort((p, q) => p.kind - q.kind);
+    if (!heroes.length || heroes[0].kind !== 0) throw new Error(def.name + ': no S');
+    const words = (def.words || []).map(q => {
+      if (!WORDS[q.w] || heroes.length < 2 || (q.by !== 0 && q.by !== 1)) throw new Error(def.name + ': bad word');
+      return { by: q.by, w: q.w, text: WORDS[q.w].text, from: heroes[q.by].panel, to: heroes[1 - q.by].panel };
+    });
+    if (new Set(words.map(q => q.by)).size !== words.length) throw new Error(def.name + ': one word per hero');
+    const bounds = boundariesOf(def.layout).map(b => Object.assign(b, { fixed: (def.fixed || []).includes(b.id) }));
+    const lv = { name: def.name, hint: def.hint || '', ch: def.ch || 1, W, H, layout: def.layout, ids, layers,
+      hero: heroes[0], heroes, exits, words, bounds, init: Object.assign({}, def.b) };
+    lv.targets = words.map((q, k) => targets(lv, k));
+    return lv;
+  }
+
+  /* 言葉 k を置ける（効く絵がある）マス：相手のコマの場面の中で、言葉に合う所 */
+  function targets(lv, k) {
+    const q = lv.words[k], out = [];
+    lv.layers[q.to].forEach((row, y) => [...row].forEach((t, x) => { if (WORDS[q.w].on(t)) out.push([x, y]); }));
+    return out;
+  }
+  /* 2つのコマが境界を接しているか（辺が1マス以上重なる）。同じコマなら届く */
+  function touching(r, s) {
+    if (r === s) return true;
+    const oy = Math.min(r.y1, s.y1) - Math.max(r.y0, s.y0), ox = Math.min(r.x1, s.x1) - Math.max(r.x0, s.x0);
+    return ((r.x1 === s.x0 || s.x1 === r.x0) && oy > 0) || ((r.y1 === s.y0 || s.y1 === r.y0) && ox > 0);
+  }
+  const inRect = (r, x, y) => x >= r.x0 && x < r.x1 && y >= r.y0 && y < r.y1;
+  const samePut = (p, q) => (!p && !q) || (!!p && !!q && p[0] === q[0] && p[1] === q[1]);
+  /* 今の配置で、言葉 k の声が相手に届くか／(x, y) に置いて効くか */
+  function reaches(lv, b, k) { const { rects } = geometry(lv, b), q = lv.words[k]; return touching(rects[q.from], rects[q.to]); }
+  function canPut(lv, b, k, x, y) {
+    const { rects } = geometry(lv, b), q = lv.words[k];
+    return touching(rects[q.from], rects[q.to]) && inRect(rects[q.to], x, y) && WORDS[q.w].on(lv.layers[q.to][y][x]);
+  }
+
+  /* コマの矩形と境界線の線分 */
+  function geometry(lv, b) {
+    const rects = {}, segs = {};
+    (function rec(node, x0, y0, x1, y1) {
+      if (typeof node === 'string') { rects[node] = { x0, y0, x1, y1 }; return; }
+      const [axis, id, a, c] = node, p = b[id];
+      if (axis === 'h') { segs[id] = { id, axis, pos: p, from: x0, to: x1, lo: y0, hi: y1 }; rec(a, x0, y0, x1, p); rec(c, x0, p, x1, y1); }
+      else { segs[id] = { id, axis, pos: p, from: y0, to: y1, lo: x0, hi: x1 }; rec(a, x0, y0, p, y1); rec(c, p, y0, x1, y1); }
+    })(lv.layout, 0, 0, lv.W, lv.H);
+    return { rects, segs };
+  }
+
+  function valid(lv, b) {
+    const { rects } = geometry(lv, b);
+    for (const id of lv.ids) {
+      const r = rects[id];
+      if (r.x1 - r.x0 < MIN || r.y1 - r.y0 < MIN) return false;
+    }
+    for (const h of lv.heroes) {
+      const r = rects[h.panel];
+      if (!(h.x >= r.x0 && h.x < r.x1 && h.y >= r.y0 && h.y < r.y1)) return false;
+    }
+    return true;
+  }
+
+  /* 他の境界を固定したときに、この境界が取れる範囲（連続） */
+  function range(lv, b, id) {
+    const bd = lv.bounds.find(q => q.id === id), max = bd.axis === 'h' ? lv.H : lv.W;
+    const cur = b[id]; let lo = cur, hi = cur;
+    const ok = v => valid(lv, Object.assign({}, b, { [id]: v }));
+    while (lo - 1 >= 1 && ok(lo - 1)) lo--;
+    while (hi + 1 <= max - 1 && ok(hi + 1)) hi++;
+    return [lo, hi];
+  }
+
+  const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  /* 現在の配置で見えている世界を組み立てる */
+  function compose(lv, b, put = b.put, relax = false) {
+    const { W, H } = lv, { rects, segs } = geometry(lv, b);
+    const owner = [], base = [];
+    for (let y = 0; y < H; y++) { owner.push([]); base.push([]); }
+    for (const id of lv.ids) {
+      const r = rects[id];
+      for (let y = r.y0; y < r.y1; y++) for (let x = r.x0; x < r.x1; x++) { owner[y][x] = id; base[y][x] = lv.layers[id][y][x]; }
+    }
+    // 言葉：声が届いていて、置いたマスが相手のコマの窓の中なら効く
+    const sleep = new Set(), flip = new Set();
+    const words = lv.words.map((q, k) => {
+      const p = put && put[k];
+      const reach = touching(rects[q.from], rects[q.to]);
+      if (!p) return { k, put: null, reach, inWin: false, on: false };
+      const [x, y] = p, inWin = inRect(rects[q.to], x, y), on = reach && inWin && WORDS[q.w].on(lv.layers[q.to][y][x]);
+      if (on) { if (q.w === 'koko') base[y][x] = 'P'; else if (q.w === 'shh') sleep.add(y * W + x); else flip.add(y * W + x); }
+      return { k, put: p, reach, inWin, on };
+    });
+    // relax（ソルバーの枝刈り用）：届いている言葉が、置ける所すべてに同時に効いたとみなす（見張りは眠る＝一番ゆるい）
+    if (relax) lv.words.forEach((q, k) => {
+      if (!touching(rects[q.from], rects[q.to])) return;
+      for (const [x, y] of lv.targets[k]) if (inRect(rects[q.to], x, y)) { if (q.w === 'koko') base[y][x] = 'P'; else sleep.add(y * W + x); }
+    });
+    const wet = base.map(row => row.map(() => false)), contacts = [];
+    const inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+    const dry = t => t === '#' || t === 'W' || t === 'O' || GUARD[t];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (base[y][x] !== 'W') continue;
+      for (const [dx, dy] of D4) {
+        const nx = x + dx, ny = y + dy;
+        if (!inb(nx, ny) || owner[ny][nx] === owner[y][x]) continue;
+        if (dry(base[ny][nx])) continue;
+        contacts.push({ x, y, nx, ny });
+        const q = owner[ny][nx], st = [[nx, ny]];
+        if (wet[ny][nx]) continue;
+        wet[ny][nx] = true;
+        while (st.length) {
+          const [cx, cy] = st.pop();
+          for (const [ex, ey] of D4) {
+            const mx = cx + ex, my = cy + ey;
+            if (!inb(mx, my) || owner[my][mx] !== q || wet[my][mx]) continue;
+            if (dry(base[my][mx])) continue;
+            wet[my][mx] = true; st.push([mx, my]);
+          }
+        }
+      }
+    }
+    // 見張りの視線：向いている方向へ、自分のコマの端まで
+    const sight = base.map(row => row.map(() => false)), guards = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let d = GUARD[base[y][x]]; if (!d) continue;
+      const asleep = sleep.has(y * W + x), turned = flip.has(y * W + x);
+      if (turned) d = [-d[0], -d[1]];
+      const r = rects[owner[y][x]]; let cx = x + d[0], cy = y + d[1], len = 0;
+      while (!asleep && cx >= r.x0 && cx < r.x1 && cy >= r.y0 && cy < r.y1) { sight[cy][cx] = true; len++; cx += d[0]; cy += d[1]; }
+      guards.push({ x, y, dx: d[0], dy: d[1], len, panel: owner[y][x], asleep, turned });
+    }
+    const pass = base.map((row, y) => row.map((t, x) => t === '.' || t === 'S' || t === 'T' || t === 'E' || t === 'P' || (t === 'F' && wet[y][x])));
+    const heroes = lv.heroes.map(h => ({ x: h.x, y: h.y, kind: h.kind }));
+    return { W, H, rects, segs, owner, base, wet, pass, contacts, words, sight, guards, heroes, hero: heroes[0] };
+  }
+
+  /* 主人公 hi から歩ける範囲。safe なら視線のマスを通らない（立っている所が視線の中なら一歩も動けない） */
+  function reach(world, hi = 0, safe = true) {
+    const { W, H, pass, sight } = world, hero = world.heroes[hi];
+    const dist = pass.map(r => r.map(() => -1)), prev = pass.map(r => r.map(() => null));
+    dist[hero.y][hero.x] = 0; const q = [[hero.x, hero.y]];
+    const spotted = sight[hero.y][hero.x];
+    if (safe && spotted) return { dist, prev, exit: null, count: 1, spotted };
+    for (let i = 0; i < q.length; i++) {
+      const [x, y] = q[i];
+      for (const [dx, dy] of D4) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || dist[ny][nx] >= 0 || !pass[ny][nx] || (safe && sight[ny][nx])) continue;
+        dist[ny][nx] = dist[y][x] + 1; prev[ny][nx] = [x, y]; q.push([nx, ny]);
+      }
+    }
+    let exit = null;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+      if (world.base[y][x] === 'E' && dist[y][x] >= 0 && (!exit || dist[y][x] < dist[exit[1]][exit[0]])) exit = [x, y];
+    return { dist, prev, exit, count: q.length, spotted };
+  }
+
+  function pathTo(r, tx, ty) {
+    const out = []; let c = [tx, ty];
+    while (c) { out.unshift(c); c = r.prev[c[1]][c[0]]; }
+    return out;
+  }
+
+  /* 1人ぶんの「進む」：見つからずに出口へ → その道。見つかる道しか無い → 視線に入った所で止まる。どちらも無い → 出口に一番近い所まで */
+  function planHero(w, hi) {
+    const h = w.heroes[hi];
+    if (w.sight[h.y][h.x]) return { win: false, caught: true, path: [[h.x, h.y]] };
+    const r = reach(w, hi, true);
+    if (r.exit) return { win: true, caught: false, path: pathTo(r, r.exit[0], r.exit[1]) };
+    const u = reach(w, hi, false);
+    if (u.exit) {
+      const p = pathTo(u, u.exit[0], u.exit[1]), k = p.findIndex(([x, y]) => w.sight[y][x]);
+      return { win: false, caught: true, path: p.slice(0, k + 1) };
+    }
+    const targets = w.base.flatMap((row, y) => row.map((t, x) => (t === 'E' ? [x, y] : null))).filter(Boolean);
+    const goals = targets.length ? targets : [[h.x, h.y]];
+    let best = [h.x, h.y], bd = Infinity, bl = 0;
+    for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) {
+      if (r.dist[y][x] < 0) continue;
+      const d = Math.min(...goals.map(([gx, gy]) => Math.abs(gx - x) + Math.abs(gy - y)));
+      if (d < bd || (d === bd && r.dist[y][x] < bl)) { bd = d; bl = r.dist[y][x]; best = [x, y]; }
+    }
+    return { win: false, caught: false, path: pathTo(r, best[0], best[1]) };
+  }
+
+  /* 「進む」：全員ぶん。path は1人目（序章との互換） */
+  function plan(lv, b) {
+    const w = compose(lv, b), res = w.heroes.map((_, i) => planHero(w, i));
+    return { win: res.every(r => r.win), path: res[0].path, paths: res.map(r => r.path), res, world: w };
+  }
+
+  function isWin(lv, b) {
+    const w = compose(lv, b);
+    return w.heroes.every((_, i) => !!reach(w, i, true).exit);
+  }
+
+  /* ソルバー：動かせる境界の位置を総当たり × 言葉の置き場所（その配置で効くマス＋置かない）を総当たり
+   * total = 境界の配置の数、combos = 境界の配置 × 置き方 の数。言葉のある問題の解は put を持つ */
+  function solve(lv) {
+    const free = lv.bounds.filter(q => !q.fixed), wins = []; let total = 0, combos = 0;
+    const max = q => (q.axis === 'h' ? lv.H : lv.W) - 1;
+    (function rec(i, b) {
+      if (i === free.length) {
+        if (!valid(lv, b)) return; total++;
+        if (!lv.words.length) { combos++; if (isWin(lv, b)) wins.push(Object.assign({}, b)); return; }
+        // 枝刈り：どの置き方でも届かない（一番ゆるく見ても出口に着けない）配置は、置き方を数えるだけにする
+        const { rects } = geometry(lv, b), wr = compose(lv, b, null, true), hopeless = !wr.heroes.every((_, i) => !!reach(wr, i, true).exit);
+        const opts = lv.words.map((q, k) => [null].concat(touching(rects[q.from], rects[q.to]) ? lv.targets[k].filter(([x, y]) => inRect(rects[q.to], x, y)) : []));
+        (function each(k, put) {
+          if (k === opts.length) { combos++; if (hopeless) return; const s = Object.assign({}, b, { put }); if (isWin(lv, s)) wins.push(s); return; }
+          for (const o of opts[k]) each(k + 1, put.concat([o]));
+        })(0, []);
+        return;
+      }
+      const q = free[i];
+      for (let v = 1; v <= max(q); v++) rec(i + 1, Object.assign({}, b, { [q.id]: v }));
+    })(0, Object.assign({}, lv.init));
+    return { total, combos, wins };
+  }
+
+  /* ヒント：今の配置に一番近い解を選び、そこへ向けて今すぐ動かせる境界を1本返す。
+   * 境界がそろっていて言葉の置き場所だけ違うなら { word: k, to: [x, y] | null } を返す */
+  function hint(lv, b, wins) {
+    const free = lv.bounds.filter(q => !q.fixed);
+    const putOf = (s, k) => (s.put && s.put[k]) || null;
+    let best = null, bs = Infinity;
+    for (const w of wins) {
+      let n = 0, d = 0;
+      for (const q of free) if (w[q.id] !== b[q.id]) { n++; d += Math.abs(w[q.id] - b[q.id]); }
+      lv.words.forEach((_, k) => { if (!samePut(putOf(w, k), putOf(b, k))) n++; });
+      if (n * 100 + d < bs) { bs = n * 100 + d; best = w; }
+    }
+    if (!best || bs === 0) return null;
+    if (free.every(q => best[q.id] === b[q.id])) {
+      const k = lv.words.findIndex((_, k) => !samePut(putOf(best, k), putOf(b, k)));
+      return { word: k, to: putOf(best, k) };
+    }
+    let fallback = null;
+    for (const q of free) {
+      if (best[q.id] === b[q.id]) continue;
+      const dir = Math.sign(best[q.id] - b[q.id]), [lo, hi] = range(lv, b, q.id);
+      const h = { id: q.id, dir, to: best[q.id] };
+      if ((dir > 0 && hi > b[q.id]) || (dir < 0 && lo < b[q.id])) return h;
+      fallback = fallback || h;
+    }
+    return fallback;
+  }
+
+  /* ---- 問題 ---- 各行は、コマ（A B C …の順）の場面を並べたもの */
+  const HV = ['h', 'h', ['v', 'vt', 'A', 'B'], ['v', 'vb', 'C', 'D']];
+  const VH = ['v', 'v', ['h', 'hl', 'A', 'C'], ['h', 'hr', 'B', 'D']];
+  const L3 = ['h', 'h', ['v', 'vt', 'A', 'B'], 'C'];                                                     // 上2・下1
+  const R3 = ['h', 'h1', ['v', 'va', 'A', 'B'], ['h', 'h2', 'C', ['v', 'vc', 'D', 'E']]];                 // 3段・5コマ
+  const F5 = ['h', 'h', ['v', 'v1', 'A', ['v', 'v2', 'B', 'C']], ['v', 'vb', 'D', 'E']];                  // 上3・下2
+  const S6 = ['h', 'h1', ['v', 'va', 'A', 'B'], ['h', 'h2', ['v', 'vb', 'C', 'D'], ['v', 'vc', 'E', 'F']]]; // 3段・6コマ
+  const V6 = ['v', 'v', ['h', 'l1', 'A', ['h', 'l2', 'C', 'E']], ['h', 'r1', 'B', ['h', 'r2', 'D', 'F']]];  // 左右で段がずれる6コマ
+  const LEVELS_DEF = [
+  { name: '1', hint: '線を、ずらす', w: 6, h: 8, layout: HV, b: { h: 4, vt: 3, vb: 2 }, fixed: ['h', 'vt'], rows: [
+    '###### ###### ###### ######',
+    '#S.### ####.. ###### ######',
+    '##.### ####.# ###### ######',
+    '##.### ###### ###### ######',
+    '###### ###### ##.### ######',
+    '###### ###### ##..## ####..',
+    '###### ###### ###### #####.',
+    '###### ###### ###### #####E',
+  ]},
+  { name: '2', hint: '広げれば、見える', w: 7, h: 9, layout: HV, b: { h: 4, vt: 3, vb: 3 }, fixed: ['vb'], rows: [
+    '####### ####### ####### #######',
+    '#S...## ###...# ####### #######',
+    '####.## ###.#.# ####### #######',
+    '####.## ###...# ####### #######',
+    '####.## ####### ####### #######',
+    '####.## ####### #...### ###...#',
+    '####E## ####### #.#.### ###.#.#',
+    '####### ####### #...### ###...#',
+    '####### ####### ####### #######',
+  ]},
+  { name: '3', hint: '見えない火は、燃えない', w: 7, h: 9, layout: HV, b: { h: 5, vt: 3, vb: 4 }, fixed: ['h', 'vb'], rows: [
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '#S...## ##FFF.E ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### #.....# #.....#',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+  ]},
+  { name: '4', hint: '水は、となりのコマへ', w: 7, h: 10, layout: HV, b: { h: 6, vt: 3, vb: 3 }, fixed: ['vt', 'vb'], rows: [
+    '####### ####### ####### #######',
+    '#S.#### ###.F.E ####### #######',
+    '####### ####.## ####### #######',
+    '####### ####.## ####### ##WWW##',
+    '####### ####### ####### ##WWW##',
+    '####### ####### ####### ##WWW##',
+    '####### ####### ####### #WWWWW#',
+    '####### ####### ####### #WWWWW#',
+    '####### ####### ####### #WWWWW#',
+    '####### ####### ####### #######',
+  ]},
+  { name: '5', hint: '隠して、つなぐ', w: 7, h: 10, layout: HV, b: { h: 4, vt: 4, vb: 2 }, fixed: ['vt'], rows: [
+    '####### ####### ####### #######',
+    '#S##### ####### ####### #######',
+    '#.##### ####..# ####### #######',
+    '#.##### ####.## ####### #######',
+    '#.##### ####..# ####### #######',
+    '#.##### ####### #F##### #######',
+    '####### ####### #....## ##FF.##',
+    '####### ####### ####### ####.##',
+    '####### ####### ####### ####E##',
+    '####### ####### ####### #######',
+  ]},
+  { name: '6', hint: '水を、ちょうどそこへ', w: 7, h: 10, layout: HV, b: { h: 7, vt: 4, vb: 3 }, fixed: ['vb'], rows: [
+    '####### ####### ####### #######',
+    '#S##### ####### ####### #######',
+    '#.##### ####### ####### #######',
+    '#.##### ####### ####### #######',
+    '#...### ###.F.E ####### #######',
+    '####### ####### ####### ###W###',
+    '####### ####### ####### ###WWW#',
+    '####### ####### ####### ###WWW#',
+    '####### ####### ####### ###WWW#',
+    '####### ####### ####### #######',
+  ]},
+  { name: '7', hint: '狭いほうが、いい時もある', w: 7, h: 10, layout: VH, b: { v: 4, hl: 5, hr: 6 }, fixed: ['hr'], rows: [
+    '####### ####### ####### #######',
+    '#.E#### ####### ####### #######',
+    '#.##### ##WWWW# ####### #######',
+    '#F.#### ##WWWW# ####### #######',
+    '#.##### ##WWWW# ####### #######',
+    '#.##### ####### #.##### #######',
+    '####### ####### #.##### #######',
+    '####### ####### #.##### ####..#',
+    '####### ####### #.S#### ####..#',
+    '####### ####### ####### #######',
+  ]},
+  { name: '8', hint: '広すぎると、届かない', w: 7, h: 10, layout: HV, b: { h: 6, vt: 4, vb: 5 }, rows: [
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '#S..### ###.FFE ####### #######',
+    '####### ####### ####### ###W###',
+    '####### ####### ####### ##WWWW#',
+    '####### ####### ####### ##WWWW#',
+    '####### ####### ####### ##WWWW#',
+    '####### ####### ####### ##WWWW#',
+    '####### ####### ####### #######',
+  ]},
+  { name: '9', hint: '水は、どこかに隠れている', w: 7, h: 10, layout: VH, b: { v: 3, hl: 7, hr: 7 }, rows: [
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### ####W## #######',
+    '#S...## ####F.# ####W## #######',
+    '####### #####.# ####W## #####.#',
+    '####### ####### ####W## #####.#',
+    '####### ####### ####### #####F#',
+    '####### ####### ####### #####.#',
+    '####### ####### ####### #####E#',
+    '####### ####### ####### #######',
+  ]},
+  { name: '10', hint: '最後のページ', w: 7, h: 10, layout: HV, b: { h: 4, vt: 2, vb: 5 }, rows: [
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '#...### ####.FE ####### #######',
+    '#.##### ####.## ####### #######',
+    '#.##### ####.## ####### #######',
+    '#.##### ####.## #F##### #######',
+    '####### ####### #.##### ####W##',
+    '####### ####### #.##### ####W##',
+    '####### ####### #..S### ####W##',
+    '####### ####### ####### ####W##',
+  ]},
+  /* ---- 第2章「ふたりと見張り」 ---- */
+  { name: '11', ch: 2, hint: 'ふたりで、わけあう', w: 7, h: 9, layout: L3, b: { h: 5, vt: 2 }, fixed: ['h'], rows: [
+    '####### ####### #######',
+    '#S..### ####.T# #######',
+    '###.### ####.## #######',
+    '###.### ####.## #######',
+    '###.### ####.## #######',
+    '####### ####### ###..##',
+    '####### ####### ###E###',
+    '####### ####### #######',
+    '####### ####### #######',
+  ]},
+  { name: '12', ch: 2, hint: '見張りの目は、コマの端まで', w: 7, h: 10, layout: VH, b: { v: 3, hl: 6, hr: 8 }, fixed: ['v', 'hl'], rows: [
+    '####### ####### ####### #######',
+    '#S##### #####v# ####### #######',
+    '#.##### ####### ####### #######',
+    '#.##### ####### ####### #######',
+    '#..#### ###...E ####### ###...E',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+    '####### ####### ####### #######',
+  ]},
+  { name: '13', ch: 2, hint: '声は、となりのコマへ', w: 8, h: 9, layout: HV, b: { h: 5, vt: 3, vb: 4 }, fixed: ['h', 'vt'],
+    words: [{ by: 0, w: 'koko' }], rows: [
+    '######## ######## ######## ########',
+    '######## ######## ######## ########',
+    '#S.##### ######## ######## ########',
+    '##E##### ######## ######## ########',
+    '######## ######## ######## ########',
+    '######## ######## ######## ########',
+    '######## ######## ######## ####T.OE',
+    '######## ######## ######## ########',
+    '######## ######## ######## ########',
+  ]},
+  { name: '14', ch: 2, hint: 'ふたりと、ひとつの目', w: 7, h: 10, layout: HV, b: { h: 7, vt: 2, vb: 2 }, rows: [
+    '####### ####### ####### #######',
+    '#S..### #####T# ####### #######',
+    '###.### #####.# ####### #######',
+    '##..### #####.# ####### #######',
+    '##.#### ####..# ##.#### ####.##',
+    '##.#### ####.#< ##.#### ####.##',
+    '####### ####### ##.#### ####.##',
+    '####### ####### ##..### ####.##',
+    '####### ####### ###E### ####E##',
+    '####### ####### ####### #######',
+  ]},
+  { name: '15', ch: 2, hint: 'しーっ、で眠らせる', w: 8, h: 10, layout: VH, b: { v: 4, hl: 6, hr: 4 }, fixed: ['v'],
+    words: [{ by: 1, w: 'shh' }], rows: [
+    '######## ######## ######## ########',
+    '######## #####T## ######## ########',
+    '######## #####.## ######## ########',
+    '######## #####.## ######## ########',
+    '######## #####.## ######## ########',
+    '######## #####E## ##E##### ########',
+    '######## #####^## >...#### ########',
+    '######## ######## ##.##### ########',
+    '######## ######## ##S##### ########',
+    '######## ######## ######## ########',
+  ]},
+  { name: '16', ch: 2, hint: 'わっ！で、ふりむかせる', w: 8, h: 10, layout: HV, b: { h: 6, vt: 5, vb: 2 }, fixed: ['h'],
+    words: [{ by: 0, w: 'wa' }], rows: [
+    '######## ######## ######## ########',
+    '######## ###....T ######## ########',
+    '######## ###.#### ######## ########',
+    '######## ###.#^## ######## ########',
+    '######## ###E#### ######## ########',
+    '######## ######## ######## ########',
+    '######## ######## ######## ########',
+    '######## ######## #S..#<## ########',
+    '######## ######## ###E#### ########',
+    '######## ######## ######## ########',
+  ]},
+  { name: '17', ch: 2, hint: 'ふたつの目', w: 8, h: 11, layout: S6, b: { h1: 4, va: 3, h2: 6, vb: 2, vc: 6 }, rows: [
+    '######## ######## ######## ######## ######## ########',
+    '#S...### #####.T# ######## ######## ######## ########',
+    '>###.### #####.#< ####..## ####..## ######## ########',
+    '####.### #####.## ####..## ####..## ######## ########',
+    '######## ######## >####.## #####.## ######## ########',
+    '######## ######## ####..## ####..## ######## ########',
+    '######## ######## ####.### ####.##< ######## ########',
+    '######## ######## ####.### ####.### ######## ########',
+    '######## ######## ######## ######## ##.##### ###..###',
+    '######## ######## ######## ######## ##.##### ########',
+    '######## ######## ######## ######## ##E##### ########',
+  ]},
+  { name: '18', ch: 2, hint: 'ふたりの声', w: 8, h: 10, layout: F5, b: { h: 6, v1: 2, v2: 4, vb: 5 },
+    words: [{ by: 0, w: 'koko' }, { by: 1, w: 'shh' }], rows: [
+    '######## ######## ######## ######## ########',
+    '#S..<### ######## ######## ######## ########',
+    '#.###### ######## ######## ######## ########',
+    '>.###### ######## ######## ######## ########',
+    '#..E#### ######## ######## ######## ########',
+    '######## ######## ######## ######## ########',
+    '######## ######## ######## ######## #######T',
+    '######## ######## ######## ######## ###.O...',
+    '######## ######## ######## ######## ##>.####',
+    '######## ######## ######## ######## ###E####',
+  ]},
+  { name: '19', ch: 2, hint: '広げたら、目が', w: 8, h: 11, layout: S6, b: { h1: 4, va: 3, h2: 8, vb: 6, vc: 3 },
+    words: [{ by: 0, w: 'wa' }, { by: 1, w: 'shh' }], rows: [
+    '###v#### ######## ######## ######## ######## ########',
+    '#S...E## ######## ######## ######## ######## ########',
+    '######## ######## ######## #######v ######## ########',
+    '##^##### ######## ######## ######## ######## ########',
+    '######## ######## ######## #######T ######## ########',
+    '######## ######## ######## #####>.. ######## ########',
+    '######## ######## ######## ###>##.. ######## ########',
+    '######## ######## ######## ######.# ######## ########',
+    '######## ######## ######## ######## ######## ######.#',
+    '######## ######## ######## ######## ######## ####>#.#',
+    '######## ######## ######## ######## ######## ######E#',
+  ]},
+  { name: '20', ch: 2, hint: '最後の見開き', w: 8, h: 11, layout: V6, b: { v: 5, l1: 4, l2: 8, r1: 5, r2: 7 },
+    words: [{ by: 0, w: 'koko' }, { by: 1, w: 'wa' }], rows: [
+    '######## ######## ######## ######## ######## ########',
+    '#S###### ######## ######## ######## ######## ########',
+    '#.###### ######## ######## ######## ######## ########',
+    '#.###### ######## ######## ######## ######## ########',
+    '#.#..E## ######## ######## ######## ######## ###..E##',
+    '#.<.#### ######## ######## ######## ######## ###.#O##',
+    '#...#### ######## ######## ######## ######## ###.#.##',
+    '######## ######## ######## ######## ######## #####.##',
+    '######## ######## ######## ######## ######## #####..#',
+    '######## ######## ######## ######## ######## ######T#',
+    '######## ######## ######## ######## ######## ########',
+  ]},
+  ];
+
+  const LEVELS = () => LEVELS_DEF.map(parse);
+  const CHAPTERS = [
+    { key: 'ch1', title: '序章', sub: 'はじまりのページ', from: 0, n: 10 },
+    { key: 'ch2', title: '第2章', sub: 'ふたりと見張り', from: 10, n: 10 },
+  ];
+  return { MIN, GUARD, WORDS, HV, VH, L3, R3, F5, S6, V6, CHAPTERS, parse, targets, touching, reaches, canPut, samePut, geometry, valid, range, compose, reach, pathTo, plan, isWin, solve, hint, LEVELS_DEF, LEVELS };
+})();
+if (typeof module !== 'undefined') module.exports = L;
+</script>
+
+<script>
+/* ===== 計測（db があればそこへ、無ければ localStorage だけ） ===== */
+const M = (() => {
+  const KEY = 'komawari.metrics.v1';
+  const DEF = () => ({ firstPlayAt: null, updatedAt: null, sessions: 0, runsStarted: 0, runsCompleted: 0, firstRunCleared: false, replayed: false, priceAnswer: null, bestScore: 0, tutorialStuck: false, pagesCleared: 0, stuckPage: null, totalDrags: 0, ch2Cleared: 0 });
+  let m = DEF();
+  try { const raw = localStorage.getItem(KEY); if (raw) m = Object.assign(DEF(), JSON.parse(raw)); } catch (e) {}
+  const ops = []; let ref = null, ready = false, inflight = false, again = false, timer = 0;
+  const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(m)); } catch (e) {} };
+  function write() {
+    clearTimeout(timer); timer = 0;
+    if (!ref) return;
+    if (inflight) { again = true; return; }
+    inflight = true;
+    Promise.resolve().then(() => ref.set(Object.assign({}, m))).catch(() => {}).finally(() => { inflight = false; if (again) { again = false; write(); } });
+  }
+  // lazy: ドラッグ回数のように連続して変わるものは、間が空いてから1回だけ書く
+  function apply(op, lazy) {
+    const before = JSON.stringify(m);
+    op(m); if (!m.firstPlayAt) m.firstPlayAt = new Date().toISOString();
+    if (JSON.stringify(m) === before) return;
+    m.updatedAt = new Date().toISOString();
+    saveLocal();
+    if (!ready) { ops.push(op); return; }
+    if (lazy) { clearTimeout(timer); timer = setTimeout(write, 1500); } else write();
+  }
+  function flush() { if (timer) write(); }
+  async function init() {
+    try {
+      const c = window.claude; if (!c || !c.use) return;
+      const [db, user] = await Promise.all([c.use('db'), c.use('user')]);
+      if (!db || !user) return;
+      const id = await user.id(); if (!id) return;
+      const r = db.doc('plays/' + id);
+      let base = null;
+      try { const snap = await r.get(); base = snap.exists ? snap.data() : null; } catch (e) { return; }
+      const nm = Object.assign(DEF(), base || {});
+      if (!nm.firstPlayAt) nm.firstPlayAt = m.firstPlayAt || new Date().toISOString();
+      ops.forEach(o => o(nm)); ops.length = 0;
+      nm.updatedAt = new Date().toISOString();
+      m = nm; ref = r; ready = true; saveLocal(); write();
+    } catch (e) {}
+  }
+  return { apply, init, flush, get: () => m };
+})();
+
+/* ===== 画面 ===== */
+(() => {
+  const $ = s => document.querySelector(s);
+  const LV = L.LEVELS(), N = LV.length, CH = L.CHAPTERS;
+  const chOf = i => CH.findIndex(c => i >= c.from && i < c.from + c.n);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const css = getComputedStyle(document.documentElement);
+  const T = n => css.getPropertyValue('--' + n).trim();
+  const COL = { paper: T('paper'), paper2: T('paper2'), ink: T('ink'), ink2: T('ink2'), ink3: T('ink3'), line: T('floor-line'), tone: T('tone'), guide: T('guide'),
+    water: T('water'), waterLt: T('water-lt'), waterInk: T('water-ink'), fire: T('fire'), fireLt: T('fire-lt'), fireInk: T('fire-ink'), white: T('white'),
+    koko: T('koko'), kokoLt: T('koko-lt'), kokoInk: T('koko-ink'), shh: T('shh'), shhLt: T('shh-lt'), shhInk: T('shh-ink') };
+  // 言葉の見た目：形（ふつう＝なめらかな楕円／ささやき＝点線／叫び＝ギザギザ）と色
+  const WSTY = {
+    koko: { shape: 'round', col: COL.koko, lt: COL.kokoLt, ink: COL.kokoInk },
+    shh: { shape: 'dot', col: COL.shh, lt: COL.shhLt, ink: COL.shhInk },
+    wa: { shape: 'burst', col: COL.fire, lt: COL.fireLt, ink: COL.fireInk },
+  };
+  const SFX = T('sfx'), SANS = T('sans');
+  // テスト用の窓口は ?test=1 のときだけ
+  const TEST = (() => { try { return new URLSearchParams(location.search).get('test') === '1'; } catch (e) { return false; } })();
+
+  /* ---- 進み具合（ローカル）：通し番号 0〜19 ---- */
+  const PKEY = 'komawari.progress.v1';
+  let prog = { cleared: [], ptime: {} };
+  try { const r = localStorage.getItem(PKEY); if (r) prog = Object.assign(prog, JSON.parse(r)); } catch (e) {}
+  const saveProg = () => { try { localStorage.setItem(PKEY, JSON.stringify(prog)); } catch (e) {} };
+  const cleared = new Set(prog.cleared.filter(i => i >= 0 && i < N));
+  const nextPage = () => { for (let i = 0; i < N; i++) if (!cleared.has(i)) return i; return 0; };
+  // 各章の1ページ目はいつでも選べる。それ以外は1つ前を解くと開く
+  const unlocked = i => CH.some(c => c.from === i) || cleared.has(i) || cleared.has(i - 1);
+  const ch2Count = () => [...cleared].filter(i => i >= CH[1].from).length;
+
+  /* ---- 計測：開いた回数・最初の画面で止まっていないか ---- */
+  const openedAt = Date.now();
+  const firstSession = M.get().sessions === 0 && !prog.cleared.length;
+  M.apply(m => { m.sessions++; });
+  let anyInput = false, stuckTimer = 0;
+  addEventListener('pointerdown', () => { anyInput = true; clearTimeout(stuckTimer); }, { capture: true });
+
+  /* ---- 状態 ---- */
+  let li = 0, lv = LV[0], b = {}, world = null, rch = [];
+  let drag = null, slide = null, dragFade = 0, busy = false, walk = null, win = null, fail = null;
+  let pops = [], doorKeys = new Set(), exitWasReach = [], touched = false, hist = [];
+  let pageEnter = 0, runActive = false;
+  let wdrag = null, morph = null, wordOn = [];   // 言葉のドラッグ中／置いた瞬間の変身／効いているか（前回）
+  let hintAt = 0, hintOn = false, hint = null;
+  const solCache = {};
+  let heroPos = [], heroDir = [];
+
+  /* ---- 画面切り替え ---- */
+  const screens = { game: $('#game'), toc: $('#toc'), end: $('#end') };
+  function show(name) {
+    for (const k in screens) screens[k].hidden = k !== name;
+    if (name === 'game') { sizeCanvas(); loop(); }
+  }
+
+  /* ---- 1ページ始める ---- */
+  function startPage(i, fromRun) {
+    stopPageTimer();
+    li = i; lv = LV[i]; b = Object.assign({}, lv.init);
+    walk = win = fail = null; busy = false; drag = slide = null; wdrag = morph = null; pops = []; touched = false; hist = [];
+    heroPos = lv.heroes.map(() => null); heroDir = lv.heroes.map(() => 1);
+    hintOn = false; hint = null; hintAt = performance.now() + 30000;
+    exitWasReach = lv.heroes.map(() => false); wordOn = lv.words.map(() => false);
+    const c = CH[chOf(i)];
+    $('#card').hidden = true; $('#go').disabled = false;
+    $('#chname').textContent = c.title;
+    $('#pno').textContent = i - c.from + 1; $('#pmax').textContent = '/ ' + c.n;
+    $('#cap').textContent = lv.hint;
+    recompute(true); syncButtons();
+    show('game');
+    pageEnter = performance.now();
+    if (fromRun) {
+      runActive = true;
+      M.apply(m => { if (i === 0 && m.runsStarted >= 1) m.replayed = true; m.runsStarted++; });
+    }
+    if (i === 0 && firstSession && !anyInput && !stuckTimer) {
+      stuckTimer = setTimeout(() => { if (!anyInput) M.apply(m => { m.tutorialStuck = true; }); }, 30000);
+    }
+  }
+
+  /* 詰まった時間：まだ解いていないページに居た時間を足し、最長のページ（通し番号）を stuckPage に */
+  function stopPageTimer() {
+    if (!pageEnter) return;
+    const dt = performance.now() - pageEnter; pageEnter = 0;
+    if (cleared.has(li)) return;
+    const k = String(li + 1);
+    prog.ptime[k] = Math.round((prog.ptime[k] || 0) + dt); saveProg();
+    let best = null, bv = 0;
+    for (const p in prog.ptime) if (prog.ptime[p] > bv) { bv = prog.ptime[p]; best = +p; }
+    if (best != null) M.apply(m => { m.stuckPage = best; }, true);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (!screens.game.hidden && !win) stopPageTimer(); M.flush(); }
+    else if (!screens.game.hidden && !win && !pageEnter) pageEnter = performance.now();
+  });
+  addEventListener('pagehide', () => M.flush());
+
+  /* ---- 世界の再計算と、変化の効果音 ---- */
+  function recompute(silent) {
+    world = L.compose(lv, b); rch = world.heroes.map((_, i) => L.reach(world, i, true));
+    const keys = new Set(), list = [];
+    for (const s of Object.values(world.segs)) {
+      for (let t = s.from; t < s.to; t++) {
+        const [ax, ay, bx, by] = s.axis === 'v' ? [s.pos - 1, t, s.pos, t] : [t, s.pos - 1, t, s.pos];
+        if (world.pass[ay][ax] && world.pass[by][bx]) { const k = s.axis + s.pos + ':' + t; keys.add(k); list.push({ k, s, t }); }
+      }
+    }
+    if (!silent) {
+      for (const d of list) if (!doorKeys.has(d.k)) {
+        const p = d.s.axis === 'v' ? [d.s.pos, d.t - .15] : [d.t + .5, d.s.pos - .3]; // 扉の少し上（吹き出しのセリフに重ねない）
+        addPop('カチッ', p[0], p[1], COL.ink, 13);
+      }
+      rch.forEach((r, i) => { if (r.exit && !exitWasReach[i]) addPop('！', r.exit[0] + .5, r.exit[1] - .1, COL.ink, 26); });
+    }
+    // 置いた言葉が効かなくなった（声が届かない・窓の外）／また効いた
+    if (!silent) world.words.forEach((o, k) => {
+      if (!o.put || !o.inWin) return;
+      if (wordOn[k] && !o.on) addPop('…', o.put[0] + .5, o.put[1] - .05, COL.ink2, 20);
+      else if (!wordOn[k] && o.on) addPop('ポン', o.put[0] + .5, o.put[1] - .05, WSTY[lv.words[k].w].ink, 15);
+    });
+    wordOn = world.words.map(o => o.on);
+    doorKeys = keys; exitWasReach = rch.map(r => !!r.exit);
+    world.doors = list;
+    if (hintOn) {
+      hint = L.hint(lv, b, sols());
+      $('#cap').textContent = hint && hint.word != null ? (hint.to ? 'ヒント：吹き出しを、光る所へ' : 'ヒント：その吹き出しは、もどそう')
+        : hint ? 'ヒント：光る線を動かしてみよう' : rch.every(r => r.exit) ? 'ヒント：さあ、進もう' : 'ヒント：光る線を動かしてみよう';
+    }
+  }
+  function addPop(text, x, y, color, size) { pops.push({ text, x, y, color, size, t0: performance.now() }); if (pops.length > 8) pops.shift(); }
+
+  /* ---- 1手戻す・最初から・ヒント ---- */
+  function pushHist(prev) { hist.push(prev); if (hist.length > 60) hist.shift(); syncButtons(); }
+  const anyPut = () => !!(b.put && b.put.some(Boolean));
+  const putOf = k => (b.put && b.put[k]) || null;
+  function syncButtons() {
+    $('#undo').disabled = !hist.length || busy;
+    $('#reset').disabled = busy || (lv.bounds.every(q => b[q.id] === lv.init[q.id]) && !anyPut());
+  }
+  function sols() { return solCache[li] || (solCache[li] = L.solve(lv).wins); }
+  function showHint() {
+    hintOn = true; recompute(true);
+  }
+
+  /* ---- キャンバス ---- */
+  const cv = $('#cv'), ctx = cv.getContext('2d'), stage = $('#stage');
+  let dpr = 1, cell = 40, PAD = 6, cw = 0, chh = 0, pats = {};
+  function sizeCanvas() {
+    const r = stage.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    dpr = Math.min(3, window.devicePixelRatio || 1);
+    cell = Math.max(24, Math.floor(Math.min((r.width - PAD * 2) / lv.W, (r.height - PAD * 2) / lv.H)));
+    cw = lv.W * cell + PAD * 2; chh = lv.H * cell + PAD * 2;
+    cv.style.width = cw + 'px'; cv.style.height = chh + 'px';
+    cv.width = Math.round(cw * dpr); cv.height = Math.round(chh * dpr);
+    pats = { A: pattern('dots'), B: pattern('lines'), C: pattern('cross'), D: pattern('big'), E: pattern('hlines'), F: pattern('checks') };
+  }
+  addEventListener('resize', () => { if (!screens.game.hidden) sizeCanvas(); });
+
+  // スクリーントーン（コマごとに違う柄＝どのコマの場面かが一目で分かる）
+  function pattern(kind) {
+    const s = { dots: 6, lines: 7, cross: 8, big: 9, hlines: 5, checks: 8 }[kind];
+    const c = document.createElement('canvas'); c.width = c.height = Math.round(s * dpr);
+    const g = c.getContext('2d'); g.scale(dpr, dpr);
+    g.fillStyle = COL.paper; g.fillRect(0, 0, s, s);
+    g.fillStyle = g.strokeStyle = COL.tone;
+    if (kind === 'dots') { [[1.5, 1.5], [4.5, 4.5]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 1.15, 0, 7); g.fill(); }); }
+    if (kind === 'big') { [[2.25, 2.25], [6.75, 6.75]].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 1.9, 0, 7); g.fill(); }); }
+    if (kind === 'lines') { g.lineWidth = 1.5; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(k * s, s); g.lineTo(k * s + s, 0); g.stroke(); } }
+    if (kind === 'cross') { g.lineWidth = .9; for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(k * s, s); g.lineTo(k * s + s, 0); g.stroke(); g.beginPath(); g.moveTo(k * s, 0); g.lineTo(k * s + s, s); g.stroke(); } }
+    if (kind === 'hlines') { g.fillRect(0, 1.5, s, 1.4); }
+    if (kind === 'checks') { g.fillRect(0, 0, 2.6, 2.6); g.fillRect(4, 4, 2.6, 2.6); }
+    const p = ctx.createPattern(c, 'repeat');
+    try { p.setTransform(new DOMMatrix().scale(1 / dpr)); } catch (e) {}
+    return p;
+  }
+
+  const X = x => PAD + x * cell, Y = y => PAD + y * cell;
+  const GH = 3; // コマ間の余白の半分
+  function prect(r) {
+    return { x: X(r.x0) + (r.x0 > 0 ? GH : 0), y: Y(r.y0) + (r.y0 > 0 ? GH : 0),
+      x2: X(r.x1) - (r.x1 < lv.W ? GH : 0), y2: Y(r.y1) - (r.y1 < lv.H ? GH : 0) };
+  }
+
+  /* 見た目の境界位置：ドラッグ中は指の位置、離した直後は吸着先へすべる */
+  function visualB(now) {
+    if (drag) return Object.assign({}, b, { [drag.id]: drag.pos });
+    if (slide) {
+      const k = Math.min(1, (now - slide.t0) / (reduced ? 1 : 140));
+      if (k >= 1) { slide = null; return b; }
+      const e = 1 - (1 - k) * (1 - k);
+      return Object.assign({}, b, { [slide.id]: slide.from + (b[slide.id] - slide.from) * e });
+    }
+    return b;
+  }
+
+  let raf = 0;
+  function loop() { if (raf) return; const f = t => { raf = 0; if (screens.game.hidden) return; frame(t); raf = requestAnimationFrame(f); }; raf = requestAnimationFrame(f); }
+
+  function frame(now) {
+    if (!cw) sizeCanvas();
+    if (!hintOn && !win && !walk && !busy && now > hintAt) showHint();
+    stepWalk(now);
+    draw(now);
+  }
+
+  // そのコマで、そのマスに見えている絵（吸着先で自分のマスなら合成結果、そうでなければ場面そのまま）
+  function tileOf(id, x, y) {
+    if (world.owner[y][x] === id) { const t = world.base[y][x]; return t === 'P' ? lv.layers[id][y][x] : t; }
+    return lv.layers[id][y][x];
+  }
+
+  function draw(now) {
+    const t = reduced ? 0 : now / 1000;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = COL.paper; ctx.fillRect(0, 0, cw, chh);
+    const w = world, c = cell, vg = L.geometry(lv, visualB(now));
+    // コマの中身
+    for (const id of lv.ids) {
+      const R = prect(vg.rects[id]), r = vg.rects[id];
+      const x0 = Math.max(0, Math.floor(r.x0)), x1 = Math.min(lv.W, Math.ceil(r.x1)), y0 = Math.max(0, Math.floor(r.y0)), y1 = Math.min(lv.H, Math.ceil(r.y1));
+      ctx.save(); ctx.beginPath(); ctx.rect(R.x, R.y, R.x2 - R.x, R.y2 - R.y); ctx.clip();
+      ctx.fillStyle = COL.white; ctx.fillRect(R.x, R.y, R.x2 - R.x, R.y2 - R.y);
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const own = w.owner[y][x] === id;
+        drawCell(x, y, tileOf(id, x, y), own && w.wet[y][x], id, t);
+      }
+      // 床と壁の境目に墨の線
+      const wall = (x, y) => tileOf(id, x, y) === '#';
+      ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.6; ctx.beginPath();
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        if (wall(x, y)) continue;
+        if (x > x0 && wall(x - 1, y)) { ctx.moveTo(X(x), Y(y)); ctx.lineTo(X(x), Y(y + 1)); }
+        if (x < x1 - 1 && wall(x + 1, y)) { ctx.moveTo(X(x + 1), Y(y)); ctx.lineTo(X(x + 1), Y(y + 1)); }
+        if (y > y0 && wall(x, y - 1)) { ctx.moveTo(X(x), Y(y)); ctx.lineTo(X(x + 1), Y(y)); }
+        if (y < y1 - 1 && wall(x, y + 1)) { ctx.moveTo(X(x), Y(y + 1)); ctx.lineTo(X(x + 1), Y(y + 1)); }
+      }
+      ctx.stroke();
+      drawItems(id, 'under', now);   // 足場の板
+      // 見張りの視線（吸着先で計算したもの）
+      for (const g of w.guards) if (g.panel === id) drawSight(g, t);
+      // 見張り本体（言葉で眠った・振り向いた見張りは、その姿で）
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const ch = tileOf(id, x, y); if (!L.GUARD[ch]) continue;
+        const g = own(id, x, y) ? w.guards.find(q => q.x === x && q.y === y) : null;
+        drawGuard(x, y, ch, t, !!g && isCatcher(x, y), !!g, g);
+      }
+      drawItems(id, 'over', now);    // 眠りの Zz・驚きの ！
+      // 出口に着けるなら集中線
+      rch.forEach(rr => { if (rr.exit && w.owner[rr.exit[1]][rr.exit[0]] === id) focusLines(X(rr.exit[0] + .5), Y(rr.exit[1] + .5), c * .55, c * 2.4, t, 26, .55); });
+      ctx.restore();
+    }
+    // 歩ける範囲（ドラッグ中は濃く）
+    const fadeTarget = drag ? 1 : (touched ? .28 : 0);
+    dragFade += (fadeTarget - dragFade) * (reduced ? 1 : .2);
+    if (dragFade > .02 && !walk && !win) {
+      for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) {
+        if (w.base[y][x] === 'E') continue;
+        rch.forEach((rr, i) => { if (rr.dist[y][x] > 0) foot(X(x + .5), Y(y + .5), c, (x + y) % 2, dragFade, i); });
+      }
+    }
+    // コマ枠（太線）
+    ctx.strokeStyle = COL.ink; ctx.lineWidth = 3;
+    for (const id of lv.ids) { const R = prect(vg.rects[id]); ctx.strokeRect(R.x + 1.5, R.y + 1.5, R.x2 - R.x - 3, R.y2 - R.y - 3); }
+    // 扉（両側が通れる所は枠が切れて、道がつながる）※動いている境界の上は描かない
+    const moving = drag ? drag.id : slide ? slide.id : null;
+    for (const d of w.doors) if (d.s.id !== moving) drawDoor(d.s, d.t);
+    // 水がとなりへ流れ込んだ所
+    const seenQ = new Set();
+    for (const k of w.contacts) {
+      const key = w.owner[k.ny][k.nx]; if (seenQ.has(key)) continue; seenQ.add(key);
+      sfx('ザァ', X((k.x + k.nx) / 2 + .5), Y((k.y + k.ny) / 2 + .5) - c * .1, COL.water, c * .42, -.15 + Math.sin(t * 3) * .03);
+    }
+    fireLabels(t);
+    drawHint(t);
+    drawHeroesNow(t);
+    drawWords(t, now);
+    drawHandles(t, vg);   // つまみは吹き出しより上（重なってもつかめる）
+    for (const p of pops) {
+      const a = (now - p.t0) / 700; if (a > 1) continue;
+      ctx.globalAlpha = 1 - a * a;
+      sfx(p.text, X(p.x), Y(p.y) - a * 14, p.color, p.size, -.1);
+      ctx.globalAlpha = 1;
+    }
+    pops = pops.filter(p => now - p.t0 < 700);
+    if (fail) drawFail(now);
+    if (win) drawWin(now);
+  }
+  const own = (id, x, y) => world.owner[y][x] === id;
+  // 失敗の演出中、見つけた側の見張り
+  function isCatcher(x, y) { return !!(fail && fail.catchers && fail.catchers.some(g => g.x === x && g.y === y)); }
+
+  function drawCell(x, y, ch, wet, id, t) {
+    const c = cell, px = X(x), py = Y(y);
+    if (ch === '#') { ctx.fillStyle = pats[id]; ctx.fillRect(px, py, c, c); return; }
+    if (ch === 'W') {
+      ctx.fillStyle = COL.water; ctx.fillRect(px, py, c, c);
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.6;
+      for (let k = 0; k < 2; k++) {
+        const yy = py + c * (.35 + k * .35), ph = t * 2 + x + k;
+        ctx.beginPath();
+        for (let s = 0; s <= 8; s++) { const xx = px + c * (.12 + s * .095); const v = yy + Math.sin(ph + s * .9) * c * .05; s ? ctx.lineTo(xx, v) : ctx.moveTo(xx, v); }
+        ctx.stroke();
+      }
+      return;
+    }
+    // 床（主人公・見張りの立ち位置も床として描く）
+    ctx.fillStyle = wet ? COL.waterLt : COL.white; ctx.fillRect(px, py, c, c);
+    ctx.strokeStyle = COL.line; ctx.lineWidth = 1; ctx.strokeRect(px + .5, py + .5, c - 1, c - 1);
+    if (wet && ch === '.') {
+      ctx.strokeStyle = COL.water; ctx.lineWidth = 1.2; ctx.beginPath();
+      ctx.ellipse(px + c * .5, py + c * .6, c * .22, c * .07, 0, 0, 7); ctx.stroke();
+    }
+    if (ch === 'F') {
+      if (wet) {
+        ctx.fillStyle = COL.ink2; ctx.beginPath(); ctx.ellipse(px + c * .5, py + c * .72, c * .2, c * .07, 0, 0, 7); ctx.fill();
+        ctx.strokeStyle = COL.ink3; ctx.lineWidth = 1.6; ctx.beginPath();
+        const s = Math.sin(t * 2) * c * .04;
+        ctx.moveTo(px + c * .5, py + c * .66); ctx.bezierCurveTo(px + c * .3 + s, py + c * .5, px + c * .7 - s, py + c * .4, px + c * .5, py + c * .2); ctx.stroke();
+      } else flame(px, py, c, t + x * .7 + y * 1.3);
+    }
+    if (ch === 'E') exitDoor(px, py, c);
+    if (ch === 'O') { // 穴：墨の穴と、ふちの影
+      ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.ellipse(px + c * .5, py + c * .53, c * .4, c * .32, 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = COL.ink3; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.ellipse(px + c * .5, py + c * .6, c * .27, c * .17, 0, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke();
+    }
+  }
+
+  function flame(px, py, c, t) {
+    ctx.fillStyle = COL.fireLt; ctx.fillRect(px, py, c, c);
+    const f = 1 + Math.sin(t * 9) * .06, cx = px + c * .5, by = py + c * .88;
+    const tip = (h, wdt, col) => {
+      ctx.fillStyle = col; ctx.beginPath();
+      ctx.moveTo(cx, by - c * h * f);
+      ctx.bezierCurveTo(cx + c * wdt, by - c * h * .55, cx + c * wdt * 1.1, by, cx, by);
+      ctx.bezierCurveTo(cx - c * wdt * 1.1, by, cx - c * wdt, by - c * h * .55, cx, by - c * h * f);
+      ctx.fill();
+    };
+    tip(.78, .34, COL.fire); ctx.strokeStyle = COL.fireInk; ctx.lineWidth = 1.4; ctx.stroke();
+    tip(.42, .16, COL.white);
+  }
+
+  function exitDoor(px, py, c) {
+    const x0 = px + c * .2, x1 = px + c * .8, y0 = py + c * .14, y1 = py + c * .9;
+    ctx.fillStyle = COL.ink; ctx.beginPath();
+    ctx.moveTo(x0, y1); ctx.lineTo(x0, y0 + c * .2); ctx.quadraticCurveTo(px + c * .5, y0 - c * .08, x1, y0 + c * .2); ctx.lineTo(x1, y1); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = COL.white; ctx.lineWidth = 1.6; ctx.beginPath();
+    for (let k = 0; k < 3; k++) { const yy = y1 - c * (.1 + k * .13); ctx.moveTo(x0 + c * (.08 + k * .06), yy); ctx.lineTo(x1 - c * (.08 + k * .06), yy); }
+    ctx.stroke();
+    ctx.fillStyle = COL.white; ctx.font = `${Math.round(c * .2)}px ${SFX}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('出口', px + c * .5, y0 + c * .2);
+  }
+
+  /* ---- 見張り：兜をかぶった番兵。視線は点線と流線で、コマの端まで ---- */
+  function drawSight(g, t) {
+    if (!g.len) return;
+    const c = cell, cx = X(g.x + .5), cy = Y(g.y + .5);
+    const ex = cx + g.dx * g.len * c + g.dx * c * .5, ey = cy + g.dy * g.len * c + g.dy * c * .5;
+    // 視線の通るマスに薄いアミ＋流線
+    ctx.save();
+    const sx = Math.min(cx, ex) - (g.dx ? 0 : c * .5), sy = Math.min(cy, ey) - (g.dy ? 0 : c * .5);
+    const sw = g.dx ? Math.abs(ex - cx) : c, sh = g.dy ? Math.abs(ey - cy) : c;
+    ctx.fillStyle = 'rgba(21,21,21,.09)'; ctx.fillRect(sx + (g.dx > 0 ? c * .5 : 0), sy + (g.dy > 0 ? c * .5 : 0), sw - (g.dx ? c * .5 : 0), sh - (g.dy ? c * .5 : 0));
+    ctx.strokeStyle = COL.ink; ctx.lineWidth = 1;
+    const off = reduced ? 0 : (t * 26) % 10;
+    for (let k = -2; k <= 2; k++) {
+      if (!k) continue;
+      const o = k * c * .13;
+      ctx.globalAlpha = .45; ctx.setLineDash([c * .32, c * .22]); ctx.lineDashOffset = -off * (g.dx + g.dy);
+      ctx.beginPath();
+      if (g.dx) { ctx.moveTo(cx + g.dx * c * .55, cy + o); ctx.lineTo(ex, cy + o * 1.6); }
+      else { ctx.moveTo(cx + o, cy + g.dy * c * .55); ctx.lineTo(cx + o * 1.6, ey); }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.setLineDash([3, 4]); ctx.lineDashOffset = -off; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(cx + g.dx * c * .35, cy + g.dy * c * .35); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+  function drawGuard(x, y, ch, t, alarm, active, g) {
+    const c = cell, cx = X(x + .5), cy = Y(y + .5), s = c * .82, [dx, dy] = g ? [g.dx, g.dy] : L.GUARD[ch], asleep = !!(g && g.asleep);
+    ctx.save(); ctx.translate(cx, cy); ctx.lineJoin = 'round'; ctx.strokeStyle = COL.ink; ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, s * .45, s * .28, s * .06, 0, 0, 7); ctx.fill();
+    // 槍
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(s * .34, s * .44); ctx.lineTo(s * .34, -s * .46); ctx.stroke();
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.moveTo(s * .34, -s * .58); ctx.lineTo(s * .4, -s * .44); ctx.lineTo(s * .28, -s * .44); ctx.closePath(); ctx.fill();
+    // マント（ベタ）
+    ctx.beginPath(); ctx.moveTo(-s * .24, s * .44); ctx.lineTo(-s * .17, s * .04); ctx.lineTo(s * .17, s * .04); ctx.lineTo(s * .24, s * .44); ctx.closePath(); ctx.fill();
+    // 顔と兜
+    ctx.fillStyle = COL.white; ctx.beginPath(); ctx.arc(0, -s * .14, s * .22, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(0, -s * .17, s * .25, Math.PI, 0); ctx.lineTo(s * .25, -s * .1); ctx.lineTo(-s * .25, -s * .1); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-s * .05, -s * .42); ctx.lineTo(0, -s * .56); ctx.lineTo(s * .05, -s * .42); ctx.fill();
+    // 兜のすき間から、向いている方の目
+    const ex = dx * s * .12, ey = -s * .04 + dy * s * .05;
+    if (asleep) { // 眠っている：閉じた目
+      ctx.strokeStyle = COL.white; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(0, -s * .06, s * .08, .2, Math.PI - .2); ctx.stroke();
+      ctx.restore(); return;
+    }
+    ctx.fillStyle = COL.white; ctx.beginPath(); ctx.ellipse(ex, ey, s * .09, s * .055, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.arc(ex + dx * s * .03, ey + dy * s * .02, s * .035, 0, 7); ctx.fill();
+    ctx.restore();
+    // 向きの矢じり
+    ctx.fillStyle = COL.ink; ctx.beginPath();
+    const ax = cx + dx * c * .48, ay = cy + dy * c * .48, px = -dy, py = dx;
+    ctx.moveTo(ax + dx * c * .08, ay + dy * c * .08); ctx.lineTo(ax + px * c * .08, ay + py * c * .08); ctx.lineTo(ax - px * c * .08, ay - py * c * .08); ctx.closePath(); ctx.fill();
+    if (alarm) sfx('！', cx + c * .2, cy - c * .62, COL.fire, c * .6, .12);
+    else if (active && !(g && g.turned)) sfx('ジー', cx - dx * c * .05, cy - c * .62, COL.ink, c * .26, -.12 + Math.sin(t * 2) * .03); // 隠れた見張りは黙る（振り向いた見張りは「！」）
+  }
+
+  /* ---- 言葉の吹き出し：白地に墨の線。本体としっぽは Path2D 1本（継ぎ目なし）。文字は縦書き ----
+   * 形で種類が分かる：ここ！＝なめらかな楕円／しーっ＝点線（ささやき）／わっ！＝ギザギザ（叫び） */
+  const MORPH = reduced ? 160 : 520;
+  const heroAt = i => heroPos[i] || [lv.heroes[i].x, lv.heroes[i].y];
+  function bubbleSize() { const rx = Math.max(15, Math.min(24, cell * .5)); return [rx, rx * 1.5]; }
+  // 話し手の頭の上（入らなければ横）。しっぽの先は口もと
+  function speakerBubble(k) {
+    const q = lv.words[k], p = heroAt(q.by), [rx, ry] = bubbleSize();
+    const hx = X(p[0] + .5), hy = Y(p[1] + .5) - cell * .2;
+    let cx = hx + cell * .4, cy = hy - cell * .32 - ry, tip = [hx + cell * .12, hy - cell * .22];
+    if (cy - ry < 3) {
+      const side = hx + cell * .5 + rx * 2 + 4 < cw ? 1 : -1;
+      cx = hx + side * (cell * .48 + rx); cy = Math.max(ry + 3, hy); tip = [hx + side * cell * .24, hy];
+    }
+    cx = Math.max(rx + 3, Math.min(cw - rx - 3, cx));
+    return { cx, cy, rx, ry, tip };
+  }
+  function bubblePath(shape, cx, cy, rx, ry, tip) {
+    const P = new Path2D();
+    const dx = tip ? (tip[0] - cx) / rx : 0, dy = tip ? (tip[1] - cy) / ry : 1;
+    const tail = !!tip && dx * dx + dy * dy > 1.3, th = Math.atan2(dy, dx);
+    const pt = (a, k) => [cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k];
+    if (shape === 'burst') {
+      const n = 16, pts = [];
+      for (let i = 0; i < n; i++) pts.push(i === 0 && tail ? tip : pt(th + i / n * Math.PI * 2, i % 2 ? .84 : 1.12));
+      P.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < n; i++) P.lineTo(pts[i][0], pts[i][1]); P.closePath();
+      return P;
+    }
+    if (!tail) { P.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); return P; }
+    const d = .3, a0 = th + d, a1 = th - d + Math.PI * 2, s0 = pt(a0, 1), s1 = pt(a1, 1);
+    P.moveTo(s0[0], s0[1]); P.ellipse(cx, cy, rx, ry, 0, a0, a1);
+    // しっぽ：同じ向きに少し反った2本の曲線で、本体の線から先までひと続き
+    let nx = -(tip[1] - cy), ny = tip[0] - cx; const nl = Math.hypot(nx, ny) || 1, bend = Math.min(rx, ry) * .22; nx /= nl; ny /= nl;
+    P.quadraticCurveTo((s1[0] + tip[0]) / 2 + nx * bend, (s1[1] + tip[1]) / 2 + ny * bend, tip[0], tip[1]);
+    P.quadraticCurveTo((s0[0] + tip[0]) / 2 + nx * bend * .6, (s0[1] + tip[1]) / 2 + ny * bend * .6, s0[0], s0[1]);
+    P.closePath();
+    return P;
+  }
+  // 縦書き：長音は縦に、小さい「っ」は右上へ
+  function vtext(txt, cx, cy, fs, color) {
+    const chars = [...txt], n = chars.length, step = fs * 1.02;
+    ctx.fillStyle = color; ctx.font = `900 ${Math.round(fs)}px ${SANS}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    chars.forEach((ch, i) => {
+      const y = cy + (i - (n - 1) / 2) * step + fs * .04;
+      if (ch === 'ー') { ctx.save(); ctx.translate(cx, y); ctx.rotate(Math.PI / 2); ctx.fillText(ch, 0, 0); ctx.restore(); }
+      else if ('っッゃゅょぁぃぅぇぉ'.includes(ch)) ctx.fillText(ch, cx + fs * .13, y - fs * .12);
+      else ctx.fillText(ch, cx, y);
+    });
+  }
+  function strokeStyleFor(shape) {
+    ctx.strokeStyle = COL.ink; ctx.lineWidth = 2.4; ctx.lineJoin = shape === 'burst' ? 'miter' : 'round'; ctx.miterLimit = 8;
+    if (shape === 'dot') { ctx.setLineDash([.1, 4.6]); ctx.lineCap = 'round'; ctx.lineWidth = 3; }
+  }
+  function drawBubble(k, cx, cy, rx, ry, tip, o = {}) {
+    const st = WSTY[lv.words[k].w], P = bubblePath(st.shape, cx, cy, rx, ry, tip);
+    ctx.save(); ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+    if (o.lift) { ctx.save(); ctx.translate(3, 5); ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fill(P); ctx.restore(); }
+    ctx.fillStyle = COL.white; ctx.fill(P);
+    strokeStyleFor(st.shape); ctx.stroke(P); ctx.setLineDash([]);
+    if (o.text !== false) vtext(o.text || lv.words[k].text, cx, cy, Math.min(ry * .56, rx * 1.05) * (st.shape === 'burst' ? .9 : 1), st.ink);
+    ctx.restore();
+  }
+
+  /* 置いた言葉が変わったアイテム（相手のコマの絵に貼られる。窓の外ならコマで切れて見えない）
+   * ここ！＝足場の板（穴の上）／しーっ＝眠りの「Zz」（見張りの頭の上）／わっ！＝驚きの「！」 */
+  const easeBack = a => { const c1 = 1.9; return 1 + (c1 + 1) * Math.pow(a - 1, 3) + c1 * Math.pow(a - 1, 2); };
+  function itemScale(k, now) {
+    if (!morph || morph.k !== k) return 1;
+    const a = (now - morph.t0) / MORPH; if (a >= 1) return 1;
+    return a < .4 ? 0 : easeBack((a - .4) / .6);
+  }
+  function drawItems(id, layer, now) {
+    lv.words.forEach((q, k) => {
+      const p = putOf(k); if (!p || q.to !== id || (wdrag && wdrag.k === k)) return;
+      const o = world.words[k], sc = itemScale(k, now); if (sc <= 0) return;
+      if (layer === 'under' && q.w === 'koko') drawPlank(k, p, sc, o.on);
+      if (layer === 'over' && q.w !== 'koko') drawMark(k, p, sc, o.on);
+    });
+  }
+  function drawPlank(k, p, sc, on) {
+    const q = lv.words[k], st = WSTY[q.w], c = cell, row = lv.layers[q.to][p[1]];
+    const horiz = [p[0] - 1, p[0] + 1].some(x => x >= 0 && x < lv.W && row[x] !== '#');
+    ctx.save(); ctx.translate(X(p[0] + .5), Y(p[1] + .5)); if (!horiz) ctx.rotate(Math.PI / 2); ctx.scale(sc, sc);
+    const hl = c * .6, hw = c * .23;
+    if (!on) ctx.globalAlpha = .5;
+    roundRect(-hl, -hw, hl * 2, hw * 2, hw * .55);
+    ctx.fillStyle = on ? st.lt : COL.white; ctx.fill();
+    ctx.strokeStyle = COL.ink; ctx.lineWidth = 2.4; ctx.lineJoin = 'round';
+    if (!on) ctx.setLineDash([4, 4]);
+    ctx.stroke(); ctx.setLineDash([]);
+    if (on) {
+      ctx.strokeStyle = st.col; ctx.lineWidth = 1.4; ctx.beginPath();
+      ctx.moveTo(-hl * .7, -hw * .25); ctx.quadraticCurveTo(0, -hw * .55, hl * .55, -hw * .2);
+      ctx.moveTo(-hl * .45, hw * .35); ctx.quadraticCurveTo(hl * .1, hw * .1, hl * .7, hw * .38); ctx.stroke();
+      ctx.fillStyle = COL.ink; [-1, 1].forEach(sx => { ctx.beginPath(); ctx.arc(sx * hl * .8, 0, 1.8, 0, 7); ctx.fill(); });
+    } else vtext('…', 0, 0, c * .3, COL.ink2);
+    ctx.restore();
+  }
+  function drawMark(k, p, sc, on) {
+    const q = lv.words[k], st = WSTY[q.w], c = cell, gx = X(p[0] + .5), gy = Y(p[1] + .5), rx = c * .3, ry = c * .21;
+    // 見張りの頭の右上。コマの上端で切れるなら右横、右端なら左側へ（コマの中に収める）
+    const r = world.rects[q.to], spots = [[.86, -.08], [1.02, .32], [.14, -.08], [-.02, .32]];
+    const [ox, oy] = spots.find(([ox, oy]) => p[0] + ox - .32 >= r.x0 && p[0] + ox + .32 <= r.x1 && p[1] + oy - .24 >= r.y0) || spots[0];
+    const cx = X(p[0] + ox), cy = Y(p[1] + oy);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy);
+    if (!on) ctx.globalAlpha = .5;
+    const P = bubblePath(st.shape, cx, cy, q.w === 'wa' ? ry * 1.15 : rx, q.w === 'wa' ? ry * 1.15 : ry, [gx + (cx - gx) * .3, gy - c * .2 + (cy - gy + c * .2) * .3]);
+    ctx.fillStyle = COL.white; ctx.fill(P); strokeStyleFor(st.shape); ctx.lineWidth = 2; ctx.stroke(P); ctx.setLineDash([]);
+    ctx.fillStyle = on ? st.ink : COL.ink2; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (!on) { ctx.font = `900 ${Math.round(c * .26)}px ${SANS}`; ctx.fillText('…', cx, cy); }
+    else if (q.w === 'shh') { ctx.font = `${Math.round(c * .24)}px ${SFX}`; ctx.fillText('Z', cx - c * .07, cy + c * .03); ctx.font = `${Math.round(c * .16)}px ${SFX}`; ctx.fillText('z', cx + c * .1, cy - c * .03); }
+    else { ctx.font = `${Math.round(c * .3)}px ${SFX}`; ctx.fillText('！', cx, cy + 1); }
+    ctx.restore();
+  }
+
+  /* ドラッグ中の案内：相手のコマ（届けば言葉の色、届かなければ灰色）・声が通る辺・置ける所 */
+  function sharedEdge(r, s) {
+    if (r.x1 === s.x0 || s.x1 === r.x0) { const x = r.x1 === s.x0 ? r.x1 : r.x0, y0 = Math.max(r.y0, s.y0), y1 = Math.min(r.y1, s.y1); return y1 > y0 ? [x, y0, x, y1] : null; }
+    if (r.y1 === s.y0 || s.y1 === r.y0) { const y = r.y1 === s.y0 ? r.y1 : r.y0, x0 = Math.max(r.x0, s.x0), x1 = Math.min(r.x1, s.x1); return x1 > x0 ? [x0, y, x1, y] : null; }
+    return null;
+  }
+  function drawDropGuide(t) {
+    const k = wdrag.k, q = lv.words[k], st = WSTY[q.w], rs = world.rects, R = prect(rs[q.to]), reach = L.reaches(lv, b, k);
+    ctx.save();
+    ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.lineDashOffset = reduced ? 0 : -t * 24; ctx.strokeStyle = reach ? st.col : COL.ink3;
+    ctx.strokeRect(R.x + 6, R.y + 6, R.x2 - R.x - 12, R.y2 - R.y - 12); ctx.setLineDash([]);
+    if (!reach) {
+      ctx.fillStyle = 'rgba(252,252,250,.55)'; ctx.fillRect(R.x, R.y, R.x2 - R.x, R.y2 - R.y);
+    } else {
+      const e = sharedEdge(rs[q.from], rs[q.to]);
+      if (e) { ctx.strokeStyle = st.col; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.globalAlpha = .85; ctx.beginPath(); ctx.moveTo(X(e[0]), Y(e[1])); ctx.lineTo(X(e[2]), Y(e[3])); ctx.stroke(); ctx.globalAlpha = 1; }
+      const pulse = reduced ? .5 : (Math.sin(t * 6) + 1) / 2;
+      for (const [x, y] of lv.targets[k]) {
+        if (!L.canPut(lv, b, k, x, y)) continue;
+        const hot = wdrag.at && wdrag.at[0] === x && wdrag.at[1] === y;
+        if (hot) { ctx.fillStyle = st.lt; ctx.globalAlpha = .8; ctx.fillRect(X(x) + 2, Y(y) + 2, cell - 4, cell - 4); ctx.globalAlpha = 1; }
+        ctx.strokeStyle = st.col; ctx.lineWidth = hot ? 4 : 2.5 + pulse * 1.5;
+        ctx.beginPath(); ctx.ellipse(X(x + .5), Y(y + .5), cell * (.42 + (hot ? 0 : pulse * .06)), cell * (.42 + (hot ? 0 : pulse * .06)), 0, 0, 7); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  /* 吹き出しを描く：話し手の上（まだ置いていない）／指の先（ドラッグ中）／置いた瞬間の変身 */
+  function drawWords(t, now) {
+    if (!lv.words.length) return;
+    if (wdrag && !walk && !win) drawDropGuide(t);
+    const [rx, ry] = bubbleSize();
+    lv.words.forEach((q, k) => {
+      if (wdrag && wdrag.k === k) return;
+      const p = putOf(k);
+      if (morph && morph.k === k && now - morph.t0 < MORPH) {
+        const a = Math.min(1, (now - morph.t0) / MORPH), m = Math.min(1, a / .4), e = 1 - (1 - m) * (1 - m);
+        const tx = X(morph.at[0] + .5), ty = Y(morph.at[1] + .5);
+        if (a < .4) drawBubble(k, morph.cx + (tx - morph.cx) * e, morph.cy + (ty - morph.cy) * e, rx * (1 - e * .65), ry * (1 - e * .65), null, { text: false });
+        else { // ポンッ：散る線
+          const f = (a - .4) / .6; ctx.save(); ctx.strokeStyle = WSTY[q.w].col; ctx.lineWidth = 2.2; ctx.globalAlpha = 1 - f; ctx.lineCap = 'round';
+          for (let i = 0; i < 8; i++) { const ang = i / 8 * Math.PI * 2 + .3, r0 = cell * (.35 + f * .3), r1 = cell * (.5 + f * .45); ctx.beginPath(); ctx.moveTo(tx + Math.cos(ang) * r0, ty + Math.sin(ang) * r0); ctx.lineTo(tx + Math.cos(ang) * r1, ty + Math.sin(ang) * r1); ctx.stroke(); }
+          ctx.restore();
+        }
+        return;
+      }
+      if (!p) {
+        const g = speakerBubble(k), bob = reduced || walk ? 0 : Math.sin(t * 2.4 + k * 1.7) * 1.4;
+        drawBubble(k, g.cx, g.cy + bob, g.rx, g.ry, g.tip);
+      } else if (!world.words[k].inWin) {
+        // 置いた所が窓の外：話し手の頭に小さく戻る（効いていない。ここからまた運べる）
+        const g = speakerBubble(k);
+        drawBubble(k, g.cx, g.cy + g.ry * .45, g.rx * .55, g.ry * .55, g.tip, { alpha: .55, text: '…' });
+      }
+    });
+    if (wdrag) {
+      const q = lv.words[wdrag.k];
+      if (!walk && !win && !L.reaches(lv, b, wdrag.k)) { // 届かない：相手のコマに大きく（吹き出しより上に）
+        const R = prect(world.rects[q.to]);
+        const my = (R.y + R.y2) / 2, ly = wdrag.tip[1] < my ? R.y2 - (R.y2 - R.y) * .2 : R.y + (R.y2 - R.y) * .2; // 指と反対の側に
+        sfx('とどかない', (R.x + R.x2) / 2, ly, COL.ink2, Math.min(cell * .42, (R.x2 - R.x) / 5.2), -.06);
+      }
+      drawBubble(wdrag.k, wdrag.cx, wdrag.cy, rx, ry, wdrag.tip, { lift: true });
+    }
+  }
+
+  function focusLines(cx, cy, r0, r1, t, n, alpha) {
+    ctx.strokeStyle = COL.ink; ctx.globalAlpha = alpha;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2 + (Math.sin(i * 12.9) * .08), j = (Math.sin(i * 7.7 + t * 6) + 1) * .5;
+      const ra = r0 + j * r0 * .4;
+      ctx.lineWidth = .6 + (i % 3) * .5;
+      ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * ra, cy + Math.sin(a) * ra); ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // 足あと：1人目は黒、2人目は白抜き
+  function foot(cx, cy, c, alt, a, who) {
+    if (!who) { ctx.fillStyle = COL.ink; ctx.globalAlpha = .1 * a; ctx.fillRect(cx - c / 2 + 2, cy - c / 2 + 2, c - 4, c - 4); }
+    ctx.globalAlpha = .6 * a;
+    const s = c * .075, o = alt ? 1 : -1, d = who ? c * .06 : 0;
+    ctx.fillStyle = COL.ink; ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.3;
+    for (const [fx, fy] of [[cx - c * .1 + d, cy + o * c * .08 + d], [cx + c * .1 + d, cy - o * c * .08 + d]]) {
+      ctx.beginPath(); ctx.ellipse(fx, fy, s, s * 1.5, 0, 0, 7);
+      if (who) { ctx.fillStyle = COL.white; ctx.fill(); ctx.stroke(); } else ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawDoor(s, t) {
+    const c = cell, inset = c * .2, ext = GH + 3.2;
+    ctx.fillStyle = COL.white; ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.6;
+    if (s.axis === 'v') {
+      const x = X(s.pos), y0 = Y(t) + inset, y1 = Y(t + 1) - inset;
+      ctx.fillRect(x - ext, y0, ext * 2, y1 - y0);
+      ctx.beginPath(); ctx.moveTo(x - ext, y0); ctx.lineTo(x + ext, y0); ctx.moveTo(x - ext, y1); ctx.lineTo(x + ext, y1); ctx.stroke();
+    } else {
+      const y = Y(s.pos), x0 = X(t) + inset, x1 = X(t + 1) - inset;
+      ctx.fillRect(x0, y - ext, x1 - x0, ext * 2);
+      ctx.beginPath(); ctx.moveTo(x0, y - ext); ctx.lineTo(x0, y + ext); ctx.moveTo(x1, y - ext); ctx.lineTo(x1, y + ext); ctx.stroke();
+    }
+  }
+
+  function sfx(text, x, y, color, size, rot) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0);
+    ctx.font = `${Math.round(size)}px ${SFX}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, size * .22); ctx.strokeStyle = COL.white; ctx.strokeText(text, 0, 0);
+    ctx.fillStyle = color; ctx.fillText(text, 0, 0);
+    ctx.restore();
+  }
+
+  function fireLabels(t) {
+    const w = world, seen = w.base.map(r => r.map(() => false));
+    for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) {
+      if (w.base[y][x] !== 'F' || seen[y][x]) continue;
+      const st = [[x, y]], cells = []; seen[y][x] = true;
+      while (st.length) {
+        const [cx, cy] = st.pop(); cells.push([cx, cy]);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || ny < 0 || nx >= w.W || ny >= w.H || seen[ny][nx] || w.base[ny][nx] !== 'F' || w.owner[ny][nx] !== w.owner[y][x] || w.wet[ny][nx] !== w.wet[y][x]) continue;
+          seen[ny][nx] = true; st.push([nx, ny]);
+        }
+      }
+      const mx = cells.reduce((s, p) => s + p[0], 0) / cells.length;
+      if (w.wet[y][x]) sfx('ジュッ', X(mx + .5), Y(y + .05), COL.ink2, cell * .3, .12);
+      else sfx('ボッ', X(mx + .5) + cell * .15, Y(y) + cell * .02, COL.fire, cell * .36, -.18 + Math.sin(t * 5) * .04);
+    }
+  }
+
+  /* つまみ：動かせる境界の真ん中。1ページ目はゆっくり脈打つ */
+  function handleSpot(s) { const m = (s.from + s.to) / 2; return s.axis === 'v' ? [X(s.pos), Y(m)] : [X(m), Y(s.pos)]; }
+  function drawHandles(t, vg) {
+    const pulse = li === 0 && !touched;
+    for (const bd of lv.bounds) {
+      if (bd.fixed) continue;
+      const s = vg.segs[bd.id], [hx, hy] = handleSpot(s), act = drag && drag.id === bd.id, c = cell;
+      const vert = s.axis === 'v';
+      if (pulse) {
+        const p = (Math.sin(t * 3) + 1) / 2;
+        ctx.strokeStyle = COL.ink; ctx.globalAlpha = .25 + p * .5; ctx.lineWidth = 2 + p * 3; ctx.setLineDash([6, 6]); ctx.lineDashOffset = -t * 20;
+        ctx.beginPath();
+        if (vert) { ctx.moveTo(X(s.pos), Y(s.from) + 4); ctx.lineTo(X(s.pos), Y(s.to) - 4); } else { ctx.moveTo(X(s.from) + 4, Y(s.pos)); ctx.lineTo(X(s.to) - 4, Y(s.pos)); }
+        ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+        const rr = c * (.5 + ((t * .8) % 1) * .7);
+        ctx.globalAlpha = reduced ? .4 : 1 - ((t * .8) % 1); ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(hx, hy, rr, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      if (act) { // ドラッグ中の境界はなぞるように少し太く
+        ctx.strokeStyle = COL.ink; ctx.lineWidth = 5; ctx.beginPath();
+        if (vert) { ctx.moveTo(X(s.pos), Y(s.from)); ctx.lineTo(X(s.pos), Y(s.to)); } else { ctx.moveTo(X(s.from), Y(s.pos)); ctx.lineTo(X(s.to), Y(s.pos)); }
+        ctx.stroke();
+      }
+      const L1 = Math.min(c * .95, 46), W1 = act ? 20 : 16;
+      const [w, h] = vert ? [W1, L1] : [L1, W1];
+      ctx.fillStyle = COL.ink; ctx.strokeStyle = COL.white; ctx.lineWidth = 2.5;
+      roundRect(hx - w / 2, hy - h / 2, w, h, W1 / 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = COL.white; const a = 4.5;
+      ctx.beginPath();
+      if (vert) { ctx.moveTo(hx - 1.5, hy - 5); ctx.lineTo(hx - 1.5 - a, hy); ctx.lineTo(hx - 1.5, hy + 5); ctx.moveTo(hx + 1.5, hy - 5); ctx.lineTo(hx + 1.5 + a, hy); ctx.lineTo(hx + 1.5, hy + 5); }
+      else { ctx.moveTo(hx - 5, hy - 1.5); ctx.lineTo(hx, hy - 1.5 - a); ctx.lineTo(hx + 5, hy - 1.5); ctx.moveTo(hx - 5, hy + 1.5); ctx.lineTo(hx, hy + 1.5 + a); ctx.lineTo(hx + 5, hy + 1.5); }
+      ctx.fill();
+    }
+  }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  /* ヒント：動かすべき境界が光る（水色のにじみ＋向きの矢印） */
+  function drawHint(t) {
+    if (!hintOn || !hint || drag || wdrag || walk || win) return;
+    if (hint.word != null) { // 言葉のヒント：吹き出しから置き場所へ点線、置き場所が光る（もどす時は今の置き場所が光る）
+      const k = hint.word, p = reduced ? .7 : (Math.sin(t * 4) + 1) / 2, cur = putOf(k), at = hint.to || cur; if (!at) return;
+      const g = speakerBubble(k), from = cur && hint.to ? [X(cur[0] + .5), Y(cur[1] + .5)] : [g.cx, g.cy], tx = X(at[0] + .5), ty = Y(at[1] + .5);
+      ctx.save(); ctx.strokeStyle = COL.water; ctx.lineCap = 'round';
+      if (hint.to) { ctx.globalAlpha = .9; ctx.lineWidth = 3; ctx.setLineDash([2, 7]); ctx.lineDashOffset = reduced ? 0 : -t * 20; ctx.beginPath(); ctx.moveTo(from[0], from[1]); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]); }
+      ctx.globalAlpha = .25 + p * .3; ctx.lineWidth = 14; ctx.beginPath(); ctx.arc(tx, ty, cell * .5, 0, 7); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(tx, ty, cell * .5, 0, 7); ctx.stroke();
+      ctx.restore(); return;
+    }
+    const s = world.segs[hint.id]; if (!s) return;
+    const p = reduced ? .7 : (Math.sin(t * 4) + 1) / 2, c = cell, vert = s.axis === 'v';
+    const [x0, y0, x1, y1] = vert ? [X(s.pos), Y(s.from) + 3, X(s.pos), Y(s.to) - 3] : [X(s.from) + 3, Y(s.pos), X(s.to) - 3, Y(s.pos)];
+    ctx.save(); ctx.lineCap = 'round';
+    ctx.strokeStyle = COL.water; ctx.globalAlpha = .18 + p * .25; ctx.lineWidth = 16;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.globalAlpha = .9; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    // 向き（2つの山形）
+    const [hx, hy] = handleSpot(s), d = hint.dir, sh = (reduced ? 0 : p * 5) * d;
+    ctx.globalAlpha = 1; ctx.strokeStyle = COL.water; ctx.lineWidth = 3.5; ctx.lineJoin = 'round';
+    for (let k = 0; k < 2; k++) {
+      const o = c * (.55 + k * .3) * d + sh;
+      ctx.beginPath();
+      if (vert) { ctx.moveTo(hx + o - d * 6, hy - 9); ctx.lineTo(hx + o, hy); ctx.lineTo(hx + o - d * 6, hy + 9); }
+      else { ctx.moveTo(hx - 9, hy + o - d * 6); ctx.lineTo(hx, hy + o); ctx.lineTo(hx + 9, hy + o - d * 6); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* ---- 主人公：1人目＝トゲ頭にマフラー、2人目＝白い髪をお団子にした黒ワンピース ---- */
+  function drawHeroesNow(t) {
+    lv.heroes.forEach((h, i) => {
+      const p = heroPos[i] || [h.x, h.y];
+      hero(X(p[0] + .5), Y(p[1] + .5), cell, t, !!walk, h.kind, heroDir[i] || 1);
+    });
+  }
+  function hero(cx, cy, c, t, moving, kind, dir) {
+    const s = c * .8, bob = moving ? Math.abs(Math.sin(t * 14 + kind)) * s * .06 : Math.sin(t * 2 + kind * 1.7) * s * .015;
+    const y = cy - bob;
+    ctx.save(); ctx.translate(cx, y); ctx.scale(dir, 1);
+    ctx.lineWidth = 2; ctx.strokeStyle = COL.ink; ctx.lineJoin = 'round';
+    ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.beginPath(); ctx.ellipse(0, s * .45 + bob, s * .26, s * .06, 0, 0, 7); ctx.fill();
+    if (kind === 1) {
+      // 黒いワンピース（ベタ）＋白い襟
+      ctx.fillStyle = COL.ink; ctx.beginPath();
+      ctx.moveTo(-s * .25, s * .42); ctx.lineTo(-s * .13, s * .07); ctx.lineTo(s * .13, s * .07); ctx.lineTo(s * .25, s * .42); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = COL.white; ctx.beginPath(); ctx.moveTo(-s * .12, s * .07); ctx.lineTo(0, s * .17); ctx.lineTo(s * .12, s * .07); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // 頭
+      ctx.fillStyle = COL.white; ctx.beginPath(); ctx.arc(0, -s * .12, s * .24, 0, 7); ctx.fill(); ctx.stroke();
+      // 白い髪（線だけ）：前髪とお団子
+      ctx.beginPath(); ctx.arc(-s * .2, -s * .36, s * .1, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-s * .24, -s * .06); ctx.quadraticCurveTo(-s * .22, -s * .36, s * .02, -s * .35); ctx.quadraticCurveTo(s * .24, -s * .32, s * .24, -s * .1);
+      ctx.quadraticCurveTo(s * .1, -s * .2, s * .02, -s * .14); ctx.quadraticCurveTo(-s * .1, -s * .22, -s * .24, -s * .06); ctx.fill(); ctx.stroke();
+      // リボン（ベタ）
+      ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.moveTo(-s * .12, -s * .38); ctx.lineTo(-s * .02, -s * .44); ctx.lineTo(-s * .02, -s * .32); ctx.closePath(); ctx.fill();
+      // 目
+      ctx.beginPath(); ctx.ellipse(s * .1, -s * .06, s * .03, s * .052, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-s * .03, -s * .06, s * .03, s * .052, 0, 0, 7); ctx.fill();
+      ctx.restore(); return;
+    }
+    ctx.fillStyle = COL.white; ctx.beginPath();
+    ctx.moveTo(-s * .2, s * .42); ctx.lineTo(-s * .16, s * .08); ctx.lineTo(s * .16, s * .08); ctx.lineTo(s * .2, s * .42); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.moveTo(-s * .17, s * .08); ctx.lineTo(s * .17, s * .08); ctx.lineTo(s * .15, s * .16); ctx.lineTo(-s * .15, s * .16); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-s * .12, s * .12); ctx.lineTo(-s * .38, s * (.2 + (moving ? Math.sin(t * 14) * .05 : 0))); ctx.lineTo(-s * .12, s * .2); ctx.fill();
+    ctx.fillStyle = COL.white; ctx.beginPath(); ctx.arc(0, -s * .12, s * .24, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = COL.ink; ctx.beginPath();
+    ctx.moveTo(-s * .26, -s * .1); ctx.lineTo(-s * .3, -s * .3); ctx.lineTo(-s * .14, -s * .3); ctx.lineTo(-s * .06, -s * .46); ctx.lineTo(s * .06, -s * .33);
+    ctx.lineTo(s * .22, -s * .42); ctx.lineTo(s * .2, -s * .26); ctx.lineTo(s * .3, -s * .18); ctx.lineTo(s * .2, -s * .15); ctx.quadraticCurveTo(0, -s * .22, -s * .2, -s * .06); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(s * .1, -s * .08, s * .028, s * .05, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-s * .02, -s * .08, s * .028, s * .05, 0, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  /* ---- 歩く（ふたり同時） ---- */
+  const STEP = reduced ? 70 : 150;
+  let plan = null;
+  function go() {
+    if (busy || win || wdrag) return;
+    plan = L.plan(lv, b);
+    busy = true; $('#go').disabled = true; touched = true; syncButtons();
+    const n = Math.max(...plan.paths.map(p => p.length)) - 1;
+    if (n < 1) { failAt(); return; }
+    walk = { paths: plan.paths, n, t0: performance.now(), win: plan.win, back: false };
+  }
+  function stepWalk(now) {
+    if (!walk) return;
+    const k = (now - walk.t0) / STEP;
+    walk.paths.forEach((path, h) => {
+      const n = path.length - 1, i = Math.min(n, Math.floor(k)), f = Math.min(1, k - i);
+      const a = path[i], c = path[Math.min(n, i + 1)];
+      if (c[0] !== a[0]) heroDir[h] = c[0] > a[0] ? 1 : -1;
+      heroPos[h] = i >= n ? path[n].slice() : [a[0] + (c[0] - a[0]) * f, a[1] + (c[1] - a[1]) * f];
+    });
+    if (k >= walk.n) {
+      const w = walk; walk = null;
+      if (w.back) { heroPos = lv.heroes.map(() => null); busy = false; $('#go').disabled = false; syncButtons(); return; }
+      if (w.win) onWin(); else failAt();
+    }
+  }
+  function failAt() {
+    const w = plan.world, ats = [], catchers = [];
+    plan.res.forEach((r, i) => {
+      const p = r.path[r.path.length - 1];
+      if (r.caught) {
+        ats.push({ at: p, caught: true });
+        for (const g of w.guards) {
+          let x = g.x, y = g.y;
+          for (let k = 0; k < g.len; k++) { x += g.dx; y += g.dy; if (x === p[0] && y === p[1]) catchers.push(g); }
+        }
+      } else if (!r.win) ats.push({ at: p, caught: false });
+    });
+    fail = { t0: performance.now(), ats, catchers };
+    if (catchers.length && navigator.vibrate) try { navigator.vibrate([30, 40, 30]); } catch (e) {}
+    setTimeout(() => {
+      fail = null;
+      const back = plan.paths.map(p => p.slice().reverse()), n = Math.max(...back.map(p => p.length)) - 1;
+      if (n >= 1) walk = { paths: back, n, t0: performance.now(), win: false, back: true };
+      else { heroPos = lv.heroes.map(() => null); busy = false; $('#go').disabled = false; syncButtons(); }
+    }, reduced ? 600 : 1100);
+  }
+  function drawFail(now) {
+    const a = Math.min(1, (now - fail.t0) / 200);
+    ctx.globalAlpha = a;
+    for (const f of fail.ats) {
+      const p = f.at, x = X(p[0] + .5) + cell * .32, y = Y(p[1]) - cell * .05;
+      if (f.caught) {
+        // ギザギザの叫び吹き出し「！？」
+        ctx.fillStyle = COL.white; ctx.strokeStyle = COL.ink; ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let k = 0; k < 16; k++) { const ang = k / 16 * Math.PI * 2, rr = cell * (k % 2 ? .26 : .4); ctx.lineTo(x + Math.cos(ang) * rr * 1.25, y + Math.sin(ang) * rr); }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        sfx('！？', x, y + 1, COL.fire, cell * .34, 0);
+        continue;
+      }
+      ctx.fillStyle = COL.white; ctx.strokeStyle = COL.ink; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y, cell * .36, cell * .24, 0, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = COL.ink; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(x + k * cell * .11, y, 2.4, 0, 7); ctx.fill(); }
+      ctx.fillStyle = COL.white; ctx.beginPath(); const sx = X(p[0] + .5) - cell * .3, sy = Y(p[1] + .3);
+      ctx.moveTo(sx, sy - 7); ctx.quadraticCurveTo(sx + 5, sy + 2, sx, sy + 4); ctx.quadraticCurveTo(sx - 5, sy + 2, sx, sy - 7); ctx.fill(); ctx.stroke();
+    }
+    if (fail.catchers.length) sfx('見つかった！', cw / 2, Y(.6), COL.ink, cell * .5, -.06);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---- クリア ---- */
+  function onWin() {
+    win = { t0: performance.now() };
+    const wasCleared = cleared.has(li);
+    stopPageTimer();
+    cleared.add(li); prog.cleared = [...cleared]; saveProg();
+    const n = cleared.size, page = li + 1, c = CH[chOf(li)], last = li === c.from + c.n - 1;
+    M.apply(m => {
+      m.pagesCleared = Math.max(m.pagesCleared || 0, n);
+      m.bestScore = Math.max(m.bestScore || 0, page);
+      m.ch2Cleared = Math.max(m.ch2Cleared || 0, ch2Count());
+      if (li === 0 && firstSession && Date.now() - openedAt <= 60000) m.firstRunCleared = true;
+      if (li === N - 1 && runActive) m.runsCompleted++;
+    });
+    if (li === N - 1) runActive = false;
+    syncButtons();
+    setTimeout(() => {
+      const rel = li - c.from + 1;
+      if (last) {
+        $('#cardT').firstChild.textContent = c.title + '、突破！';
+        $('#cardS').textContent = `全${c.n}ページ脱出`;
+        $('#next').textContent = li === N - 1 ? 'おわりへ' : CH[chOf(li) + 1].title + 'へ';
+      } else {
+        $('#cardT').firstChild.textContent = '脱出！';
+        $('#cardS').textContent = wasCleared ? `P.${rel} ふたたび` : `P.${rel} / ${c.n}`;
+        $('#next').textContent = '次のページ';
+      }
+      $('#card').hidden = false;
+      $('#next').focus({ preventScroll: true });
+    }, reduced ? 200 : 900);
+  }
+  function drawWin(now) {
+    const a = Math.min(1, (now - win.t0) / 300);
+    const ps = lv.heroes.map((h, i) => heroPos[i] || [h.x, h.y]);
+    const mx = ps.reduce((s, p) => s + p[0], 0) / ps.length, my = ps.reduce((s, p) => s + p[1], 0) / ps.length;
+    const cx = X(mx + .5), cy = Y(my + .5);
+    ctx.fillStyle = 'rgba(252,252,250,' + (.55 * a) + ')'; ctx.fillRect(0, 0, cw, chh);
+    focusLines(cx, cy, cell * 1.1, Math.max(cw, chh) * 1.2, reduced ? 0 : now / 1000, 70, a);
+    ps.forEach((p, i) => hero(X(p[0] + .5), Y(p[1] + .5), cell * 1.25, 0, false, lv.heroes[i].kind, heroDir[i] || 1));
+    const s = cell * (1.1 + (1 - a) * .6);
+    sfx('ドンッ', cw / 2, cy > chh / 2 ? cy - cell * 2 : cy + cell * 2, COL.ink, s, -.08);
+  }
+
+  /* ---- 境界のドラッグ：指に追従し、離すとマスに吸着 ---- */
+  function local(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  function hit(p) {
+    let best = null, bd = Math.max(20, cell * .45);
+    for (const q of lv.bounds) {
+      if (q.fixed) continue;
+      const s = world.segs[q.id];
+      const [perp, along, a0, a1] = s.axis === 'v' ? [Math.abs(p[0] - X(s.pos)), p[1], Y(s.from), Y(s.to)] : [Math.abs(p[1] - Y(s.pos)), p[0], X(s.from), X(s.to)];
+      if (along < a0 - 6 || along > a1 + 6) continue;
+      const [hx, hy] = handleSpot(s), dh = Math.hypot(p[0] - hx, p[1] - hy);
+      const d = Math.min(perp, dh * .8);
+      if (d < bd) { bd = d; best = q; }
+    }
+    return best;
+  }
+  // つまみ（黒い丸角）の上なら、吹き出しより境界を優先
+  function hitPill(p) {
+    for (const q of lv.bounds) { if (q.fixed) continue; const [hx, hy] = handleSpot(world.segs[q.id]); if (Math.hypot(p[0] - hx, p[1] - hy) < Math.max(16, cell * .42)) return q; }
+    return null;
+  }
+  const toCells = (axis, p) => ((axis === 'v' ? p[0] : p[1]) - PAD) / cell;
+  /* ---- 言葉のドラッグ：話し手の吹き出し（または置いた物）をつまみ、相手のコマの置ける所で離す ---- */
+  function hitWord(p) {
+    for (let k = lv.words.length - 1; k >= 0; k--) {
+      const at = putOf(k);
+      if (!at || !world.words[k].inWin) {
+        const g = speakerBubble(k), rx = at ? g.rx * .55 : g.rx, ry = at ? g.ry * .55 : g.ry, cy = at ? g.cy + g.ry * .45 : g.cy;
+        if (((p[0] - g.cx) / (rx + 10)) ** 2 + ((p[1] - cy) / (ry + 10)) ** 2 <= 1) return k;
+      } else if (p[0] >= X(at[0]) - 4 && p[0] <= X(at[0] + 1) + 4 && p[1] >= Y(at[1]) - cell * .7 && p[1] <= Y(at[1] + 1) + 4) return k;
+    }
+    return -1;
+  }
+  // 指の少し上にしっぽの先（＝置く所）。マウスは指先そのもの
+  function wordGeom(d, p) {
+    const [rx, ry] = bubbleSize(), off = d.mouse ? 0 : cell * .55;
+    const tip = [p[0], p[1] - off];
+    let cx = tip[0] + rx * .35, cy = tip[1] - cell * .3 - ry;
+    if (cy - ry < 2) { cx = tip[0] + (tip[0] + cell * .4 + rx * 2 < cw ? 1 : -1) * (cell * .4 + rx); cy = Math.max(ry + 2, tip[1] - ry * .3); }
+    d.cx = cx; d.cy = cy; d.tip = tip;
+    // 置ける所：しっぽの先のマス。少し外れても一番近い置ける所に吸い付く
+    const q = lv.words[d.k], fx = (tip[0] - PAD) / cell, fy = (tip[1] - PAD) / cell;
+    let best = null, bd = .9;
+    for (const [x, y] of lv.targets[d.k]) {
+      if (!L.canPut(lv, b, d.k, x, y)) continue;
+      const dd = Math.hypot(fx - (x + .5), fy - (y + .5));
+      if (dd < bd) { bd = dd; best = [x, y]; }
+    }
+    d.at = best;
+    const tx = Math.floor(fx), ty = Math.floor(fy);
+    d.over = tx >= 0 && ty >= 0 && tx < lv.W && ty < lv.H && world.owner[ty][tx] === q.to;
+  }
+  function startWordDrag(k, p, e) {
+    const prev = Object.assign({}, b), from = putOf(k);
+    if (from) { // 持ち上げた言葉は、運んでいる間は効かない
+      const put = lv.words.map((_, j) => putOf(j)); put[k] = null; b = Object.assign({}, b, { put }); recompute(true);
+    }
+    wdrag = { k, pid: e.pointerId, prev, from, mouse: e.pointerType === 'mouse' };
+    wordGeom(wdrag, p);
+    morph = null; touched = true; hintAt = performance.now() + 30000;
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+  function endWordDrag() {
+    const d = wdrag; wdrag = null;
+    const put = lv.words.map((_, j) => putOf(j)); put[d.k] = d.at;
+    b = Object.assign({}, b, { put });
+    if (d.at) { morph = { k: d.k, t0: performance.now(), at: d.at, cx: d.cx, cy: d.cy }; addPop('ポンッ', d.at[0] + .5, d.at[1] - .2, WSTY[lv.words[d.k].w].ink, 18); if (navigator.vibrate) try { navigator.vibrate(12); } catch (err) {} }
+    else if (d.over && !L.reaches(lv, b, d.k)) addPop('とどかない…', (d.tip[0] - PAD) / cell, (d.tip[1] - PAD) / cell - .3, COL.ink2, 16);
+    if (!L.samePut(d.at, d.from)) { pushHist(d.prev); M.apply(m => { m.totalDrags = (m.totalDrags || 0) + 1; }, true); }
+    recompute(true); syncButtons();
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    if (busy || win || drag || wdrag) return;
+    const p = local(e), onPill = hitPill(p), wk = onPill ? -1 : hitWord(p);
+    if (wk >= 0) { e.preventDefault(); startWordDrag(wk, p, e); return; }
+    const q = onPill || hit(p);
+    if (q) {
+      e.preventDefault();
+      const [lo, hi] = L.range(lv, b, q.id);
+      drag = { id: q.id, axis: q.axis, start: b[q.id], pos: b[q.id], grab: toCells(q.axis, p) - b[q.id], lo, hi, pid: e.pointerId, prev: Object.assign({}, b) };
+      slide = null; touched = true;
+      try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+      return;
+    }
+    // 主人公をタップしても進む
+    for (const h of lv.heroes) if (Math.hypot(p[0] - X(h.x + .5), p[1] - Y(h.y + .5)) < cell * .6) { go(); return; }
+  });
+  cv.addEventListener('pointermove', e => {
+    const p = local(e);
+    if (wdrag) { if (e.pointerId !== wdrag.pid) return; e.preventDefault(); wordGeom(wdrag, p); cv.style.cursor = 'grabbing'; return; }
+    if (!drag) {
+      if (busy || win) { cv.style.cursor = 'default'; return; }
+      if (!hitPill(p) && hitWord(p) >= 0) { cv.style.cursor = 'grab'; return; }
+      const q = hit(p); cv.style.cursor = q ? (q.axis === 'v' ? 'ew-resize' : 'ns-resize') : 'default'; return;
+    }
+    if (e.pointerId !== drag.pid) return;
+    e.preventDefault();
+    // 端では少しだけゴムのように伸びる
+    const raw = toCells(drag.axis, p) - drag.grab;
+    const over = raw < drag.lo ? raw - drag.lo : raw > drag.hi ? raw - drag.hi : 0;
+    drag.pos = Math.max(drag.lo, Math.min(drag.hi, raw)) + Math.sign(over) * Math.min(.25, Math.abs(over) * .25);
+    const v = Math.max(drag.lo, Math.min(drag.hi, Math.round(drag.pos)));
+    if (v !== b[drag.id]) {
+      b[drag.id] = v; recompute(false);
+      if (navigator.vibrate) try { navigator.vibrate(4); } catch (err) {}
+    }
+  });
+  const endDrag = e => {
+    if (wdrag) { if (e && e.pointerId != null && e.pointerId !== wdrag.pid) return; endWordDrag(); return; }
+    if (!drag || (e && e.pointerId != null && e.pointerId !== drag.pid)) return;
+    const d = drag; drag = null;
+    slide = { id: d.id, from: d.pos, t0: performance.now() };
+    if (b[d.id] !== d.start) {
+      pushHist(d.prev);
+      M.apply(m => { m.totalDrags = (m.totalDrags || 0) + 1; }, true);
+    }
+    syncButtons();
+  };
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('lostpointercapture', endDrag);
+
+  /* ---- ボタン ---- */
+  $('#go').addEventListener('click', go);
+  $('#undo').addEventListener('click', () => {
+    if (busy || drag || wdrag || !hist.length) return;
+    const prev = hist.pop(), moved = lv.bounds.find(q => prev[q.id] !== b[q.id]);
+    if (moved) slide = { id: moved.id, from: b[moved.id], t0: performance.now() };
+    b = prev; recompute(true); syncButtons();
+  });
+  $('#reset').addEventListener('click', () => {
+    if (busy || drag || wdrag) return;
+    if (lv.bounds.every(q => b[q.id] === lv.init[q.id]) && !anyPut()) return;
+    pushHist(Object.assign({}, b));
+    b = Object.assign({}, lv.init); recompute(true); syncButtons();
+  });
+  $('#next').addEventListener('click', () => { if (li === N - 1) { showEnd(true); return; } startPage(li + 1, false); });
+  $('#quit').addEventListener('click', () => { stopPageTimer(); showEnd(false); });
+  $('#toToc').addEventListener('click', () => { stopPageTimer(); showToc(); });
+
+  /* ---- 目次 ---- */
+  function pageButton(i) {
+    const c = CH[chOf(i)], el = document.createElement('button'); el.type = 'button'; el.className = 'pg';
+    el.textContent = i - c.from + 1;
+    if (cleared.has(i)) el.classList.add('done');
+    if (!unlocked(i)) { el.classList.add('lock'); el.disabled = true; el.setAttribute('aria-label', `${c.title} ${i - c.from + 1}ページ 未解放`); const k = document.createElement('i'); k.className = 'lk'; el.appendChild(k); }
+    else { el.setAttribute('aria-label', `${c.title} ${i - c.from + 1}ページ`); el.addEventListener('click', () => startPage(i, i === 0 || (i === c.from && !runActive))); }
+    if (i === nextPage() && !cleared.has(i)) el.classList.add('next');
+    return el;
+  }
+  function showToc() {
+    CH.forEach((c, k) => {
+      const box = $('#tocPages' + (k + 1)); box.innerHTML = '';
+      for (let i = c.from; i < c.from + c.n; i++) box.appendChild(pageButton(i));
+      $('#tocN' + (k + 1)).textContent = `${[...cleared].filter(i => i >= c.from && i < c.from + c.n).length} / ${c.n}`;
+    });
+    const paid = $('#tocPaid'); paid.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+      const el = document.createElement('div'); el.className = 'pg paid'; el.textContent = i === 5 ? '…' : i;
+      if (i < 5) { const k = document.createElement('i'); k.className = 'lk'; el.appendChild(k); }
+      paid.appendChild(el);
+    }
+    $('#tocGo').textContent = cleared.size ? (cleared.size >= N ? 'はじめから' : 'つづきから') : 'はじめる';
+    show('toc');
+  }
+  $('#tocGo').addEventListener('click', () => { const i = cleared.size >= N ? 0 : nextPage(); startPage(i, i === 0); });
+  $('#tocEnd').addEventListener('click', () => showEnd(false));
+
+  /* ---- 終了画面 ---- */
+  const CHAPS = [
+    ['序章', 'はじまりのページ', 10, true], ['第2章', 'ふたりと見張り', 10, true], ['第3章', '風と歯車', 12], ['第4章', '鏡と影', 12], ['第5章', '最後の見開き', 13],
+  ];
+  const PRICES = ['買わない', '480円', '980円', '1,480円'];
+  function showEnd(done) {
+    runActive = runActive && !done;
+    const c1 = [...cleared].filter(i => i < CH[1].from).length, c2 = ch2Count();
+    $('#endTitle').textContent = c2 >= CH[1].n ? '第2章 おわり' : c1 >= CH[0].n && !c2 ? '序章 おわり' : 'ここまで';
+    $('#endSub').textContent = c2 ? '第2章' : '序章';
+    $('#endN').textContent = cleared.size; $('#endMax').textContent = `/ ${N} ページ脱出`;
+    const ul = $('#chs'); ul.innerHTML = '';
+    CHAPS.forEach(([n, nm, p, free]) => {
+      const li_ = document.createElement('li'); if (!free) li_.className = 'lockd';
+      li_.innerHTML = `<span class="n"></span><span class="nm"><small></small></span><span class="st"></span>`;
+      li_.querySelector('.n').textContent = n;
+      li_.querySelector('.nm').prepend(nm);
+      li_.querySelector('small').textContent = `${p}ページ`;
+      li_.querySelector('.st').textContent = free ? '無料' : '完全版';
+      ul.appendChild(li_);
+    });
+    $('#endSec').textContent = `全${CHAPS.length}章・${CHAPS.reduce((s, x) => s + x[2], 0)}ページ`;
+    renderOpts();
+    show('end');
+    M.flush();
+  }
+  function renderOpts() {
+    const box = $('#opts'), cur = M.get().priceAnswer; box.innerHTML = '';
+    PRICES.forEach(v => {
+      const el = document.createElement('button'); el.type = 'button'; el.className = 'opt'; el.textContent = v;
+      el.setAttribute('aria-pressed', String(cur === v));
+      el.addEventListener('click', () => { M.apply(m => { m.priceAnswer = v; }); renderOpts(); $('#thanks').textContent = 'ありがとう！ 参考にします'; });
+      box.appendChild(el);
+    });
+  }
+  $('#again').addEventListener('click', () => startPage(0, true));
+  $('#endToc').addEventListener('click', showToc);
+
+  /* ---- はじまり：初めてなら説明なしで1ページ目、2回目以降は目次 ---- */
+  if (prog.cleared.length) showToc(); else startPage(0, true);
+  M.init();
+
+  // テスト用の窓口：?test=1 のときだけ（ふつうに開いたページからは使えない）
+  if (TEST) window.__koma = {
+    get b() { return Object.assign({}, b); }, setB(nb) { const prev = Object.assign({}, b); b = Object.assign({}, b, nb); pushHist(prev); recompute(false); syncButtons(); },
+    go, startPage, li: () => li, metrics: () => M.get(), hint: () => hint, hintOn: () => hintOn, forceHint() { hintAt = 0; },
+    histLen: () => hist.length, dragging: () => (drag ? Object.assign({}, drag) : null), busy: () => busy, won: () => !!win,
+    handle(id) { const s = world.segs[id], [x, y] = handleSpot(s), r = cv.getBoundingClientRect(); return [r.left + x, r.top + y, cell]; },
+    // 言葉：つまむ所（吹き出しの中心か、置いた物のマス）と、マスの中心（画面座標）
+    word(k) { const r = cv.getBoundingClientRect(), at = putOf(k); if (at && world.words[k].inWin) return [r.left + X(at[0] + .5), r.top + Y(at[1] + .5)]; const g = speakerBubble(k); return [r.left + g.cx, r.top + (at ? g.cy + g.ry * .45 : g.cy)]; },
+    cell(x, y) { const r = cv.getBoundingClientRect(); return [r.left + X(x + .5), r.top + Y(y + .5), cell]; },
+    words: () => world.words.map(o => Object.assign({}, o)), wdrag: () => (wdrag ? Object.assign({}, wdrag) : null), sols: () => sols(),
+  };
+})();
+</script>
+</body></html>

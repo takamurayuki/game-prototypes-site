@@ -1,0 +1,1105 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body><title>ねじれ予告</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap');
+/* 単一テーマ：夜の舞台。予告線は照明の光。暖色＝敵の光、青緑＝主人公の灯り */
+:root{
+  color-scheme: dark;
+  --bg:#0a0908; --floor:#181410; --floor-hi:#221c16; --board-edge:#2e271f; --board-line:#2a241d; --grid-dot:#3a3229;
+  --wall:#221d18; --wall-hi:#3b3229; --wall-edge:#0c0a08;
+  --hole:#000000; --hole-rim:#4a3c2e; --patch:#1f1a15;
+  --text:#efe5d4; --text2:#b4a792; --muted:#7c705f;
+  --arrow:#ffcf7a; --arrow-core:#fff4dc;
+  --charge:#ff6b4a; --charge-core:#ffe0d6;
+  --fixed:#c7b8a0;
+  --hero:#7fe3d0; --hero-core:#e6fffa;
+  --danger:#ff4040;
+  --ink-fill:#ffcf7a; --ink-empty:#3a3229;
+  --btn:#efe5d4; --btn-text:#140f0b; --btn2:#2a231c; --btn2-text:#efe5d4;
+  --sheet:#120f0c; --sheet-line:#3a3027;
+  --silhouette:#050404;
+  --serif: 'Shippori Mincho B1', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  --sans: 'Zen Kaku Gothic New', 'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#app{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;
+  padding-top:max(10px, env(safe-area-inset-top, 0px));padding-bottom:max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column}
+.screen[hidden]{display:none}
+
+/* ---- 上の帯 ---- */
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.brand{font-family:var(--serif);font-weight:800;font-size:15px;letter-spacing:.18em;color:var(--text2)}
+.qno{font-family:var(--serif);font-weight:600;color:var(--muted);font-size:13px;letter-spacing:.08em}
+.qno b{font-size:22px;color:var(--text);font-weight:800;margin-right:2px}
+.row2{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 10px;min-height:30px}
+#hint{margin:0;font-family:var(--serif);font-weight:800;font-size:20px;letter-spacing:.06em;line-height:1.2}
+.ink{display:flex;align-items:center;gap:7px;flex:none;font-size:11px;color:var(--muted);letter-spacing:.12em}
+#drops{display:flex;gap:4px}
+#drops i{display:block;width:9px;height:13px;border-radius:50% 50% 50% 50% / 62% 62% 38% 38%;background:var(--ink-fill);box-shadow:0 0 8px color-mix(in srgb, var(--ink-fill) 60%, transparent)}
+#drops i.used{background:var(--ink-empty);box-shadow:none}
+.ink.flash #drops i.used{background:var(--danger)}
+
+/* ---- 舞台 ---- */
+#game{position:relative}
+#stagewrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#cv{display:block;touch-action:none;border-radius:6px}
+#result{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:16px 16px 14px;background:var(--sheet);
+  border-top:1px solid var(--sheet-line);border-radius:10px 10px 6px 6px;display:flex;flex-direction:column;gap:12px;
+  animation:rise .28s ease-out}
+#result[hidden]{display:none}
+@keyframes rise{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+.res-head{display:flex;align-items:baseline;gap:12px}
+#resBig{font-family:var(--serif);font-weight:800;font-size:34px;line-height:1;letter-spacing:.04em}
+#resBig.win{color:var(--arrow);text-shadow:0 0 18px color-mix(in srgb, var(--arrow) 45%, transparent)}
+#resBig.lose{color:var(--text)}
+#resSub{font-size:13px;color:var(--text2)}
+.res-btns{display:flex;gap:10px;align-items:center}
+
+.ctl{display:flex;gap:10px;align-items:center;margin-top:12px}
+.btn{border:0;border-radius:8px;min-height:50px;padding:0 18px;font-size:16px;font-weight:700;letter-spacing:.1em}
+.btn.main{flex:1;background:var(--btn);color:var(--btn-text)}
+.btn.sub{background:var(--btn2);color:var(--btn2-text);font-size:14px}
+.btn.ghost{background:transparent;color:var(--text2);font-size:13px;padding:0 10px;font-weight:500;text-decoration:underline;text-underline-offset:4px}
+.btn:disabled{opacity:.35;cursor:default}
+#fire{font-family:var(--serif);font-weight:800;font-size:19px;letter-spacing:.4em;text-indent:.4em}
+#fire.pulse{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--arrow) 0%, transparent)}50%{box-shadow:0 0 0 6px color-mix(in srgb, var(--arrow) 35%, transparent)}}
+
+/* ---- 終演 ---- */
+#end{justify-content:flex-start;gap:0;overflow-y:auto}
+.curtain{font-family:var(--serif);font-weight:800;font-size:44px;letter-spacing:.2em;margin:28px 0 4px}
+.score{display:flex;gap:28px;margin:14px 0 26px}
+.score div{display:flex;flex-direction:column;gap:2px}
+.score small{font-size:11px;letter-spacing:.14em;color:var(--muted)}
+.score b{font-family:var(--serif);font-size:38px;font-weight:800;line-height:1}
+.score b span{font-size:15px;color:var(--text2);margin-left:3px}
+.q{font-family:var(--serif);font-weight:800;font-size:19px;line-height:1.5;margin:0 0 12px}
+.choices{display:flex;flex-direction:column;gap:8px}
+.choice{text-align:left;background:var(--btn2);color:var(--text);border:1px solid transparent;border-radius:8px;min-height:50px;padding:0 16px;font-size:16px;font-weight:700}
+.choice[aria-pressed="true"]{border-color:var(--arrow);color:var(--arrow)}
+#thanks{min-height:22px;margin:12px 0 0;font-size:13px;color:var(--text2)}
+#again{flex:none;margin-bottom:4px}
+.endgap{flex:1;min-height:20px}
+
+@media (prefers-reduced-motion: reduce){
+  #result{animation:none}
+  #fire.pulse{animation:none;box-shadow:0 0 0 3px color-mix(in srgb, var(--arrow) 45%, transparent)}
+}
+</style>
+
+<div id="app">
+  <section id="game" class="screen">
+    <div class="top">
+      <div class="brand">ねじれ予告</div>
+      <div class="qno"><b id="qn">1</b>/ 8</div>
+    </div>
+    <div class="row2">
+      <p id="hint"></p>
+      <div class="ink" id="ink"><span>インク</span><span id="drops"></span></div>
+    </div>
+    <div id="stagewrap">
+      <canvas id="cv" aria-label="盤面"></canvas>
+      <div id="result" hidden>
+        <div class="res-head"><div id="resBig"></div><div id="resSub"></div></div>
+        <div class="res-btns">
+          <button class="btn main" id="resMain"></button>
+          <button class="btn ghost" id="resReset" hidden>線を戻す</button>
+          <button class="btn ghost" id="resSkip" hidden>とばす</button>
+        </div>
+      </div>
+    </div>
+    <div class="ctl">
+      <button class="btn sub" id="reset">線を戻す</button>
+      <button class="btn main" id="fire">放つ</button>
+    </div>
+  </section>
+
+  <section id="end" class="screen" hidden>
+    <div class="curtain">終演</div>
+    <div class="score">
+      <div><small>クリア</small><b id="endCleared">0<span>/ 8</span></b></div>
+      <div><small>最大連鎖</small><b id="endChain">0<span>体</span></b></div>
+    </div>
+    <p class="q">この仕掛けで、もっと遊びたいですか？</p>
+    <div class="choices" id="choices">
+      <button class="choice" data-v="もっと遊びたい" aria-pressed="false">もっと遊びたい</button>
+      <button class="choice" data-v="少し遊びたい" aria-pressed="false">少し遊びたい</button>
+      <button class="choice" data-v="もういい" aria-pressed="false">もういい</button>
+    </div>
+    <p id="thanks"></p>
+    <div class="endgap"></div>
+    <button class="btn main" id="again">もう一度遊ぶ</button>
+  </section>
+</div>
+
+<script id="logic">
+const L = (() => {
+  'use strict';
+  /* ---------- 盤面 ----------
+     map の記号: . 床 / # 壁(線は通れない) / O 穴 / H 主人公
+                 a 弓兵(線を曲げられる) / A 弓兵(線は固定)
+                 c 突進兵(線を曲げられる) / C 突進兵(線は固定)
+     lines: 敵ごと(読み順)の予告線。U D L R の並び */
+  const D = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
+  const eq = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
+  const key = c => c[0] + ',' + c[1];
+  const idx = (p, c) => { for (let i = 0; i < p.length; i++) if (eq(p[i], c)) return i; return -1; };
+
+  function walk(start, dirs) {
+    const out = []; let x = start[0], y = start[1];
+    for (const ch of dirs) { x += D[ch][0]; y += D[ch][1]; out.push([x, y]); }
+    return out;
+  }
+  function parse(def) {
+    const h = def.map.length, w = def.map[0].length;
+    const grid = [], enemies = []; let hero = null;
+    for (let y = 0; y < h; y++) {
+      grid.push([]);
+      for (let x = 0; x < w; x++) {
+        const ch = def.map[y][x];
+        grid[y].push(ch === '#' ? '#' : ch === 'O' ? 'O' : '.');
+        if (ch === 'H') hero = [x, y];
+        if ('aAcC'.includes(ch)) enemies.push({ x, y, kind: ch.toLowerCase() === 'a' ? 'archer' : 'charger', fixed: ch === 'A' || ch === 'C' });
+      }
+    }
+    enemies.forEach((e, i) => { e.id = i; e.orig = walk([e.x, e.y], def.lines[i] || ''); });
+    const lv = { name: def.name, hint: def.hint || '', ink: def.ink, w, h, grid, hero, enemies, def };
+    lv.sol = def.sol ? def.sol.map((s, i) => s == null ? enemies[i].orig.slice() : walk([enemies[i].x, enemies[i].y], s)) : null;
+    return lv;
+  }
+  const inGrid = (lv, c) => c[0] >= 0 && c[1] >= 0 && c[0] < lv.w && c[1] < lv.h;
+  const isWall = (lv, c) => lv.grid[c[1]][c[0]] === '#';
+  const origPaths = lv => lv.enemies.map(e => e.orig.slice());
+
+  /* ---------- インク：元の予告線に無いマスを描くと1マス1滴。縮めるのは無料 ---------- */
+  function lineCost(e, p) {
+    const s = new Set(e.orig.map(key)); let n = 0;
+    for (const c of p) if (!s.has(key(c))) n++;
+    return n;
+  }
+  const inkUsed = (lv, paths) => lv.enemies.reduce((s, e, i) => s + lineCost(e, paths[i]), 0);
+
+  /* 線を1マス延ばせるか（盤の中・壁でない・自分のマスでない・同じ線を2度通らない・隣のマス） */
+  function canStep(lv, e, p, c) {
+    if (!inGrid(lv, c) || isWall(lv, c)) return false;
+    if (eq(c, [e.x, e.y]) || idx(p, c) >= 0) return false;
+    const tip = p.length ? p[p.length - 1] : [e.x, e.y];
+    return Math.abs(tip[0] - c[0]) + Math.abs(tip[1] - c[1]) === 1;
+  }
+  function validPath(lv, i, p) {
+    const e = lv.enemies[i], q = [];
+    for (const c of p) { if (!canStep(lv, e, q, c)) return false; q.push(c); }
+    return true;
+  }
+
+  /* ドラッグ：指のマスへ向かって1マスずつ延ばす。線の上に戻れば、そこまで縮む */
+  function dragTo(lv, paths, i, target) {
+    const e = lv.enemies[i]; let p = paths[i].slice();
+    if (e.fixed) return p;
+    const budget = lv.ink - lv.enemies.reduce((s, o, j) => j === i ? s : s + lineCost(o, paths[j]), 0);
+    for (let it = 0; it < 64; it++) {
+      const tip = p.length ? p[p.length - 1] : [e.x, e.y];
+      if (eq(tip, target)) break;
+      if (eq(target, [e.x, e.y])) { p = []; break; }
+      const k = idx(p, target);
+      if (k >= 0) { p = p.slice(0, k + 1); break; }
+      const dx = target[0] - tip[0], dy = target[1] - tip[1];
+      const sx = [Math.sign(dx), 0], sy = [0, Math.sign(dy)];
+      const order = Math.abs(dx) >= Math.abs(dy) ? [sx, sy] : [sy, sx];
+      let moved = false;
+      for (const s of order) {
+        if (!s[0] && !s[1]) continue;
+        const c = [tip[0] + s[0], tip[1] + s[1]];
+        if (!canStep(lv, e, p, c)) continue;
+        const q = p.concat([c]);
+        if (lineCost(e, q) > budget) continue;
+        p = q; moved = true; break;
+      }
+      if (!moved) break;
+    }
+    return p;
+  }
+
+  /* ---------- 一斉攻撃（純粋関数） ----------
+     t=0 で全員が構える。1ターンごとに、矢と突進兵が予告線を1マス進む（同じ速さ）。
+     ターン内の判定はすべて「ターン開始時の状態」に対して同時に行う：
+       1. 主人公のマスに入った矢・突進兵 → 主人公が攻撃を受ける（失敗）。その矢・突進兵は止まる
+       2. 動く者どうし：同じマスに入る／すれ違う
+          突進兵×突進兵 → 両方倒れる。矢×突進兵 → 突進兵が倒れ、矢は止まる。矢×矢 → すり抜ける
+       3. 動く者 → 止まっている生きた敵のマスに入る
+          矢 → その敵が倒れ、矢は止まる。突進兵 → 両方倒れる
+       4. 突進兵が（まだ埋まっていない）穴に入る → 落ちて倒れ、穴は埋まって床になる（次のターンから通れる）
+     倒れた敵はそのターンの終わりに消え、マスは空く。射手が倒れても、放たれた矢は飛び続ける。
+     予告線の終わりまで進んだ矢は落ち、突進兵はそこで止まる（生きたまま）。
+     勝ち＝主人公が無傷で、敵が全員倒れた。連鎖＝倒した敵の数。 */
+  function simulate(lv, paths) {
+    const N = lv.enemies.length;
+    const alive = lv.enemies.map(() => true);
+    const pos = lv.enemies.map(e => [e.x, e.y]);
+    const holes = new Set();
+    for (let y = 0; y < lv.h; y++) for (let x = 0; x < lv.w; x++) if (lv.grid[y][x] === 'O') holes.add(key([x, y]));
+    const movers = [];
+    lv.enemies.forEach((e, i) => {
+      if (!paths[i] || !paths[i].length) return;
+      movers.push({ type: e.kind === 'archer' ? 'arrow' : 'charge', owner: i, path: paths[i], step: 0, at: [e.x, e.y], on: true });
+    });
+    const ticks = [], kills = []; let heroHit = null;
+    const maxT = Math.max(0, ...paths.map(p => (p ? p.length : 0))) + 1;
+    for (let t = 1; t <= maxT; t++) {
+      const act = movers.filter(m => m.on && (m.type === 'arrow' || alive[m.owner]));
+      if (!act.length) break;
+      for (const m of act) { m.from = m.at; m.to = m.path[m.step]; m.stop = false; }
+      const dead = new Map(), filled = [], ev = [];
+      const kill = (j, by, how, at) => { if (alive[j] && !dead.has(j)) dead.set(j, { id: j, by, how, at, t }); };
+      const movingCharger = new Set(act.filter(m => m.type === 'charge').map(m => m.owner));
+      // 1. 主人公
+      for (const m of act) if (eq(m.to, lv.hero)) {
+        m.stop = true;
+        if (!heroHit) heroHit = { t, by: m.owner, how: m.type, at: m.to.slice() };
+      }
+      // 2. 動く者どうし
+      for (let a = 0; a < act.length; a++) for (let b = a + 1; b < act.length; b++) {
+        const A = act[a], B = act[b];
+        if (A.type === 'arrow' && B.type === 'arrow') continue;
+        const same = eq(A.to, B.to), swap = eq(A.to, B.from) && eq(B.to, A.from);
+        if (!same && !swap) continue;
+        const at = same ? A.to.slice() : [(A.from[0] + A.to[0]) / 2, (A.from[1] + A.to[1]) / 2];
+        if (A.type === 'charge' && B.type === 'charge') {
+          kill(A.owner, B.owner, 'crash', at); kill(B.owner, A.owner, 'crash', at); A.stop = B.stop = true;
+        } else {
+          const ar = A.type === 'arrow' ? A : B, ch = ar === A ? B : A;
+          kill(ch.owner, ar.owner, 'arrow', at); ar.stop = ch.stop = true;
+        }
+      }
+      // 3. 止まっている敵
+      for (const m of act) {
+        for (let j = 0; j < N; j++) {
+          if (!alive[j] || movingCharger.has(j) || j === m.owner) continue;
+          if (!eq(pos[j], m.to)) continue;
+          if (m.type === 'arrow') { kill(j, m.owner, 'arrow', m.to.slice()); m.stop = true; }
+          else { kill(j, m.owner, 'crash', m.to.slice()); kill(m.owner, j, 'crash', m.to.slice()); m.stop = true; }
+        }
+      }
+      // 4. 穴
+      for (const m of act) if (m.type === 'charge' && holes.has(key(m.to)) && !eq(m.to, lv.hero)) {
+        kill(m.owner, -1, 'hole', m.to.slice()); m.stop = true; filled.push(key(m.to));
+      }
+      // 反映
+      const moves = act.map(m => ({ type: m.type, owner: m.owner, from: m.from.slice(), to: m.to.slice(), stop: m.stop, end: false }));
+      for (const m of act) {
+        m.at = m.to; m.step++;
+        if (m.type === 'charge') pos[m.owner] = m.to.slice();
+        if (m.stop || m.step >= m.path.length) m.on = false;
+      }
+      moves.forEach((mv, k) => { mv.end = !act[k].on; });
+      for (const d of dead.values()) { alive[d.id] = false; kills.push(d); ev.push(d); }
+      for (const f of filled) holes.delete(f);
+      ticks.push({ t, moves, kills: ev, filled: filled.slice(), heroHit: heroHit && heroHit.t === t ? heroHit : null });
+    }
+    const win = !heroHit && alive.every(a => !a);
+    return { ticks, kills, heroHit, alive, win, chain: kills.length };
+  }
+
+  /* ドラッグ中の予測：この線が（今の盤面のまま）最初に何に当たるか。連鎖の先は読まない */
+  function preview(lv, paths, i) {
+    const e = lv.enemies[i], p = paths[i];
+    for (let k = 0; k < p.length; k++) {
+      const c = p[k];
+      if (eq(c, lv.hero)) return { kind: 'hero', at: c, k };
+      for (let j = 0; j < lv.enemies.length; j++) if (j !== i) {
+        const o = lv.enemies[j];
+        if (o.x === c[0] && o.y === c[1]) return { kind: 'enemy', at: c, k, id: j };
+      }
+      if (e.kind === 'charger' && lv.grid[c[1]][c[0]] === 'O') return { kind: 'hole', at: c, k };
+    }
+    return p.length ? { kind: 'none', at: p[p.length - 1], k: p.length - 1 } : null;
+  }
+
+  /* ---------- ソルバー：インク内で描ける線を全部試す ---------- */
+  function pathsFor(lv, i, maxCost) {
+    const e = lv.enemies[i];
+    if (e.fixed) return [{ p: e.orig.slice(), c: 0 }];
+    const out = [], origSet = new Set(e.orig.map(key)), lim = e.orig.length + maxCost;
+    const p = [];
+    (function rec(cost) {
+      out.push({ p: p.slice(), c: cost });
+      if (p.length >= lim) return;
+      const tip = p.length ? p[p.length - 1] : [e.x, e.y];
+      for (const d of Object.values(D)) {
+        const c = [tip[0] + d[0], tip[1] + d[1]];
+        if (!canStep(lv, e, p, c)) continue;
+        const nc = cost + (origSet.has(key(c)) ? 0 : 1);
+        if (nc > maxCost) continue;
+        p.push(c); rec(nc); p.pop();
+      }
+    })(0);
+    return out;
+  }
+  function solve(lv, opts) {
+    opts = opts || {};
+    const limit = opts.limit || Infinity;
+    const opt = lv.enemies.map((e, i) => pathsFor(lv, i, lv.ink));
+    const sols = []; let tried = 0, minInk = Infinity;
+    const cur = [];
+    (function rec(i, used) {
+      if (sols.length >= limit) return;
+      if (i === lv.enemies.length) {
+        tried++;
+        const r = simulate(lv, cur);
+        if (r.win) { sols.push({ paths: cur.map(p => p.slice()), ink: used, chain: r.chain }); minInk = Math.min(minInk, used); }
+        return;
+      }
+      for (const o of opt[i]) {
+        if (used + o.c > lv.ink) continue;
+        cur[i] = o.p; rec(i + 1, used + o.c);
+        if (sols.length >= limit) return;
+      }
+    })(0, 0);
+    return { count: sols.length, sols, tried, minInk };
+  }
+
+  /* ---------- 8問 ---------- */
+  const LEVELS_DEF = [
+    { name: '曲げる', hint: '線の先をつかむ', ink: 3,
+      map: ['......',
+            '..a...',
+            '......',
+            '......',
+            '......',
+            '...A..',
+            '......',
+            '..H...'],
+      lines: ['DDDDDD', 'UUUUL'], sol: ['DDDDR', null] },
+    { name: '落とす', hint: '突進は穴に落ちる', ink: 2,
+      map: ['......',
+            '.c....',
+            '......',
+            '......',
+            '...O..',
+            '......',
+            '......',
+            '.H....'],
+      lines: ['DDDDDD'], sol: ['DDDRR'] },
+    { name: '戻す', hint: '戻すのはタダ', ink: 2,
+      map: ['a.....',
+            '......',
+            '.A....',
+            '......',
+            '......',
+            '......',
+            '......',
+            '.....H'],
+      lines: ['RRRRRDDDDDDD', 'UUL'], sol: ['RDD', null] },
+    { name: '体当たり', hint: 'ぶつかれば両方倒れる', ink: 3,
+      map: ['......',
+            '......',
+            '..a..c',
+            '......',
+            '......',
+            '......',
+            '......',
+            '..H...'],
+      lines: ['DDDDD', 'DDDDDLLL'], sol: ['', 'LLL'] },
+    { name: '埋める', hint: '落ちた穴は埋まる', ink: 3,
+      map: ['..c...',
+            '......',
+            'c.....',
+            '##O###',
+            '......',
+            '..A...',
+            '......',
+            '..H...'],
+      lines: ['DDDDDDD', 'RRRRR', 'LL'], sol: ['LDRDDDD', 'RRD', null] },
+    { name: '道をあける', hint: '通り道をあける', ink: 3,
+      map: ['######',
+            'H.....',
+            '......',
+            '...a..',
+            '#.#.##',
+            'C..A.A',
+            '######',
+            '######'],
+      lines: ['LLLUU', 'RRRRR', 'UU', 'L'], sol: ['DD', null, null, null] },
+    { name: '盾', hint: '矢は最初の敵で止まる', ink: 2,
+      map: ['..A..c',
+            '......',
+            'c.....',
+            '......',
+            '......',
+            '......',
+            '......',
+            '..H...'],
+      lines: ['DDDDDDD', 'LL', 'RDDDDD'], sol: [null, 'LLL', 'RR'] },
+    { name: '大連鎖', hint: '一本の矢で', ink: 3,
+      map: ['.a...A',
+            '......',
+            '...A.O',
+            '......',
+            'C.....',
+            '......',
+            '......',
+            '.HC...'],
+      lines: ['DDDDDDD', 'L', 'UULL', 'UURRRRR', 'RRRUUUUUUU'], sol: ['DDRR', null, null, null, null] },
+  ];
+  const LEVELS = () => LEVELS_DEF.map(parse);
+  return { D, eq, key, walk, parse, lineCost, inkUsed, canStep, validPath, dragTo, simulate, preview, pathsFor, solve, origPaths, LEVELS_DEF, LEVELS };
+})();
+if (typeof module !== 'undefined') module.exports = L;
+</script>
+
+<script>
+/* ===== 計測（db があればそこへ、無ければ localStorage だけ） ===== */
+const M = (() => {
+  const KEY = 'nejire.metrics.v1';
+  const DEF = () => ({ firstPlayAt: null, updatedAt: null, sessions: 0, runsStarted: 0, runsCompleted: 0, firstRunCleared: false, replayed: false,
+    priceAnswer: null, bestScore: 0, tutorialStuck: false, stagesCleared: 0, maxChain: 0, retries: 0, wantMore: null });
+  let m = DEF();
+  try { const raw = localStorage.getItem(KEY); if (raw) m = Object.assign(DEF(), JSON.parse(raw)); } catch (e) {}
+  const ops = []; let ref = null, ready = false, inflight = false, again = false, timer = 0;
+  const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(m)); } catch (e) {} };
+  function write() {
+    clearTimeout(timer); timer = 0;
+    if (!ref) return;
+    if (inflight) { again = true; return; }
+    inflight = true;
+    Promise.resolve().then(() => ref.set(Object.assign({}, m))).catch(() => {}).finally(() => { inflight = false; if (again) { again = false; write(); } });
+  }
+  // lazy: やり直し回数のように続けて変わるものは、間が空いてから1回だけ書く
+  function apply(op, lazy) {
+    const before = JSON.stringify(m);
+    op(m); if (!m.firstPlayAt) m.firstPlayAt = new Date().toISOString();
+    if (JSON.stringify(m) === before) return;
+    m.updatedAt = new Date().toISOString();
+    saveLocal();
+    if (!ready) { ops.push(op); return; }
+    if (lazy) { clearTimeout(timer); timer = setTimeout(write, 1500); } else write();
+  }
+  async function init() {
+    try {
+      const c = window.claude; if (!c || !c.use) return;
+      const [db, user] = await Promise.all([c.use('db'), c.use('user')]);
+      if (!db || !user) return;
+      const id = await user.id(); if (!id) return;
+      const r = db.doc('plays/' + id);
+      let base = null;
+      try { const snap = await r.get(); base = snap.exists ? snap.data() : null; } catch (e) { return; }
+      const nm = Object.assign(DEF(), base || {});
+      if (!nm.firstPlayAt) nm.firstPlayAt = m.firstPlayAt || new Date().toISOString();
+      ops.forEach(o => o(nm)); ops.length = 0;
+      nm.updatedAt = new Date().toISOString();
+      m = nm; ref = r; ready = true; saveLocal(); write();
+    } catch (e) {}
+  }
+  addEventListener('pagehide', () => { if (timer) write(); });
+  return { apply, init, get: () => m };
+})();
+
+/* ===== 画面 ===== */
+(() => {
+  const $ = s => document.querySelector(s);
+  const LV = L.LEVELS(), N = LV.length;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const css = getComputedStyle(document.documentElement);
+  const T = n => css.getPropertyValue('--' + n).trim();
+  const C = {};
+  ['floor', 'floor-hi', 'board-edge', 'board-line', 'grid-dot', 'wall', 'wall-hi', 'wall-edge', 'hole', 'hole-rim', 'patch', 'arrow', 'arrow-core', 'charge', 'charge-core',
+    'fixed', 'hero', 'hero-core', 'danger', 'silhouette', 'text', 'text2', 'serif', 'bg'].forEach(k => { C[k.replace(/-(\w)/g, (_, a) => a.toUpperCase())] = T(k); });
+
+  /* ---- 通しの進み具合（ローカル）：再読み込みしても続きから ---- */
+  const RKEY = 'nejire.run.v1';
+  let run = null;
+  try { const r = localStorage.getItem(RKEY); if (r) run = JSON.parse(r); } catch (e) {}
+  const saveRun = () => { try { localStorage.setItem(RKEY, JSON.stringify(run)); } catch (e) {} };
+
+  const firstSession = M.get().sessions === 0;
+  M.apply(m => { m.sessions++; });
+  let anyInput = false, stuckTimer = 0;
+  addEventListener('pointerdown', () => { anyInput = true; clearTimeout(stuckTimer); }, { capture: true });
+
+  /* ---- 状態 ---- */
+  let si = 0, lv = LV[0], paths = [], play = null, drag = null, inkFlash = 0, taught = false, stageRetries = 0, firedOnce = false;
+  let parts = [], combo = null, shake = 0;
+
+  const cv = $('#cv'), ctx = cv.getContext('2d');
+  let cs = 50, W = 300, H = 400, dpr = 1;
+
+  function show(name) {
+    $('#game').hidden = name !== 'game';
+    $('#end').hidden = name !== 'end';
+    if (name === 'game') { size(); }
+  }
+
+  /* ---- 1問はじめる ---- */
+  function startStage(i) {
+    si = i; lv = LV[i]; paths = L.origPaths(lv);
+    play = null; drag = null; parts = []; combo = null; stageRetries = 0; firedOnce = false;
+    $('#qn').textContent = i + 1;
+    $('#hint').textContent = lv.hint;
+    $('#result').hidden = true;
+    setBusy(false);
+    updInk();
+    show('game');
+    if (run) { run.stage = i; saveRun(); }
+  }
+  function newRun() {
+    const first = M.get().runsStarted === 0;
+    run = { stage: 0, cleared: LV.map(() => false), first, chain: 0, done: false };
+    saveRun();
+    M.apply(m => { m.runsStarted++; });
+    startStage(0);
+  }
+
+  /* ---- インク ---- */
+  function updInk() {
+    const used = L.inkUsed(lv, paths), el = $('#drops');
+    if (el.childElementCount !== lv.ink) { el.innerHTML = ''; for (let k = 0; k < lv.ink; k++) el.appendChild(document.createElement('i')); }
+    [...el.children].forEach((d, k) => d.classList.toggle('used', k >= lv.ink - used));
+    $('#reset').disabled = !!play || paths.every((p, k) => p.length === lv.enemies[k].orig.length && L.lineCost(lv.enemies[k], p) === 0);
+  }
+  function flashInk() {
+    const el = $('#ink'); el.classList.add('flash'); clearTimeout(inkFlash);
+    inkFlash = setTimeout(() => el.classList.remove('flash'), 380);
+  }
+  function setBusy(b) { $('#fire').disabled = b; $('#reset').disabled = b; $('#fire').classList.toggle('pulse', !b && si === 0 && taught && !firedOnce); }
+
+  /* ---- 寸法 ---- */
+  function size() {
+    const wrap = $('#stagewrap').getBoundingClientRect();
+    cs = Math.max(30, Math.floor(Math.min(wrap.width / lv.w, wrap.height / lv.h)));
+    W = cs * lv.w; H = cs * lv.h; dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    bg = null;
+  }
+  addEventListener('resize', () => { if (!$('#game').hidden) size(); });
+  const cx = c => (c[0] + .5) * cs, cy = c => (c[1] + .5) * cs;
+
+  /* ---- 背景（床・壁・格子）を1枚にしておく ---- */
+  let bg = null;
+  function paintBg(filled) {
+    const o = document.createElement('canvas'); o.width = cv.width; o.height = cv.height;
+    const g = o.getContext('2d'); g.scale(dpr, dpr);
+    g.fillStyle = C.floor; g.fillRect(0, 0, W, H);
+    // 板張り
+    g.strokeStyle = C.boardLine; g.lineWidth = 1;
+    for (let x = 0; x <= lv.w * 2; x++) { g.globalAlpha = x % 2 ? .35 : .7; g.beginPath(); g.moveTo(x * cs / 2 + .5, 0); g.lineTo(x * cs / 2 + .5, H); g.stroke(); }
+    g.globalAlpha = 1;
+    // 上からの照明
+    const rg = g.createRadialGradient(W / 2, H * .36, cs, W / 2, H * .45, Math.max(W, H) * .8);
+    rg.addColorStop(0, C.floorHi); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = rg; g.globalAlpha = .9; g.fillRect(0, 0, W, H); g.globalAlpha = 1;
+    // マスの角の点（マス単位で曲がることを示す）
+    g.fillStyle = C.gridDot;
+    for (let y = 1; y < lv.h; y++) for (let x = 1; x < lv.w; x++) g.fillRect(x * cs - 1.5, y * cs - .5, 3, 1), g.fillRect(x * cs - .5, y * cs - 1.5, 1, 3);
+    for (let y = 0; y < lv.h; y++) for (let x = 0; x < lv.w; x++) {
+      const ch = lv.grid[y][x];
+      if (ch === '#') {
+        const p = 1.5;
+        g.fillStyle = C.wallEdge; g.fillRect(x * cs, y * cs, cs, cs);
+        g.fillStyle = C.wall; g.fillRect(x * cs + p, y * cs + p, cs - 2 * p, cs - 2 * p);
+        g.fillStyle = C.wallHi; g.fillRect(x * cs + p, y * cs + p, cs - 2 * p, Math.max(2, cs * .06));
+      } else if (ch === 'O') {
+        const k = x + ',' + y;
+        if (filled && filled.has(k)) {
+          g.fillStyle = C.patch; rr(g, x * cs + cs * .14, y * cs + cs * .14, cs * .72, cs * .72, cs * .18); g.fill();
+          g.strokeStyle = C.holeRim; g.lineWidth = 1; g.setLineDash([3, 3]); g.stroke(); g.setLineDash([]);
+        } else {
+          const hg = g.createRadialGradient(cx([x, y]), cy([x, y]), cs * .05, cx([x, y]), cy([x, y]), cs * .42);
+          hg.addColorStop(0, C.hole); hg.addColorStop(.75, C.hole); hg.addColorStop(1, C.holeRim);
+          g.fillStyle = hg; rr(g, x * cs + cs * .1, y * cs + cs * .1, cs * .8, cs * .8, cs * .24); g.fill();
+        }
+      }
+    }
+    // 縁を暗く
+    const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .35, W / 2, H / 2, Math.max(W, H) * .72);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.3)');
+    g.fillStyle = vg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = C.boardEdge; g.lineWidth = 1; g.strokeRect(.5, .5, W - 1, H - 1);
+    return o;
+  }
+  function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+
+  /* ---- 光の線 ---- */
+  function polyPts(e, p, from) {
+    const pts = [];
+    if (from) pts.push(from); else {
+      const s = [e.x, e.y], f = p[0];
+      const dx = f[0] - s[0], dy = f[1] - s[1];
+      pts.push([cx(s) + dx * cs * .28, cy(s) + dy * cs * .28]);
+    }
+    for (const c of p) pts.push([cx(c), cy(c)]);
+    return pts;
+  }
+  function trace(pts, r) {
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length - 1; i++) ctx.arcTo(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], r);
+    ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+  }
+  function pointAt(pts, d) {
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (d <= l) return [a[0] + (b[0] - a[0]) * d / l, a[1] + (b[1] - a[1]) * d / l];
+      d -= l;
+    }
+    return pts[pts.length - 1];
+  }
+  function lenOf(pts) { let s = 0; for (let i = 1; i < pts.length; i++) s += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); return s; }
+  function beam(pts, kind, o) {
+    if (pts.length < 2) return;
+    o = o || {};
+    const col = kind === 'archer' ? C.arrow : C.charge, core = kind === 'archer' ? C.arrowCore : C.chargeCore;
+    const a = o.alpha == null ? 1 : o.alpha, r = cs * .38;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = col;
+    trace(pts, r);
+    ctx.globalAlpha = .07 * a; ctx.lineWidth = cs * .5; ctx.stroke();
+    ctx.globalAlpha = .16 * a; ctx.lineWidth = cs * .24; ctx.stroke();
+    ctx.globalAlpha = .55 * a; ctx.lineWidth = cs * .1; ctx.stroke();
+    ctx.strokeStyle = o.fixed ? C.fixed : core;
+    ctx.globalAlpha = .95 * a; ctx.lineWidth = o.fixed ? cs * .03 : cs * .045;
+    if (o.fixed) ctx.setLineDash([cs * .14, cs * .1]);
+    ctx.stroke(); ctx.setLineDash([]);
+    // 流れる光の粒（向きを見せる）
+    if (!reduced && !o.still) {
+      const L0 = lenOf(pts), gap = cs * .55, off = (performance.now() / 1000 * cs * 1.3) % gap;
+      ctx.fillStyle = core; ctx.globalAlpha = .8 * a;
+      for (let d = off; d < L0 - cs * .2; d += gap) { const q = pointAt(pts, d); ctx.beginPath(); ctx.arc(q[0], q[1], cs * .035, 0, 7); ctx.fill(); }
+    }
+    // 先端
+    const e = pts[pts.length - 1], b = pts[pts.length - 2], ang = Math.atan2(e[1] - b[1], e[0] - b[0]);
+    ctx.translate(e[0], e[1]); ctx.rotate(ang);
+    ctx.globalAlpha = a; ctx.fillStyle = col; ctx.strokeStyle = core; ctx.lineWidth = 1.5;
+    if (kind === 'archer') { ctx.beginPath(); ctx.moveTo(cs * .16, 0); ctx.lineTo(-cs * .06, -cs * .09); ctx.lineTo(0, 0); ctx.lineTo(-cs * .06, cs * .09); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    else { for (const k of [0, -cs * .12]) { ctx.beginPath(); ctx.moveTo(k + cs * .12, 0); ctx.lineTo(k - cs * .02, -cs * .13); ctx.moveTo(k + cs * .12, 0); ctx.lineTo(k - cs * .02, cs * .13); ctx.lineWidth = cs * .05; ctx.strokeStyle = col; ctx.stroke(); ctx.lineWidth = cs * .02; ctx.strokeStyle = core; ctx.stroke(); } }
+    ctx.restore();
+  }
+  // つかめる先端（脈打つ輪）
+  function knob(c, strong, active) {
+    const x = cx(c), y = cy(c), t = performance.now() / 1000;
+    ctx.save();
+    const ph = reduced ? .5 : (t * (strong ? 1.4 : .8)) % 1;
+    ctx.strokeStyle = C.arrowCore; ctx.lineWidth = 1.5;
+    if (!active) {
+      ctx.globalAlpha = (strong ? .9 : .45) * (1 - ph);
+      ctx.beginPath(); ctx.arc(x, y, cs * (.2 + ph * (strong ? .32 : .18)), 0, 7); ctx.stroke();
+    }
+    ctx.globalAlpha = active ? 1 : .85; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, cs * (active ? .24 : .17), 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ---- 人影 ---- */
+  function facing(e, p) { const f = p && p[0]; return f ? (f[0] < e.x ? -1 : 1) : 1; }
+  function pool(x, y, col, a) {
+    const g = ctx.createRadialGradient(x, y + cs * .18, 2, x, y + cs * .18, cs * .5);
+    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .22 * a; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(x, y + cs * .18, cs * .48, cs * .22, 0, 0, 7); ctx.fill(); ctx.restore();
+  }
+  function archer(x, y, dir, a, rim) {
+    pool(x, y, C.arrow, a);
+    const s = cs;
+    ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha = a;
+    ctx.fillStyle = C.silhouette; ctx.strokeStyle = rim || C.arrow; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(-s * .02, -s * .24, s * .09, 0, 7);
+    ctx.moveTo(-s * .14, s * .3); ctx.lineTo(-s * .1, -s * .1); ctx.quadraticCurveTo(-s * .02, -s * .16, s * .07, -s * .1); ctx.lineTo(s * .1, s * .3); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // 弓
+    ctx.beginPath(); ctx.arc(s * .06, -s * .02, s * .22, -1.25, 1.25); ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(s * .06 + Math.cos(-1.25) * s * .22, -s * .02 + Math.sin(-1.25) * s * .22); ctx.lineTo(s * .06 + Math.cos(1.25) * s * .22, -s * .02 + Math.sin(1.25) * s * .22); ctx.lineWidth = .8; ctx.stroke();
+    ctx.restore();
+  }
+  function charger(x, y, dir, a, rim) {
+    pool(x, y, C.charge, a);
+    const s = cs;
+    ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.globalAlpha = a;
+    ctx.fillStyle = C.silhouette; ctx.strokeStyle = rim || C.charge; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-s * .3, s * .3); ctx.quadraticCurveTo(-s * .34, -s * .12, -s * .04, -s * .18);
+    ctx.quadraticCurveTo(s * .16, -s * .22, s * .2, -s * .06); ctx.lineTo(s * .34, -s * .02); ctx.lineTo(s * .2, s * .06);
+    ctx.quadraticCurveTo(s * .2, s * .2, s * .14, s * .3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    // 角
+    ctx.beginPath(); ctx.moveTo(s * .12, -s * .18); ctx.quadraticCurveTo(s * .2, -s * .36, s * .34, -s * .34); ctx.quadraticCurveTo(s * .22, -s * .28, s * .2, -s * .12); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  function hero(danger, hit) {
+    const x = cx(lv.hero), y = cy(lv.hero), s = cs, t = performance.now() / 1000;
+    const col = hit ? C.danger : C.hero;
+    pool(x, y, col, 1.3);
+    ctx.save();
+    if (danger && !hit) {
+      const ph = reduced ? .5 : (t * 1.6) % 1;
+      ctx.strokeStyle = C.danger; ctx.globalAlpha = .75 * (1 - ph) + .15; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, s * (.34 + ph * .1), 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    // 灯り
+    const g = ctx.createRadialGradient(x + s * .12, y - s * .02, 1, x + s * .12, y - s * .02, s * .3);
+    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.globalAlpha = .8;
+    ctx.beginPath(); ctx.arc(x + s * .12, y - s * .02, s * .3, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.fillStyle = C.silhouette; ctx.strokeStyle = col; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(-s * .06 + x, y - s * .2, s * .085, 0, 7);
+    ctx.moveTo(x - s * .2, y + s * .3); ctx.quadraticCurveTo(x - s * .14, y - s * .1, x - s * .04, y - s * .1); ctx.quadraticCurveTo(x + s * .06, y - s * .1, x + s * .08, y + s * .3); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = hit ? C.danger : C.heroCore;
+    ctx.beginPath(); ctx.arc(x + s * .13, y - s * .02, s * .05, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  /* ---- 指の手本（1問目だけ） ---- */
+  function finger(now) {
+    const k = lv.enemies.findIndex(e => !e.fixed); if (k < 0) return;
+    const p = paths[k]; if (!p.length) return;
+    const tip = p[p.length - 1], t = reduced ? .3 : (now / 1000 % 2.4) / 2.4;
+    const m = t < .15 ? 0 : t < .55 ? (t - .15) / .4 : t < .8 ? 1 : 1 - (t - .8) / .2;
+    const ease = m * m * (3 - 2 * m);
+    const x = cx(tip) + ease * cs * .9, y = cy(tip) - ease * cs * .2;
+    ctx.save();
+    ctx.globalAlpha = t < .1 ? t / .1 : t > .9 ? (1 - t) / .1 : 1;
+    ctx.fillStyle = C.text; ctx.globalAlpha *= .9;
+    ctx.beginPath(); ctx.arc(x, y, cs * .09 * (t > .12 && t < .85 ? 1 : .6), 0, 7); ctx.fill();
+    ctx.translate(x, y); ctx.rotate(-.35);
+    ctx.fillStyle = C.text; ctx.strokeStyle = C.bg; ctx.lineWidth = 2;
+    rr(ctx, -cs * .075, cs * .04, cs * .15, cs * .42, cs * .075); ctx.fill(); ctx.stroke();
+    rr(ctx, -cs * .11, cs * .3, cs * .34, cs * .34, cs * .12); ctx.fill(); ctx.stroke();
+    rr(ctx, -cs * .075, cs * .04, cs * .15, cs * .42, cs * .075); ctx.fill();
+    ctx.restore();
+  }
+
+  /* ---- 一斉攻撃の再生 ---- */
+  const STEP = reduced ? 160 : 300;
+  function buildPlay(res) {
+    const n = lv.enemies.length;
+    const pos = [lv.enemies.map(e => [e.x, e.y])], alive = [lv.enemies.map(() => true)], filled = [new Set()];
+    for (const tk of res.ticks) {
+      const P = pos[pos.length - 1].map(c => c.slice()), A = alive[alive.length - 1].slice(), F = new Set(filled[filled.length - 1]);
+      for (const mv of tk.moves) if (mv.type === 'charge') P[mv.owner] = mv.to.slice();
+      for (const k of tk.kills) A[k.id] = false;
+      for (const f of tk.filled) F.add(f);
+      pos.push(P); alive.push(A); filled.push(F);
+    }
+    // 動きの行き先（すれ違いで止まったものは中間まで）
+    for (const tk of res.ticks) for (const mv of tk.moves) {
+      mv.dest = mv.to;
+      if (mv.stop) for (const k of tk.kills) if (k.at[0] === (mv.from[0] + mv.to[0]) / 2 && k.at[1] === (mv.from[1] + mv.to[1]) / 2 && (k.at[0] % 1 || k.at[1] % 1)) mv.dest = k.at;
+    }
+    const events = [];
+    for (const tk of res.ticks) {
+      for (const k of tk.kills) events.push({ time: tk.t - 1 + ((k.at[0] % 1 || k.at[1] % 1) ? .5 : 1), kill: k });
+      if (tk.heroHit) events.push({ time: tk.t, hero: tk.heroHit });
+      for (const f of tk.filled) events.push({ time: tk.t + .05, fill: f });
+    }
+    events.sort((a, b) => a.time - b.time);
+    const end = new Array(n).fill(0);
+    res.ticks.forEach(tk => tk.moves.forEach(mv => { end[mv.owner] = tk.t; }));
+    return { res, pos, alive, filled, events, ev: 0, end, t0: performance.now(), T: res.ticks.length, done: false, holeSet: new Set(), dead: new Set(), heroHit: false, combo: 0 };
+  }
+  function headAt(pl, i, tau) {
+    // 線 i の先頭（矢または突進兵）の位置（マス座標）
+    if (tau <= 0) return null;
+    const k = Math.min(pl.T - 1, Math.floor(tau)), f = tau - Math.floor(tau);
+    if (tau >= pl.end[i]) {
+      const tk = pl.res.ticks[pl.end[i] - 1]; if (!tk) return null;
+      const mv = tk.moves.find(m => m.owner === i); return mv ? mv.dest : null;
+    }
+    const tk = pl.res.ticks[k]; const mv = tk && tk.moves.find(m => m.owner === i);
+    if (!mv) return null;
+    const dest = mv.dest, ff = (dest !== mv.to) ? Math.min(f, .5) * 2 : f;
+    return [mv.from[0] + (dest[0] - mv.from[0]) * ff, mv.from[1] + (dest[1] - mv.from[1]) * ff];
+  }
+  function fire() {
+    if (play) return;
+    drag = null;
+    const res = L.simulate(lv, paths);
+    play = buildPlay(res); combo = null; firedOnce = true;
+    setBusy(true); updInk();
+  }
+  function stepPlay(now) {
+    const pl = play; if (!pl) return 0;
+    const tau = (now - pl.t0) / STEP;
+    while (pl.ev < pl.events.length && pl.events[pl.ev].time <= tau) {
+      const e = pl.events[pl.ev++];
+      if (e.kill) {
+        pl.dead.add(e.kill.id); pl.combo++;
+        const en = lv.enemies[e.kill.id];
+        burst((e.kill.at[0] + .5) * cs, (e.kill.at[1] + .5) * cs, en.kind === 'archer' ? C.arrow : C.charge);
+        combo = { n: pl.combo, t: now };
+      }
+      if (e.hero) { pl.heroHit = true; shake = now; burst(cx(lv.hero), cy(lv.hero), C.danger); }
+      if (e.fill) { pl.holeSet.add(e.fill); bg = null; }
+    }
+    if (!pl.done && tau >= pl.T + (reduced ? .6 : 1.2)) { pl.done = true; finish(pl.res); }
+    return tau;
+  }
+  function burst(x, y, col) {
+    if (reduced) { parts.push({ x, y, vx: 0, vy: 0, life: 1, max: .35, col, ring: true }); return; }
+    parts.push({ x, y, vx: 0, vy: 0, life: 1, max: .5, col, ring: true });
+    for (let k = 0; k < 18; k++) {
+      const a = Math.random() * 6.283, v = cs * (1.2 + Math.random() * 2.4);
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1, max: .5 + Math.random() * .5, col, rot: Math.random() * 6, vr: (Math.random() - .5) * 12 });
+    }
+  }
+
+  /* ---- 結果 ---- */
+  function finish(res) {
+    const big = $('#resBig'), sub = $('#resSub'), main = $('#resMain');
+    $('#result').hidden = false;
+    if (res.win) {
+      big.className = 'win'; big.textContent = res.chain + '体 連鎖';
+      sub.textContent = '成功';
+      main.textContent = si === N - 1 ? '終演へ' : '次の問へ';
+      $('#resReset').hidden = true; $('#resSkip').hidden = true;
+      onClear(res);
+    } else {
+      big.className = 'lose'; big.textContent = res.heroHit ? '当たった' : '残った';
+      sub.textContent = res.heroHit ? '主人公に攻撃が届いた' : 'まだ立っている敵がいる';
+      main.textContent = 'やり直す';
+      $('#resReset').hidden = false;
+      $('#resSkip').hidden = stageRetries < 3;
+    }
+    main.focus({ preventScroll: true });
+  }
+  function onClear(res) {
+    const first = run && run.first && si === 0 && stageRetries <= 3;
+    if (run) { run.cleared[si] = true; run.chain = Math.max(run.chain || 0, res.chain); saveRun(); }
+    let ever = []; try { ever = JSON.parse(localStorage.getItem('nejire.cleared.v1') || '[]'); } catch (e) {}
+    if (!ever.includes(si)) { ever.push(si); try { localStorage.setItem('nejire.cleared.v1', JSON.stringify(ever)); } catch (e) {} }
+    const inRun = run ? run.cleared.filter(Boolean).length : 0;
+    M.apply(m => {
+      m.stagesCleared = Math.max(m.stagesCleared, ever.length);
+      m.maxChain = Math.max(m.maxChain, res.chain);
+      m.bestScore = Math.max(m.bestScore, inRun);
+      if (first) m.firstRunCleared = true;
+      if (si === N - 1) m.runsCompleted++;
+    });
+  }
+  $('#resMain').addEventListener('click', () => {
+    if (!play || !play.done) return;
+    if (play.res.win) { next(); return; }
+    retry(false);
+  });
+  $('#resReset').addEventListener('click', () => retry(true));
+  $('#resSkip').addEventListener('click', () => next());
+  function retry(toOrig) {
+    stageRetries++;
+    M.apply(m => { m.retries++; }, true);
+    play = null; combo = null; parts = []; bg = null;
+    if (toOrig) paths = L.origPaths(lv);
+    $('#result').hidden = true; setBusy(false); updInk();
+  }
+  function next() {
+    if (si < N - 1) startStage(si + 1);
+    else endScreen();
+  }
+
+  /* ---- 終演 ---- */
+  function endScreen() {
+    const c = run ? run.cleared.filter(Boolean).length : 0;
+    $('#endCleared').innerHTML = c + '<span>/ ' + N + '</span>';
+    $('#endChain').innerHTML = (run ? run.chain || 0 : 0) + '<span>体</span>';
+    if (run) { run.done = true; saveRun(); }
+    const cur = M.get().wantMore;
+    document.querySelectorAll('.choice').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    $('#thanks').textContent = '';
+    show('end');
+    void cur;
+  }
+  document.querySelectorAll('.choice').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.choice').forEach(o => o.setAttribute('aria-pressed', String(o === b)));
+    const v = b.dataset.v;
+    M.apply(m => { m.wantMore = v; });
+    $('#thanks').textContent = 'ありがとうございました。';
+  }));
+  $('#again').addEventListener('click', () => {
+    M.apply(m => { m.replayed = true; });
+    newRun();
+  });
+
+  /* ---- 操作：線をつかんで曲げる ---- */
+  function cellAt(ev) {
+    const r = cv.getBoundingClientRect();
+    const fx = (ev.clientX - r.left) / cs, fy = (ev.clientY - r.top) / cs;
+    return { fx, fy, c: [Math.max(0, Math.min(lv.w - 1, Math.floor(fx))), Math.max(0, Math.min(lv.h - 1, Math.floor(fy)))] };
+  }
+  function grab(fx, fy, c) {
+    let best = null, bd = .62;
+    lv.enemies.forEach((e, i) => {
+      if (e.fixed) return;
+      const p = paths[i], tip = p.length ? p[p.length - 1] : [e.x, e.y];
+      const d = Math.hypot(fx - tip[0] - .5, fy - tip[1] - .5);
+      if (d < bd) { bd = d; best = { i, anchor: null }; }
+    });
+    if (best) return best;
+    for (let i = 0; i < lv.enemies.length; i++) {
+      const e = lv.enemies[i]; if (e.fixed) continue;
+      const k = paths[i].findIndex(q => L.eq(q, c));
+      if (k >= 0) return { i, anchor: k };
+    }
+    for (let i = 0; i < lv.enemies.length; i++) {
+      const e = lv.enemies[i]; if (!e.fixed && L.eq([e.x, e.y], c)) return { i, anchor: -1 };
+    }
+    return null;
+  }
+  cv.addEventListener('pointerdown', ev => {
+    if (play) return;
+    const { fx, fy, c } = cellAt(ev);
+    const g = grab(fx, fy, c);
+    if (!g) return;
+    ev.preventDefault();
+    try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+    drag = { i: g.i, anchor: g.anchor, id: ev.pointerId, last: c, moved: false };
+  });
+  cv.addEventListener('pointermove', ev => {
+    if (!drag || ev.pointerId !== drag.id) return;
+    const { c } = cellAt(ev);
+    if (L.eq(c, drag.last)) return;
+    drag.last = c;
+    const i = drag.i, e = lv.enemies[i];
+    let p = paths[i];
+    if (drag.anchor != null) {
+      const k = p.findIndex(q => L.eq(q, c));
+      if (k > drag.anchor) { drag.anchor = k; return; }           // 線に沿ってなぞっているだけ
+      if (k < 0 && !L.eq(c, [e.x, e.y])) p = p.slice(0, drag.anchor + 1); // 線から外れたら、そこで折る
+      drag.anchor = null;
+    }
+    const tmp = paths.slice(); tmp[i] = p;
+    const np = L.dragTo(lv, tmp, i, c);
+    const tip = np.length ? np[np.length - 1] : [e.x, e.y];
+    if (!L.eq(tip, c) && L.inkUsed(lv, tmp.map((q, j) => j === i ? np : q)) >= lv.ink) flashInk();
+    paths = tmp; paths[i] = np;
+    drag.moved = true;
+    if (si === 0 && !taught) { taught = true; setBusy(false); }
+    updInk();
+  });
+  const endDrag = ev => { if (drag && ev.pointerId === drag.id) drag = null; };
+  cv.addEventListener('pointerup', endDrag);
+  cv.addEventListener('pointercancel', endDrag);
+  $('#fire').addEventListener('click', fire);
+  $('#reset').addEventListener('click', () => { if (play) return; paths = L.origPaths(lv); updInk(); });
+
+  /* ---- 描画 ---- */
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if ($('#game').hidden) return;
+    const tau = stepPlay(now);
+    if (!bg) bg = paintBg(play ? play.holeSet : null);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    let sx = 0, sy = 0;
+    if (shake && !reduced) { const k = (now - shake) / 380; if (k < 1) { sx = (Math.random() - .5) * 10 * (1 - k); sy = (Math.random() - .5) * 10 * (1 - k); } else shake = 0; }
+    ctx.translate(sx, sy);
+    ctx.drawImage(bg, 0, 0, W, H);
+    const pl = play;
+
+    // 予告線
+    let danger = false;
+    lv.enemies.forEach((e, i) => {
+      const p = paths[i]; if (!p.length) return;
+      if (!pl) {
+        const pv = L.preview(lv, paths, i);
+        if (pv && pv.kind === 'hero') danger = true;
+        beam(polyPts(e, p), e.kind, { fixed: e.fixed, alpha: drag && drag.i !== i ? .55 : 1 });
+      } else {
+        // 再生中：まだ進んでいない部分だけ残す
+        const done = tau >= pl.end[i] + .6;
+        if (done) return;
+        const h = headAt(pl, i, tau);
+        const k = Math.max(0, Math.min(p.length, Math.ceil(tau)));
+        if (tau >= pl.end[i]) { const a = 1 - (tau - pl.end[i]) / .6; if (a > 0 && k < p.length) beam(polyPts(e, p.slice(k), h ? [cx(h), cy(h)] : null), e.kind, { alpha: a * .4, still: true }); return; }
+        const rest = p.slice(Math.max(0, k - 1));
+        if (rest.length) beam(polyPts(e, rest, h ? [(h[0] + .5) * cs, (h[1] + .5) * cs] : null), e.kind, { fixed: e.fixed, alpha: .5, still: true });
+      }
+    });
+
+    // ドラッグ中の予測（最初に当たるもの、だけ）
+    if (drag && !pl) {
+      const pv = L.preview(lv, paths, drag.i);
+      if (pv && pv.kind !== 'none') {
+        const x = cx(pv.at), y = cy(pv.at);
+        ctx.save(); ctx.strokeStyle = pv.kind === 'hero' ? C.danger : C.text; ctx.globalAlpha = .45; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.arc(x, y, cs * .42, 0, 7); ctx.stroke(); ctx.restore();
+      }
+    }
+
+    // 敵
+    lv.enemies.forEach((e, i) => {
+      let x = cx([e.x, e.y]), y = cy([e.x, e.y]), a = 1;
+      if (pl) {
+        if (pl.dead.has(i)) return;
+        if (e.kind === 'charger') { const h = headAt(pl, i, tau); if (h) { x = (h[0] + .5) * cs; y = (h[1] + .5) * cs; } }
+      }
+      const d = facing(e, paths[i]);
+      const rim = e.fixed ? C.fixed : null;
+      if (e.kind === 'archer') archer(x, y, d, a, rim); else charger(x, y, d, a, rim);
+    });
+    // 矢
+    if (pl) lv.enemies.forEach((e, i) => {
+      if (e.kind !== 'archer' || !paths[i].length) return;
+      const h = headAt(pl, i, tau); if (!h || tau >= pl.end[i] + .05) return;
+      const k = Math.min(pl.T - 1, Math.floor(tau)), mv = pl.res.ticks[k] && pl.res.ticks[k].moves.find(m => m.owner === i);
+      const from = mv ? mv.from : [e.x, e.y];
+      const hx = (h[0] + .5) * cs, hy = (h[1] + .5) * cs, ang = Math.atan2(h[1] - from[1], h[0] - from[0]);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(hx, hy); ctx.rotate(ang);
+      const gr = ctx.createLinearGradient(-cs * .9, 0, 0, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, C.arrow);
+      ctx.strokeStyle = gr; ctx.lineWidth = cs * .12; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-cs * .9, 0); ctx.lineTo(0, 0); ctx.stroke();
+      ctx.strokeStyle = C.arrowCore; ctx.lineWidth = cs * .035; ctx.beginPath(); ctx.moveTo(-cs * .5, 0); ctx.lineTo(cs * .12, 0); ctx.stroke();
+      ctx.restore();
+    });
+    hero(!pl && danger, pl && pl.heroHit);
+
+    // つかめる先端
+    if (!pl) lv.enemies.forEach((e, i) => {
+      if (e.fixed) return;
+      const p = paths[i], tip = p.length ? p[p.length - 1] : [e.x, e.y];
+      knob(tip, si === 0 && !taught, drag && drag.i === i);
+    });
+    if (!pl && si === 0 && !taught) finger(now);
+
+    // 破片
+    const dt = 1 / 60;
+    parts = parts.filter(q => (q.life -= dt / q.max) > 0);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const q of parts) {
+      ctx.globalAlpha = Math.max(0, q.life);
+      if (q.ring) { ctx.strokeStyle = q.col; ctx.lineWidth = 3 * q.life; ctx.beginPath(); ctx.arc(q.x, q.y, cs * (.15 + (1 - q.life) * .7), 0, 7); ctx.stroke(); continue; }
+      q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= .93; q.vy *= .93; q.rot += q.vr * dt;
+      ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(q.rot); ctx.fillStyle = q.col; ctx.fillRect(-cs * .05, -cs * .02, cs * .1, cs * .04); ctx.restore();
+    }
+    ctx.restore();
+
+    // 連鎖の数
+    if (combo) {
+      const k = Math.min(1, (now - combo.t) / 220), sc = reduced ? 1 : 1 + (1 - k) * .5;
+      ctx.save(); ctx.translate(cs * .3, cs * .3); ctx.scale(sc, sc);
+      ctx.font = `800 ${Math.round(cs * .9)}px ${C.serif}`; ctx.textBaseline = 'top';
+      ctx.fillStyle = C.arrow; ctx.shadowColor = C.arrow; ctx.shadowBlur = 16;
+      ctx.fillText(String(combo.n), 0, 0);
+      const w = ctx.measureText(String(combo.n)).width;
+      ctx.font = `800 ${Math.round(cs * .3)}px ${C.serif}`; ctx.shadowBlur = 0; ctx.fillStyle = C.text;
+      ctx.fillText('連鎖', w + cs * .08, cs * .5);
+      ctx.restore();
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /* ---- 開始 ---- */
+  if (run && !run.done && run.stage >= 0 && run.stage < N) startStage(run.stage);
+  else newRun();
+  if (firstSession && si === 0) stuckTimer = setTimeout(() => { if (!anyInput) M.apply(m => { m.tutorialStuck = true; }); }, 30000);
+  requestAnimationFrame(frame);
+  M.init();
+})();
+</script>
+</body></html>

@@ -1,0 +1,1159 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body><title>チズソダテ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Shippori+Mincho+B1:wght@700;800&display=swap');
+/* 単一テーマ：探検家のフィールドノート。方眼の紙・青黒インク・観察したところだけ水彩 */
+:root{
+  color-scheme: light;
+  --paper:#eef0e9; --paper2:#e2e6dc; --grid:#cfdad6; --grid2:#bccbc6;
+  --ink:#1f2b36; --ink2:#4d5b66; --pencil:#8b939a; --fog:#d9ddd6;
+  --red:#b8402c; --warn:#b8402c;
+  --w-grass:#a9c983; --w-forest:#6f9a62; --w-swamp:#8ea383; --w-deep:#4c6d73; --w-beach:#e3cd8e; --w-rock:#b3aca2;
+  --w-sea:#8db7cf; --w-lit:#d6ea5a; --w-camp:#e2a85a; --w-light:#f0c94a;
+  --sun:#e09a2c; --rain:#4b7fae; --night:#2e3866;
+  --white:#fbfcf8;
+  --hand:'Klee One','Hiragino Maru Gothic ProN','Hiragino Sans','Noto Sans JP','Yu Gothic',sans-serif;
+  --title:'Shippori Mincho B1','Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--hand);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:13px 13px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible{outline:2px dashed var(--ink);outline-offset:3px}
+
+.wrap{height:100%;max-width:540px;margin:0 auto;position:relative;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.inner{position:relative;height:100%}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:max(8px,env(safe-area-inset-top,0px)) 0 max(10px,env(safe-area-inset-bottom,0px))}
+.screen[hidden]{display:none}
+
+/* 欄外の見出し */
+.top{flex:none;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:2px 0 6px;border-bottom:1.5px solid var(--ink)}
+.ttl{font-family:var(--title);font-weight:800;font-size:20px;line-height:1;letter-spacing:.04em}
+.ttl small{font-family:var(--hand);font-weight:600;font-size:12px;color:var(--ink2);margin-left:8px;letter-spacing:0}
+.quit{font-size:12px;font-weight:600;color:var(--ink2);border:1.5px solid var(--ink2);border-radius:2px;padding:4px 9px;background:var(--white)}
+
+/* 天気と食料 */
+.hud{flex:none;display:flex;align-items:stretch;gap:10px;margin:7px 0 6px;height:50px}
+.wx{display:flex;align-items:center;gap:6px;padding:0 9px 0 4px;border:1.5px solid var(--ink);background:var(--white);border-radius:2px;flex:none}
+.wx .now{width:34px;height:34px}
+.wx .lbl{font-weight:600;font-size:17px;line-height:1}
+.wx .pips{display:flex;gap:3px;margin-top:5px}
+.wx .pips i{width:7px;height:7px;border-radius:50%;border:1.3px solid var(--ink);display:block}
+.wx .pips i.on{background:var(--ink)}
+.wx .arrow{font-size:13px;color:var(--ink2);margin-left:2px}
+.wx .next{width:22px;height:22px;opacity:.85}
+.wx .nl{font-size:11px;color:var(--ink2);line-height:1.1;text-align:center}
+.food{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.food .row{display:flex;align-items:baseline;justify-content:space-between;gap:6px;font-size:12px;color:var(--ink2);font-weight:600}
+.food .row b{font-size:22px;color:var(--ink);font-weight:600;line-height:1}
+.food .row .ret{white-space:nowrap}
+.food .row .ret b{font-size:16px}
+.food .row .ret.warn,.food .row .ret.warn b{color:var(--warn)}
+.bar{display:flex;gap:2px;height:9px}
+.bar i{flex:1;border:1.2px solid var(--ink2);border-radius:1px;background:transparent;display:block}
+.bar i.on{background:var(--w-camp);border-color:var(--ink)}
+.bar i.need{background:repeating-linear-gradient(135deg,var(--warn) 0 2px,transparent 2px 4px);border-color:var(--warn)}
+
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center}
+#cv{display:block;touch-action:none;cursor:pointer}
+
+.msg{flex:none;min-height:40px;margin:5px 0 2px;font-size:14px;line-height:1.35;font-weight:600;display:flex;align-items:center;gap:8px}
+.msg .note{flex:1}
+.msg .note small{display:block;font-size:12px;color:var(--ink2);font-weight:400}
+.msg.bad .note{color:var(--red)}
+
+.ctrl{flex:none;display:flex;gap:8px;height:54px;margin-top:4px}
+.ctrl button{border:1.8px solid var(--ink);background:var(--white);border-radius:2px;font-weight:600;font-size:15px;
+  display:flex;align-items:center;justify-content:center;gap:6px;position:relative}
+.ctrl button:active{background:var(--paper2)}
+.ctrl button:disabled{color:var(--pencil);border-color:var(--pencil);cursor:default}
+#obs{flex:1.5}
+#obs:not(:disabled){background:var(--ink);color:var(--white);box-shadow:0 0 0 0 rgba(214,234,90,.0);animation:beckon 1.4s ease-in-out infinite}
+@keyframes beckon{0%,100%{box-shadow:0 0 0 0 rgba(214,234,90,0)}50%{box-shadow:0 0 0 6px rgba(214,234,90,.85)}}
+#wait{flex:1}
+#bookBtn{flex:1}
+#bookBtn .dot{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:var(--red);color:var(--white);font-size:11px;
+  display:flex;align-items:center;justify-content:center;padding:0 5px}
+#bookBtn .dot[hidden]{display:none}
+.ctrl svg{width:20px;height:20px}
+
+/* 遠征の結果の札 */
+.card{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;pointer-events:none;z-index:3}
+.card[hidden]{display:none}
+.card .in{pointer-events:auto;width:100%;background:var(--white);border:1.8px solid var(--ink);border-radius:2px;
+  padding:14px 14px 12px;box-shadow:4px 5px 0 rgba(31,43,54,.18);transform:rotate(-.6deg);animation:drop .4s ease-out}
+.card h2{font-family:var(--title);font-weight:800;font-size:21px;line-height:1.2}
+.card p{font-size:13.5px;line-height:1.5;margin-top:6px;color:var(--ink2)}
+.card p b{color:var(--ink)}
+.card .btns{display:flex;gap:8px;margin-top:12px}
+.card .btns button{flex:1;height:46px;font-weight:600;font-size:15px;border:1.8px solid var(--ink);border-radius:2px}
+.card .btns .pri{background:var(--ink);color:var(--white)}
+.card.bad h2{color:var(--red)}
+@keyframes drop{from{transform:translateY(16px) rotate(-.6deg);opacity:0}to{transform:rotate(-.6deg);opacity:1}}
+
+/* 図鑑（ノートの見開き） */
+.scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:4px 0 14px}
+.close{font-size:13px;font-weight:600;border:1.5px solid var(--ink);border-radius:2px;padding:5px 12px;background:var(--white)}
+.lead{font-size:13px;color:var(--ink2);margin:10px 0 4px;line-height:1.5}
+.cr{display:grid;grid-template-columns:78px 1fr;gap:10px;padding:14px 0;border-bottom:1px dashed var(--grid2)}
+.cr .pic{width:78px;height:78px;border:1.5px solid var(--ink);background:var(--white);border-radius:2px;position:relative;overflow:hidden}
+.cr .pic svg{width:100%;height:100%;display:block}
+.cr .pic.wash::before{content:'';position:absolute;inset:6px;border-radius:46% 54% 50% 50%;background:var(--c);opacity:.45;mix-blend-mode:multiply}
+.cr h3{font-family:var(--title);font-weight:800;font-size:18px;line-height:1.2;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.cr h3 small{font-family:var(--hand);font-weight:600;font-size:11px;color:var(--ink2)}
+.cr .desc{font-size:14px;line-height:1.45;margin-top:3px}
+.cr .stars{font-size:11px;color:var(--ink2);margin-top:2px}
+.cr ul{list-style:none;margin-top:6px;display:flex;flex-direction:column;gap:3px}
+.cr li{font-size:13px;display:flex;align-items:center;gap:6px;color:var(--ink)}
+.cr li svg{width:18px;height:18px;flex:none}
+.cr li.pen{color:var(--pencil)}
+.cr li.pen::after{content:'（未清書）';font-size:10.5px}
+.cr li.none{color:var(--pencil);font-size:12px}
+.wxrule{margin-top:14px;font-size:13px;color:var(--ink2);line-height:1.6}
+.wxrule .seq{display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap}
+.wxrule .seq svg{width:22px;height:22px}
+
+/* 終了画面 */
+.h1{font-family:var(--title);font-weight:800;font-size:28px;line-height:1.2;margin:12px 0 4px}
+.stats{list-style:none;margin:10px 0 4px;border-top:1.5px solid var(--ink)}
+.stats li{display:flex;justify-content:space-between;align-items:baseline;padding:9px 2px;border-bottom:1px dashed var(--grid2);font-size:14px}
+.stats li b{font-size:20px;font-weight:600}
+.q{font-weight:600;font-size:15px;margin:22px 0 10px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opts button{height:48px;border:1.8px solid var(--ink);border-radius:2px;background:var(--white);font-weight:600;font-size:15px;text-align:left;padding:0 14px}
+.opts button.sel{background:var(--ink);color:var(--white)}
+.thanks{font-size:13px;color:var(--ink2);min-height:20px;margin:8px 0}
+.big{width:100%;height:52px;background:var(--ink);color:var(--white);font-weight:600;font-size:16px;border-radius:2px;margin-top:6px}
+.ghost{width:100%;height:44px;border:1.5px solid var(--ink);border-radius:2px;background:var(--white);font-weight:600;font-size:14px;margin-top:8px}
+.ghost[hidden]{display:none}
+
+@media (prefers-reduced-motion: reduce){
+  #obs:not(:disabled){animation:none;box-shadow:0 0 0 4px rgba(214,234,90,.85)}
+  .card .in{animation:none}
+}
+</style>
+
+<div class="wrap"><div class="inner">
+  <section id="game" class="screen">
+    <div class="top">
+      <div class="ttl" id="isl">ひとつめの島<small id="expn">遠征 1 回目</small></div>
+      <button class="quit" id="quit" type="button">おわる</button>
+    </div>
+    <div class="hud">
+      <div class="wx" aria-live="polite">
+        <span class="now" id="wxNow"></span>
+        <div><div class="lbl" id="wxLbl">晴</div><div class="pips" id="wxPips"></div></div>
+        <span class="arrow">▸</span>
+        <div><span class="next" id="wxNext"></span><div class="nl" id="wxNl">次 雨</div></div>
+      </div>
+      <div class="food">
+        <div class="row"><span>食料 <b id="foodN">22</b></span><span class="ret" id="ret">帰り <b id="retN">0</b></span></div>
+        <div class="bar" id="bar"></div>
+      </div>
+    </div>
+    <div class="stage" id="stage"><canvas id="cv"></canvas>
+      <div class="card" id="card" hidden><div class="in"><h2 id="cardT"></h2><p id="cardP"></p><div class="btns" id="cardB"></div></div></div>
+    </div>
+    <div class="msg" id="msg"><div class="note" id="note"></div></div>
+    <div class="ctrl">
+      <button id="obs" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5 20 20"/></svg>観察する</button>
+      <button id="wait" type="button">待つ</button>
+      <button id="bookBtn" type="button">図鑑<span class="dot" id="bookDot" hidden></span></button>
+    </div>
+  </section>
+
+  <section id="book" class="screen" hidden>
+    <div class="top">
+      <div class="ttl">生きもの図鑑<small id="bookSub"></small></div>
+      <button class="close" id="bookClose" type="button">地図へ</button>
+    </div>
+    <div class="scroll">
+      <p class="lead">生きものの隣で「観察する」と、そのときの天気と様子が書き込まれる。鉛筆の行は、拠点に持ち帰るまで消えるかもしれない。</p>
+      <div id="crs"></div>
+      <div class="wxrule"><b>天気のめぐり</b>（遠征は毎回、晴の朝に出発）<div class="seq" id="wxSeq"></div></div>
+    </div>
+  </section>
+
+  <section id="end" class="screen" hidden>
+    <div class="top">
+      <div class="ttl">チズソダテ<small>探検の記録</small></div>
+    </div>
+    <div class="scroll">
+      <div class="h1" id="endTitle">探検の記録</div>
+      <ul class="stats" id="stats"></ul>
+      <div class="q">この仕掛けで、もっと遊びたいですか？</div>
+      <div class="opts" id="opts"></div>
+      <div class="thanks" id="thanks"></div>
+      <button class="big" id="again" type="button">もう一度遊ぶ</button>
+      <button class="ghost" id="resume" type="button">探検にもどる</button>
+    </div>
+  </section>
+</div></div>
+
+<script id="logic">
+const L = (() => {
+  /* ===== 天気と時刻：晴→雨→夜 を 3 手ずつ。遠征ごとに朝の晴から ===== */
+  const PHASE = 3;
+  const WEATHERS = ['sun', 'rain', 'night'];
+  const WNAME = { sun: '晴', rain: '雨', night: '夜' };
+  const weatherAt = t => WEATHERS[Math.floor(t / PHASE) % 3];
+  const leftOf = t => PHASE - (t % PHASE);            // 今の天気が続く残り手数（今の手を含む）
+  const nextWeather = t => weatherAt(t + leftOf(t));
+
+  /* ===== 数値 ===== */
+  const ATTACK = 4;   // 獣に襲われると、1手分に加えて失う
+  const DEEP = 4;     // 深みにはまると、1手分に加えて失う
+  const SWAMP = 2;    // 浅い沼は 2
+
+  /* ===== 地形 =====
+     . 草地  , 浜  ^ 岩場  # 崖（通れない）  = 海（通れない）
+     T 森（獣のなわばり）  P 獣のねぐら（通れない）
+     ~ 沼（浅い）  D 沼（深み）  C 崖の細道（カニの群れ）  L 灯台  K 拠点 */
+  const PASS = { '.': 1, ',': 1, '^': 1, 'T': 1, '~': SWAMP, 'D': SWAMP, 'C': 1, 'L': 1, 'K': 1 };
+  const passable = ch => ch in PASS;
+  const isSwamp = ch => ch === '~' || ch === 'D';
+
+  /* ===== 島 ===== */
+  const ISLANDS = [
+    { id: 1, name: 'ひとつめの島', food: 18, rows: [
+      '######L##',
+      '######C##',
+      '#^.^..^.#',
+      '#D~DDD~D#',
+      '#D~DD~~D#',
+      '#D~~DD~D#',
+      '#.^....^#',
+      '#TTTTTTT#',
+      '#TTTPTTT#',
+      '#..^....#',
+      '=,,,,,,,=',
+      '=,,,,K,,=',
+      '=========',
+    ] },
+    { id: 2, name: 'ふたつめの島', food: 23, rows: [
+      '=,,K,,,==',
+      '#,..^..##',
+      '###C#####',
+      '#^......#',
+      '#D~DDD~D#',
+      '#D~~DD~D#',
+      '#DD~DD~D#',
+      '#.^...^.#',
+      '#TPT#TTT#',
+      '#TTT#TTP#',
+      '#..^#^..#',
+      '=,,,,,,,=',
+      '=,,,,,L,=',
+    ] },
+  ];
+
+  function parse(isl) {
+    const g = isl.rows.map(r => r.split(''));
+    const h = g.length, w = g[0].length;
+    let camp = null, goal = null;
+    const patch = g.map(r => r.map(() => -1));
+    const dens = [];
+    for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
+      if (g[r][c] === 'K') camp = [r, c];
+      if (g[r][c] === 'L') goal = [r, c];
+    }
+    // 森のまとまり（4近傍）ごとに 1 匹の獣
+    let n = 0;
+    for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
+      if ((g[r][c] === 'T' || g[r][c] === 'P') && patch[r][c] < 0) {
+        const st = [[r, c]]; patch[r][c] = n; let den = null;
+        while (st.length) {
+          const [y, x] = st.pop();
+          if (g[y][x] === 'P') den = [y, x];
+          for (const [dy, dx] of DIRS) {
+            const yy = y + dy, xx = x + dx;
+            if (yy >= 0 && yy < h && xx >= 0 && xx < w && (g[yy][xx] === 'T' || g[yy][xx] === 'P') && patch[yy][xx] < 0) { patch[yy][xx] = n; st.push([yy, xx]); }
+          }
+        }
+        dens.push(den); n++;
+      }
+    }
+    return { id: isl.id, name: isl.name, food: isl.food, g, h, w, camp, goal, patch, dens };
+  }
+  const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  const at = (P, r, c) => (r >= 0 && r < P.h && c >= 0 && c < P.w) ? P.g[r][c] : null;
+  const inForest = (P, r, c) => at(P, r, c) !== null && P.patch[r][c] >= 0;
+
+  /* ===== 生物の規則 ===== */
+  const CREATURES = ['beast', 'bugs', 'crabs'];
+  const stateOf = (k, w) =>
+    k === 'beast' ? (w === 'rain' ? 'sleep' : 'awake') :
+    k === 'bugs' ? (w === 'night' ? 'glow' : 'dark') :
+    (w === 'sun' ? 'away' : 'block');
+  const beastAwake = w => stateOf('beast', w) === 'awake';
+  const crabsOnPath = w => stateOf('crabs', w) === 'block';
+  const bugsGlow = w => stateOf('bugs', w) === 'glow';
+
+  // 観察できる生物（周り 1 マス：ねぐら／沼／細道）
+  function observable(P, r, c) {
+    const out = new Set();
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const ch = at(P, r + dy, c + dx);
+      if (ch === 'P') out.add('beast');
+      if (isSwamp(ch)) out.add('bugs');
+      if (ch === 'C') out.add('crabs');
+    }
+    return CREATURES.filter(k => out.has(k));
+  }
+
+  /* ===== 1 手 =====
+     s = { r, c, t, food, sr, sc }  sr,sc = 最後に立った「森の外」のマス（襲われたらそこへ追い返される）
+     a = 'wait' | 'observe' | [dr, dc]
+     返り値 { s, kind, facts, end, moved }
+       kind: none（何も起きない）| wall | blocked | move | deep | wait | observe | attack
+       end : null | goal | home | collapse */
+  function step(P, s, a) {
+    const w = weatherAt(s.t);
+    const n = Object.assign({}, s);
+    let kind, facts = [];
+    if (a === 'wait' || a === 'observe') {
+      if (a === 'observe') {
+        const ks = observable(P, s.r, s.c);
+        if (!ks.length) return { s, kind: 'none', facts, end: null };
+        facts = ks.map(k => ({ k, w, st: stateOf(k, w) }));
+      }
+      n.food -= 1; n.t += 1; kind = a;
+    } else {
+      const r = s.r + a[0], c = s.c + a[1];
+      const ch = at(P, r, c);
+      if (ch === null || !passable(ch)) return { s, kind: 'wall', facts, end: null };
+      if (ch === 'C' && crabsOnPath(w)) return { s, kind: 'blocked', facts: [{ k: 'crabs', w, st: 'block', auto: true }], end: null };
+      n.t += 1;
+      if (ch === 'D') { n.food -= 1 + DEEP; kind = 'deep'; }
+      else {
+        n.r = r; n.c = c; n.food -= PASS[ch]; kind = 'move';
+        if (!inForest(P, r, c)) { n.sr = r; n.sc = c; }
+      }
+    }
+    // 起きている獣のなわばり（森）で何かをすると襲われ、森に入る前のマスへ追い返される
+    if (inForest(P, n.r, n.c) && beastAwake(w)) {
+      n.food -= ATTACK; n.r = n.sr; n.c = n.sc; kind = 'attack';
+      facts.push({ k: 'beast', w, st: 'awake', auto: true });
+    }
+    let end = null;
+    if (n.r === P.goal[0] && n.c === P.goal[1]) end = 'goal';
+    else if (n.r === P.camp[0] && n.c === P.camp[1] && n.t > 0) end = 'home';
+    else if (n.food <= 0) end = 'collapse';
+    return { s: n, kind, facts, end, moved: n.r !== s.r || n.c !== s.c };
+  }
+  const start = P => ({ r: P.camp[0], c: P.camp[1], t: 0, food: P.food, sr: P.camp[0], sc: P.camp[1] });
+
+  /* ===== 見えるもの =====
+     近く（周り 1 マス）は地図に描ける。生物（ねぐら・細道）は 2 マス先まで気配が分かる。
+     夜は 2 マス先までの浅い沼が光って見える */
+  function sight(P, r, c, t) {
+    const near = [], far = [], lit = [];
+    const glow = bugsGlow(weatherAt(t));
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const y = r + dy, x = c + dx, ch = at(P, y, x);
+      if (ch === null) continue;
+      const d = Math.max(Math.abs(dy), Math.abs(dx));
+      if (d <= 1) near.push([y, x]);
+      else if (ch === 'P' || ch === 'C') far.push([y, x]);
+      if (glow && ch === '~') lit.push([y, x]);
+    }
+    return { near, far, lit };
+  }
+
+  /* ===== 図鑑：事実の集まり → 名前と説明 ===== */
+  const factKey = f => f.k + ':' + f.w + ':' + f.st;
+  function knowledge(facts) {
+    const has = (k, w, st) => facts.some(f => f.k === k && (w === null || f.w === w) && f.st === st);
+    const ws = (k, st) => WEATHERS.filter(w => has(k, w, st)).map(w => WNAME[w]).join('・');
+    const out = {};
+    // 獣
+    {
+      const sl = has('beast', 'rain', 'sleep'), aw = has('beast', null, 'awake');
+      out.beast = sl && aw ? { level: 2, name: '雨眠りの獣', desc: '雨の日だけ眠る。雨なら森を抜けられる', tile: '雨なら通れる森' }
+        : sl ? { level: 1, name: '森の獣', desc: '雨のとき眠っていた。ほかの天気では…？', tile: '雨に眠る森？' }
+        : aw ? { level: 1, name: '森の獣', desc: ws('beast', 'awake') + 'のとき起きていた。森に入ると襲ってくる', tile: '危険な森' }
+        : { level: 0, name: '森の何か', desc: '危険な森の何か', tile: '危険な森' };
+    }
+    // 光る虫
+    {
+      const gl = has('bugs', 'night', 'glow'), dk = has('bugs', null, 'dark');
+      out.bugs = gl && dk ? { level: 2, name: 'みちしるべ虫', desc: '夜だけ、沼の浅い所に沿って光る。夜なら道が見える', tile: '夜に道が光る沼' }
+        : gl ? { level: 1, name: '沼の光', desc: '夜、沼の一部が光っていた。昼は…？', tile: '夜に光る沼？' }
+        : dk ? { level: 1, name: '沼の何か', desc: ws('bugs', 'dark') + 'のときは何も見えなかった', tile: '深みのある沼' }
+        : { level: 0, name: '沼の何か', desc: '沼には深みがある', tile: '深みのある沼' };
+    }
+    // 岩の群れ
+    {
+      const aw = has('crabs', 'sun', 'away'), bl = has('crabs', null, 'block');
+      out.crabs = aw && bl ? { level: 2, name: 'ハレオリガニ', desc: '晴の間だけ浜へ降りる。晴なら細道を通れる', tile: '晴なら通れる細道' }
+        : aw ? { level: 1, name: '岩の群れ', desc: '晴のとき細道にいなかった。ほかの天気では…？', tile: '晴に空く細道？' }
+        : bl ? { level: 1, name: '岩の群れ', desc: ws('crabs', 'block') + 'のとき細道をふさいでいた', tile: 'ふさがれた細道' }
+        : { level: 0, name: '岩の群れ', desc: '崖の細道をふさぐ何か', tile: 'ふさがれた細道' };
+    }
+    return out;
+  }
+  // 事実を 1 文に
+  const STNAME = { sleep: '眠っていた', awake: '起きていた', glow: '光っていた', dark: '光っていなかった', away: 'いなかった', block: '道をふさいでいた' };
+  const CNAME = { beast: '森の獣', bugs: '沼の虫', crabs: '岩の群れ' };
+  const factText = f => WNAME[f.w] + 'のとき：' + (f.auto && f.k === 'beast' ? '襲ってきた' : STNAME[f.st]);
+
+  /* ===== 地図の上での道のり（既知のマスだけ。生物は無視）=====
+     known(r,c) → null（不明）| 'deep' | 文字 */
+  function route(P, known, from, to) {
+    const cost = (r, c) => {
+      const k = known(r, c);
+      if (k === null || k === 'deep' || !passable(k)) return Infinity;
+      return k === '~' ? SWAMP : 1;
+    };
+    const dist = P.g.map(r => r.map(() => Infinity)), prev = {};
+    dist[from[0]][from[1]] = 0;
+    const q = [[0, from[0], from[1]]];
+    while (q.length) {
+      q.sort((a, b) => a[0] - b[0]);
+      const [d, r, c] = q.shift();
+      if (d > dist[r][c]) continue;
+      if (r === to[0] && c === to[1]) break;
+      for (const [dy, dx] of DIRS) {
+        const y = r + dy, x = c + dx;
+        if (at(P, y, x) === null) continue;
+        const cc = cost(y, x); if (cc === Infinity) continue;
+        if (d + cc < dist[y][x]) { dist[y][x] = d + cc; prev[y + ',' + x] = [r, c]; q.push([d + cc, y, x]); }
+      }
+    }
+    if (dist[to[0]][to[1]] === Infinity) return null;
+    const path = []; let cur = to;
+    while (cur[0] !== from[0] || cur[1] !== from[1]) { path.unshift(cur); cur = prev[cur[0] + ',' + cur[1]]; }
+    return { cost: dist[to[0]][to[1]], path };
+  }
+
+  /* ===== ソルバー：食料を最小にする手順（Dijkstra、状態は 位置・時刻・追い返し先）=====
+     allow(P, s, a, w) で手を制限できる（例：規則を知らないふり、沼は夜だけ） */
+  const ACTS = [[-1, 0], [1, 0], [0, -1], [0, 1], 'wait'];
+  function solve(P, opt) {
+    opt = opt || {};
+    const TMAX = opt.tmax || 48;
+    const allow = opt.allow || (() => true);
+    const s0 = start(P);
+    const key = s => s.r + ',' + s.c + ',' + s.t + ',' + s.sr + ',' + s.sc;
+    const best = new Map(); best.set(key(s0), 0);
+    const q = [{ s: s0, used: 0, path: [] }];
+    while (q.length) {
+      q.sort((a, b) => a.used - b.used || a.s.t - b.s.t);
+      const cur = q.shift();
+      if (best.get(key(cur.s)) < cur.used) continue;
+      if (cur.s.t >= TMAX) continue;
+      for (const a of ACTS) {
+        if (!allow(P, cur.s, a, weatherAt(cur.s.t))) continue;
+        const res = step(P, cur.s, a);
+        if (res.kind === 'wall' || res.kind === 'blocked' || res.kind === 'none') continue;
+        const used = P.food - res.s.food;
+        const path = cur.path.concat([a]);
+        if (res.end === 'goal') return { used, t: res.s.t, path, left: res.s.food };
+        if (res.end) continue;
+        const k = key(res.s);
+        if (best.has(k) && best.get(k) <= used) continue;
+        best.set(k, used); q.push({ s: res.s, used, path });
+      }
+    }
+    return null;
+  }
+  // 規則を知らない人：地形は全部知っていても、天気を無視して最短の道をまっすぐ進む。
+  // ふさがれたら待ち、襲われたり深みにはまったら同じ一歩をやり直す
+  function naive(P, avoidDeep) {
+    const known = (r, c) => { const ch = at(P, r, c); return avoidDeep && ch === 'D' ? 'deep' : ch; };
+    const rt = route(P, known, P.camp, P.goal);
+    let s = start(P), i = 0, log = [];
+    for (let guard = 0; guard < 200; guard++) {
+      const tgt = rt.path[i];
+      const res = step(P, s, [tgt[0] - s.r, tgt[1] - s.c].map(v => Math.max(-1, Math.min(1, v))));
+      let r2 = res;
+      if (res.kind === 'blocked') r2 = step(P, s, 'wait');
+      // 追い返されたら、最短の道に戻るまで道のりを引き直す
+      log.push(r2.kind);
+      s = r2.s;
+      if (r2.end) return { end: r2.end, food: s.food, t: s.t, log };
+      if (s.r === tgt[0] && s.c === tgt[1]) i++;
+      else if (r2.moved) { const rr = route(P, known, [s.r, s.c], P.goal); rt.path = rr.path; i = 0; }
+    }
+    return { end: 'stuck', food: s.food, log };
+  }
+
+  return { PHASE, WEATHERS, WNAME, weatherAt, leftOf, nextWeather, ATTACK, DEEP, SWAMP, PASS, passable, isSwamp,
+    ISLANDS, parse, at, inForest, DIRS, CREATURES, stateOf, observable, step, start, sight,
+    factKey, knowledge, factText, CNAME, STNAME, route, solve, naive };
+})();
+if (typeof module !== 'undefined') module.exports = L;
+</script>
+
+<script>
+/* ===== 計測（db があればそこへ、無ければ localStorage だけ） ===== */
+const M = (() => {
+  const KEY = 'tanken.metrics.v1';
+  const DEF = () => ({ firstPlayAt: null, updatedAt: null, sessions: 0, runsStarted: 0, runsCompleted: 0, firstRunCleared: false, replayed: false, priceAnswer: null, bestScore: 0, tutorialStuck: false,
+    expeditions: 0, reachedOnExpedition: null, island2Expeditions: null, observations: 0, wantMore: null });
+  let m = DEF();
+  try { const raw = localStorage.getItem(KEY); if (raw) m = Object.assign(DEF(), JSON.parse(raw)); } catch (e) {}
+  const ops = []; let ref = null, ready = false, inflight = false, again = false;
+  const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(m)); } catch (e) {} };
+  function write() {
+    if (!ref) return;
+    if (inflight) { again = true; return; }
+    inflight = true;
+    Promise.resolve().then(() => ref.set(Object.assign({}, m))).catch(() => {}).finally(() => { inflight = false; if (again) { again = false; write(); } });
+  }
+  function apply(op) {
+    const before = JSON.stringify(m);
+    op(m); if (!m.firstPlayAt) m.firstPlayAt = new Date().toISOString();
+    if (JSON.stringify(m) === before) return;
+    m.updatedAt = new Date().toISOString();
+    saveLocal();
+    if (!ready) { ops.push(op); return; }
+    write();
+  }
+  async function init() {
+    try {
+      const c = window.claude; if (!c || !c.use) return;
+      const [db, user] = await Promise.all([c.use('db'), c.use('user')]);
+      if (!db || !user) return;
+      const id = await user.id(); if (!id) return;
+      const r = db.doc('plays/' + id);
+      let base = null;
+      try { const snap = await r.get(); base = snap.exists ? snap.data() : null; } catch (e) { return; }
+      const nm = Object.assign(DEF(), base || {});
+      if (!nm.firstPlayAt) nm.firstPlayAt = m.firstPlayAt || new Date().toISOString();
+      ops.forEach(o => o(nm)); ops.length = 0;
+      nm.updatedAt = new Date().toISOString();
+      m = nm; ref = r; ready = true; saveLocal(); write();
+    } catch (e) {}
+  }
+  return { apply, init, get: () => m };
+})();
+
+/* ===== 画面 ===== */
+(() => {
+  const $ = s => document.querySelector(s);
+  const css = getComputedStyle(document.documentElement);
+  const T = n => css.getPropertyValue('--' + n).trim();
+  const COL = {};
+  ['paper', 'paper2', 'grid', 'grid2', 'ink', 'ink2', 'pencil', 'fog', 'red', 'w-grass', 'w-forest', 'w-swamp', 'w-deep', 'w-beach', 'w-rock', 'w-sea', 'w-lit', 'w-camp', 'w-light', 'sun', 'rain', 'night', 'white']
+    .forEach(k => { COL[k] = T(k); });
+  const HAND = T('hand');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const TEST = (() => { try { return new URLSearchParams(location.search).get('test') === '1'; } catch (e) { return false; } })();
+  const ISL = L.ISLANDS.map(L.parse);
+  const K = (r, c) => r + ',' + c;
+
+  /* ---- 天気の絵（インクの線） ---- */
+  const WX = {
+    sun: c => `<svg viewBox="0 0 32 32" fill="none" stroke="${c || COL.sun}" stroke-width="2" stroke-linecap="round"><circle cx="16" cy="16" r="6.2" fill="${c ? 'none' : 'rgba(224,154,44,.25)'}"/><path d="M16 3.5v4M16 24.5v4M3.5 16h4M24.5 16h4M7.2 7.2l2.8 2.8M22 22l2.8 2.8M7.2 24.8 10 22M22 10l2.8-2.8"/></svg>`,
+    rain: c => `<svg viewBox="0 0 32 32" fill="none" stroke="${c || COL.rain}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19.5h14.5a4.6 4.6 0 0 0 .3-9.2A7 7 0 0 0 10.4 11 4.3 4.3 0 0 0 9 19.5Z" fill="${c ? 'none' : 'rgba(75,127,174,.18)'}"/><path d="M11 23l-1.4 3.5M16.5 23l-1.4 3.5M22 23l-1.4 3.5"/></svg>`,
+    night: c => `<svg viewBox="0 0 32 32" fill="none" stroke="${c || COL.night}" stroke-width="2" stroke-linejoin="round"><path d="M20.5 5.5A11 11 0 1 0 26.5 22 9 9 0 0 1 20.5 5.5Z" fill="${c ? 'none' : 'rgba(46,56,102,.2)'}"/><path d="M24 9.5l.8 1.6 1.7.3-1.3 1.2.3 1.7-1.5-.8-1.5.8.3-1.7-1.3-1.2 1.7-.3Z" stroke-width="1.2"/></svg>`,
+  };
+
+  /* ---- 生きものの絵（図鑑） ---- */
+  const PIC = {
+    beast: (lv) => lv === 0 ? unknownPic() : `<svg viewBox="0 0 80 80" fill="none" stroke="${COL.ink}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 56c2-12 10-20 24-21 9-1 17 2 22 8l6-7 2 9c4 3 5 8 3 11"/><path d="M18 56l-2 9M28 58l-1 8M48 58l1 8M58 56l2 9"/><path d="M14 56c8 3 40 4 56 0"/>
+      <path d="M60 43l5-9 1 10"/><circle cx="66" cy="48" r="1.6" fill="${COL.red}" stroke="${COL.red}"/>
+      <path d="M8 30c4-6 10-6 13 0M60 22c3-5 8-4 10 1" stroke="${COL['w-forest']}"/>
+      ${lv === 2 ? `<path d="M22 22l-2 5M28 18l-2 5M34 22l-2 5" stroke="${COL.rain}"/><text x="40" y="24" font-size="11" fill="${COL.ink2}" stroke="none" font-family="sans-serif">zz</text>` : ''}</svg>`,
+    bugs: (lv) => lv === 0 ? unknownPic() : `<svg viewBox="0 0 80 80" fill="none" stroke="${COL.ink}" stroke-width="1.6" stroke-linecap="round">
+      <path d="M6 56c8-3 14 3 22 0s14-3 22 0 14 3 24 0M8 66c8-3 14 3 22 0s16-3 24 0 12 2 20 0"/>
+      <path d="M18 50V34M22 50V38M60 52V32M64 52V40"/>
+      ${[[30, 44], [40, 40], [50, 45], [44, 30], [34, 26]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${lv === 2 ? 4 : 2.5}" fill="${COL['w-lit']}" stroke="${COL.ink2}" stroke-width="1"/>`).join('')}
+      <path d="M38 40c-3-3-3-5 0-6M42 40c3-3 3-5 0-6" stroke-width="1"/></svg>`,
+    crabs: (lv) => lv === 0 ? unknownPic() : `<svg viewBox="0 0 80 80" fill="none" stroke="${COL.ink}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 70l14-30 6 6 8-24 10 18M76 70 62 38l-6 8" stroke="${COL.ink2}"/>
+      ${[[30, 54], [46, 50], [40, 64]].map(([x, y]) => `<g transform="translate(${x} ${y})"><ellipse rx="7" ry="4.5" fill="rgba(184,64,44,.25)"/><path d="M-6 -2l-4-4 1 4M6 -2l4-4-1 4M-5 3l-3 3M5 3l3 3M-2 4l-1 4M2 4l1 4"/><circle cx="-2" cy="-4" r=".8" fill="${COL.ink}"/><circle cx="2" cy="-4" r=".8" fill="${COL.ink}"/></g>`).join('')}</svg>`,
+  };
+  function unknownPic() {
+    return `<svg viewBox="0 0 80 80" fill="none" stroke="${COL.pencil}" stroke-width="1.6" stroke-linecap="round"><path d="M14 54c6-14 14-22 26-22s20 8 26 22" stroke-dasharray="3 4"/><text x="40" y="52" text-anchor="middle" font-size="26" fill="${COL.pencil}" stroke="none" font-family="serif">？</text></svg>`;
+  }
+  const CCOL = { beast: COL['w-forest'], bugs: COL['w-lit'], crabs: '#d38b6f' };
+
+  /* ---- 進み具合（ローカル） ---- */
+  const PKEY = 'tanken.progress.v1';
+  const freshG = () => ({ isl: 0, maps: [emptyMap(), emptyMap()], facts: [], exps: [0, 0], reached: [null, null], obs: 0, done: false, answered: null });
+  const emptyMap = () => ({ seen: [], walked: [], lit: [], deep: [] });
+  let G = freshG();
+  try { const r = localStorage.getItem(PKEY); if (r) G = Object.assign(freshG(), JSON.parse(r)); } catch (e) {}
+  let maps = G.maps.map(toSets);
+  function toSets(m) { return { seen: new Set(m.seen), walked: new Set(m.walked), lit: new Set(m.lit), deep: new Set(m.deep) }; }
+  const fromSets = m => ({ seen: [...m.seen], walked: [...m.walked], lit: [...m.lit], deep: [...m.deep] });
+  function saveG() { G.maps = maps.map(fromSets); try { localStorage.setItem(PKEY, JSON.stringify(G)); } catch (e) {} }
+
+  /* ---- 計測：開いた回数・最初の画面で止まっていないか ---- */
+  const firstSession = M.get().sessions === 0 && G.exps[0] === 0;
+  M.apply(m => { m.sessions++; });
+  let anyInput = false, stuckTimer = 0;
+  addEventListener('pointerdown', () => { anyInput = true; clearTimeout(stuckTimer); }, { capture: true });
+  if (firstSession) stuckTimer = setTimeout(() => { if (!anyInput) M.apply(m => { m.tutorialStuck = true; }); }, 30000);
+
+  /* ---- 遠征の状態 ---- */
+  let P = ISL[G.isl], map = maps[G.isl];
+  let exp = null, s = null, pending = null, walking = null, cardOpen = false, newFacts = 0;
+  let draw = { r: 0, c: 0 }, flash = null;
+  const allFacts = () => G.facts.concat(exp ? exp.facts : []);
+  const hasFact = f => allFacts().some(g => L.factKey(g) === L.factKey(f));
+  const know = () => L.knowledge(allFacts());
+
+  const seen = k => map.seen.has(k) || exp.seen.has(k);
+  const inked = k => map.seen.has(k);
+  const walked = k => map.walked.has(k) || exp.walked.has(k);
+  const litK = k => map.lit.has(k) || exp.lit.has(k);
+  const deepK = k => map.deep.has(k) || exp.deep.has(k);
+  // 地図で分かっていること（道のり用）：沼は浅いと分かったところだけ
+  function known(r, c) {
+    const k = K(r, c); if (!seen(k)) return null;
+    const ch = P.g[r][c];
+    if (L.isSwamp(ch)) { if (deepK(k)) return 'deep'; if (litK(k) || walked(k)) return '~'; return null; }
+    return ch;
+  }
+
+  function newExpedition() {
+    exp = { seen: new Set(), walked: new Set(), lit: new Set(), deep: new Set(), facts: [], started: false, obs: 0 };
+    s = L.start(P); pending = null; walking = null; cardOpen = false;
+    draw = { r: s.r, c: s.c };
+    reveal();
+    $('#card').hidden = true;
+    say(G.exps[G.isl] === 0 && G.isl === 0 ? '隣のマスをタップして歩く。島の奥の灯台をめざそう' : G.exps[G.isl] === 0 ? 'まっさらな島。図鑑はそのまま持ってきた' : '拠点から出発。食料は満タン',
+      G.exps[G.isl] === 0 && G.isl === 0 ? '拠点に戻れば、描いた地図と観察が記録に残る' : '');
+    hud();
+  }
+  function reveal() {
+    const v = L.sight(P, s.r, s.c, s.t);
+    v.near.concat(v.far).forEach(([r, c]) => exp.seen.add(K(r, c)));
+    v.lit.forEach(([r, c]) => { exp.lit.add(K(r, c)); exp.seen.add(K(r, c)); });
+    exp.walked.add(K(s.r, s.c));
+  }
+
+  /* ---- 1 手 ---- */
+  function act(a) {
+    if (cardOpen) return null;
+    const before = s, w0 = L.weatherAt(s.t);
+    const res = L.step(P, s, a);
+    if (res.kind === 'wall') { say('そこへは進めない', ''); return res; }
+    if (res.kind === 'none') { say('近くに観察できる生きものがいない', ''); return res; }
+    if (!exp.started && res.kind !== 'blocked') startExpedition();
+    let added = 0;
+    for (const f of res.facts) if (!hasFact(f)) { exp.facts.push(f); added++; }
+    newFacts += added;
+    if (res.kind === 'blocked') { say('岩の群れが細道をふさいでいる', added ? '図鑑に書いた：' + L.factText(res.facts[0]) : 'いまは通れない', true); hud(); return res; }
+    if (res.kind === 'deep') { const k = K(before.r + a[0], before.c + a[1]); exp.deep.add(k); exp.seen.add(k); }
+    s = res.s; reveal();
+    const w1 = L.weatherAt(s.t);
+    if (res.kind === 'attack') {
+      say('獣に襲われた！ 食料 −' + (L.ATTACK + 1), '森の外へ追い返された' + (added ? '（図鑑に記録）' : ''), true);
+      flash = { col: COL.red, t: performance.now() };
+    } else if (res.kind === 'deep') {
+      say('沼の深みにはまった！ 食料 −' + (L.DEEP + 1), 'なんとか這い上がった。深みは地図に印をつけた', true);
+      flash = { col: COL['w-deep'], t: performance.now() };
+    } else if (res.kind === 'observe') {
+      exp.obs++; G.obs++;
+      M.apply(m => { m.observations++; });
+      const k = know();
+      say('観察：' + res.facts.map(f => L.CNAME[f.k] + 'は' + L.STNAME[f.st]).join('、'), (added ? '図鑑に書いた（' + res.facts.map(f => L.WNAME[f.w]).join('') + 'のとき）' : 'もう知っていることだった') + ' — ' + res.facts.map(f => k[f.k].name).join('・'));
+    } else if (w1 !== w0) {
+      say(w1 === 'rain' ? '雨が降ってきた' : w1 === 'night' ? '日が暮れた。夜だ' : '夜が明けた。晴れ', w1 === 'night' ? '暗い中、何かが光るかもしれない' : '');
+    } else if (res.kind === 'wait') {
+      say('その場で待った', L.WNAME[w1] + 'はあと ' + L.leftOf(s.t) + ' 手');
+    } else {
+      const ob = L.observable(P, s.r, s.c);
+      if (ob.length) say('近くに生きものの気配がある', '「観察する」で、いまの様子を記録できる');
+      else if (L.isSwamp(P.g[s.r][s.c])) say('ぬかるみを進む（食料 −2）', '');
+      else say('', '');
+    }
+    if (res.end) finish(res.end);
+    hud();
+    return res;
+  }
+  function startExpedition() {
+    exp.started = true;
+    G.exps[G.isl]++;
+    const first = G.isl === 0 && G.exps[0] === 1;
+    M.apply(m => {
+      m.expeditions++;
+      if (first) { if (m.runsStarted >= 1) m.replayed = true; m.runsStarted++; }
+    });
+    saveG();
+  }
+
+  /* ---- 遠征の終わり ---- */
+  function commit() {
+    const before = map.seen.size, beforeF = G.facts.length;
+    ['seen', 'walked', 'lit', 'deep'].forEach(k => exp[k].forEach(v => map[k].add(v)));
+    exp.facts.forEach(f => { if (!G.facts.some(g => L.factKey(g) === L.factKey(f))) G.facts.push(f); });
+    exp = Object.assign(exp, { seen: new Set(), walked: new Set(), lit: new Set(), deep: new Set(), facts: [] });
+    const score = new Set(G.facts.map(L.factKey)).size;
+    M.apply(m => { if (score > m.bestScore) m.bestScore = score; });
+    saveG();
+    return { cells: map.seen.size - before, facts: G.facts.length - beforeF };
+  }
+  function finish(end) {
+    walking = null; pending = null; cardOpen = true;
+    const n = G.exps[G.isl];
+    if (end === 'home') {
+      const r = commit();
+      card('拠点に帰った', `記録を清書した：地図 <b>+${r.cells} マス</b>、図鑑 <b>+${r.facts} 行</b>。次は、知っていることを使って奥へ。`,
+        [['次の遠征へ', () => newExpedition(), true], ['図鑑を見る', () => openBook(), false]]);
+    } else if (end === 'collapse') {
+      const lost = [...exp.seen].filter(k => !map.seen.has(k)).length, lostF = exp.facts.length;
+      card('食料が尽きて倒れた…', `仲間に拠点へ運ばれた。この遠征で描いた地図 <b>${lost} マス</b>と、図鑑の鉛筆書き <b>${lostF} 行</b>は消えてしまった。`,
+        [['次の遠征へ', () => newExpedition(), true]], true);
+    } else if (end === 'goal') {
+      commit();
+      G.reached[G.isl] = n;
+      if (G.isl === 0) {
+        M.apply(m => { if (m.reachedOnExpedition === null) m.reachedOnExpedition = n; if (n <= 3) m.firstRunCleared = true; });
+        saveG();
+        card('古い灯台に着いた！', `遠征 <b>${n} 回目</b>で到達。次は配置のちがう <b>ふたつめの島</b>へ。地図はまっさらだが、図鑑はそのまま持っていける。`,
+          [['ふたつめの島へ', () => { G.isl = 1; P = ISL[1]; map = maps[1]; saveG(); newExpedition(); }, true], ['ここでおわる', () => showEnd(), false]]);
+      } else {
+        M.apply(m => { if (m.island2Expeditions === null) m.island2Expeditions = n; m.runsCompleted++; });
+        G.done = true; saveG();
+        card('ふたつめの島の灯台にも着いた！', `遠征 <b>${n} 回目</b>で到達。島がちがっても、生きものの決まりは同じだった。`,
+          [['探検の記録を見る', () => showEnd(), true]]);
+      }
+    }
+  }
+  function card(t, p, btns, bad) {
+    $('#cardT').textContent = t; $('#cardP').innerHTML = p;
+    const b = $('#cardB'); b.innerHTML = '';
+    btns.forEach(([label, fn, pri]) => { const e = document.createElement('button'); e.type = 'button'; e.textContent = label; if (pri) e.className = 'pri'; e.onclick = fn; b.appendChild(e); });
+    $('#card').classList.toggle('bad', !!bad);
+    $('#card').hidden = false;
+  }
+
+  /* ---- 表示：天気・食料・帰り道 ---- */
+  function retCost() {
+    if (s.r === P.camp[0] && s.c === P.camp[1]) return 0;
+    const r = L.route(P, known, [s.r, s.c], P.camp);
+    return r ? r.cost : null;
+  }
+  function hud() {
+    const w = L.weatherAt(s.t), nx = L.nextWeather(s.t), left = L.leftOf(s.t);
+    $('#isl').firstChild.nodeValue = P.name;
+    $('#expn').textContent = '遠征 ' + Math.max(1, G.exps[G.isl] + (exp.started ? 0 : 1)) + ' 回目';
+    $('#wxNow').innerHTML = WX[w](); $('#wxNext').innerHTML = WX[nx]();
+    $('#wxLbl').textContent = L.WNAME[w];
+    $('#wxPips').innerHTML = Array.from({ length: L.PHASE }, (_, i) => `<i class="${i < left ? 'on' : ''}"></i>`).join('');
+    $('#wxNl').textContent = '次 ' + L.WNAME[nx];
+    const food = Math.max(0, s.food), ret = retCost();
+    $('#foodN').textContent = food;
+    $('#retN').textContent = ret === null ? '?' : ret;
+    const warn = ret === null || food - ret <= 2;
+    $('#ret').classList.toggle('warn', warn && !cardOpen && !(s.r === P.camp[0] && s.c === P.camp[1]));
+    const rr = ret || 0;
+    $('#bar').innerHTML = Array.from({ length: P.food }, (_, i) => `<i class="${i < food ? (i < rr ? 'on need' : 'on') : ''}"></i>`).join('');
+    const ob = !cardOpen && L.observable(P, s.r, s.c).length > 0;
+    $('#obs').disabled = !ob;
+    $('#wait').disabled = cardOpen;
+    const dot = $('#bookDot'); dot.hidden = newFacts === 0; dot.textContent = newFacts;
+  }
+  function say(a, b, bad) {
+    $('#note').innerHTML = a ? esc(a) + (b ? '<small>' + esc(b) + '</small>' : '') : (b ? '<small>' + esc(b) + '</small>' : '');
+    $('#msg').classList.toggle('bad', !!bad);
+  }
+  const esc = t => String(t).replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[ch]);
+
+  /* ---- 図鑑 ---- */
+  function openBook() {
+    newFacts = 0; hud();
+    const k = know();
+    const committed = new Set(G.facts.map(L.factKey));
+    $('#crs').innerHTML = L.CREATURES.map(c => {
+      const kk = k[c];
+      const fs = allFacts().filter(f => f.k === c);
+      const uniq = []; fs.forEach(f => { if (!uniq.some(g => L.factKey(g) === L.factKey(f))) uniq.push(f); });
+      return `<div class="cr"><div class="pic ${kk.level === 2 ? 'wash' : ''}" style="--c:${CCOL[c]}">${PIC[c](kk.level)}</div>
+        <div><h3>${esc(kk.name)}<small>${['未観察', '手がかりあり', '決まりが分かった'][kk.level]}</small></h3>
+        <div class="desc">${esc(kk.desc)}</div>
+        <ul>${uniq.length ? uniq.map(f => `<li class="${committed.has(L.factKey(f)) ? '' : 'pen'}">${WX[f.w]()}${esc(L.factText(f))}</li>`).join('') : '<li class="none">まだ記録がない</li>'}</ul></div></div>`;
+    }).join('');
+    $('#wxSeq').innerHTML = L.WEATHERS.map(w => Array.from({ length: L.PHASE }, () => WX[w]()).join('')).join('<span>▸</span>') + '<span>▸ …</span>';
+    $('#bookSub').textContent = new Set(allFacts().map(L.factKey)).size + ' / 9 行';
+    show('book');
+  }
+
+  /* ---- 終了画面 ---- */
+  const WANT = ['もっと遊びたい', '少し遊びたい', 'もういい'];
+  function showEnd() {
+    $('#endTitle').textContent = G.done ? 'ふたつの島を踏破' : '探検の記録';
+    const n = G.exps[0] + G.exps[1];
+    const rows = [
+      ['遠征の回数', n + ' 回'],
+      ['ひとつめの島の灯台', G.reached[0] ? G.reached[0] + ' 回目で到達' : 'まだ'],
+      ['ふたつめの島の灯台', G.reached[1] ? G.reached[1] + ' 回目で到達' : (G.isl === 1 ? 'まだ（' + G.exps[1] + ' 回挑戦）' : '—')],
+      ['観察した回数', G.obs + ' 回'],
+      ['図鑑に清書した行', new Set(G.facts.map(L.factKey)).size + ' / 9'],
+    ];
+    $('#stats').innerHTML = rows.map(([a, b]) => `<li><span>${a}</span><b>${b}</b></li>`).join('');
+    $('#opts').innerHTML = WANT.map(w => `<button type="button" class="${G.answered === w ? 'sel' : ''}">${w}</button>`).join('');
+    [...$('#opts').children].forEach((b, i) => b.onclick = () => {
+      G.answered = WANT[i]; saveG();
+      M.apply(m => { m.wantMore = WANT[i]; m.priceAnswer = null; });
+      [...$('#opts').children].forEach((x, j) => x.classList.toggle('sel', j === i));
+      $('#thanks').textContent = 'ありがとう！ 記録しました。';
+    });
+    $('#thanks').textContent = G.answered ? '回答ずみ：' + G.answered : '';
+    $('#resume').hidden = G.done;
+    show('end');
+  }
+  $('#again').onclick = () => {
+    G = freshG(); maps = G.maps.map(toSets); P = ISL[0]; map = maps[0]; newFacts = 0; saveG();
+    newExpedition(); show('game');
+  };
+  $('#resume').onclick = () => show('game');
+  $('#quit').onclick = () => { walking = null; pending = null; showEnd(); };
+  $('#bookBtn').onclick = () => { walking = null; openBook(); };
+  $('#bookClose').onclick = () => show('game');
+  $('#obs').onclick = () => { walking = null; pending = null; act('observe'); };
+  $('#wait').onclick = () => { walking = null; pending = null; act('wait'); };
+
+  const screens = { game: $('#game'), book: $('#book'), end: $('#end') };
+  function show(name) { for (const k in screens) screens[k].hidden = k !== name; if (name === 'game') { size(); hud(); } }
+
+  /* ---- 地図（キャンバス） ---- */
+  const cv = $('#cv'), ctx = cv.getContext('2d');
+  let cs = 36, W = 0, H = 0, dpr = 1;
+  function size() {
+    const st = $('#stage'); const aw = st.clientWidth, ah = st.clientHeight;
+    if (!aw || !ah) return;
+    cs = Math.max(20, Math.floor(Math.min(aw / P.w, ah / P.h)));
+    W = cs * P.w; H = cs * P.h; dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  }
+  addEventListener('resize', () => { size(); });
+
+  // 手描きのゆらぎ（マスごとに決まった乱数）
+  function rnd(a, b, c) {
+    let h = Math.imul(a + 7, 374761393) ^ Math.imul(b + 13, 668265263) ^ Math.imul(c + 31, 1274126177);
+    h = Math.imul(h ^ (h >>> 13), 1103515245); h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  function line(x1, y1, x2, y2, seed) {
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1;
+    const k = (rnd(seed, x1 | 0, y1 | 0) - .5) * .12;
+    ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx - dy * k, my + dx * k, x2, y2);
+  }
+  function blob(cx, cy, rad, color, alpha, seed) {
+    ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.beginPath();
+    for (let i = 0; i <= 10; i++) {
+      const a = i / 10 * Math.PI * 2, rr = rad * (.82 + .32 * rnd(seed, i, 3));
+      const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  const WASH = { '.': 'w-grass', ',': 'w-beach', '^': 'w-rock', '#': 'w-rock', '=': 'w-sea', 'T': 'w-forest', 'P': 'w-forest', '~': 'w-swamp', 'D': 'w-swamp', 'C': 'w-rock', 'L': 'w-light', 'K': 'w-camp' };
+
+  // 生きもののなわばり（ラベルと水彩用のまとまり）
+  function groups() {
+    const out = [];
+    for (let i = 0; i < P.dens.length; i++) {
+      const cells = []; for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) if (P.patch[r][c] === i) cells.push([r, c]);
+      out.push({ k: 'beast', cells });
+    }
+    const vis = new Set();
+    for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) {
+      if (!L.isSwamp(P.g[r][c]) || vis.has(K(r, c))) continue;
+      const cells = [], st = [[r, c]]; vis.add(K(r, c));
+      while (st.length) { const [y, x] = st.pop(); cells.push([y, x]); for (const [dy, dx] of L.DIRS) { const yy = y + dy, xx = x + dx; if (L.isSwamp(L.at(P, yy, xx)) && !vis.has(K(yy, xx))) { vis.add(K(yy, xx)); st.push([yy, xx]); } } }
+      out.push({ k: 'bugs', cells });
+    }
+    for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) if (P.g[r][c] === 'C') out.push({ k: 'crabs', cells: [[r, c]] });
+    return out;
+  }
+  let GR = null, GRP = null;
+  const areaOf = (r, c) => { const ch = P.g[r][c]; return P.patch[r][c] >= 0 ? 'beast' : L.isSwamp(ch) ? 'bugs' : ch === 'C' ? 'crabs' : null; };
+
+  function sym(ch, x, y, r, c, col) {
+    const q = cs, sd = r * 31 + c;
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = Math.max(1, q / 30); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    const R = i => rnd(sd, i, 11);
+    if (ch === '.') {
+      for (let i = 0; i < 2; i++) { const px = x + q * (.25 + .45 * R(i)), py = y + q * (.35 + .4 * R(i + 5)), h = q * .12;
+        line(px - h * .6, py - h, px, py, sd + i); line(px, py, px + h * .6, py - h, sd + i + 9); }
+    } else if (ch === ',') {
+      for (let i = 0; i < 5; i++) { ctx.moveTo(x + q * (.15 + .7 * R(i)) + .8, y + q * (.15 + .7 * R(i + 9))); ctx.arc(x + q * (.15 + .7 * R(i)), y + q * (.15 + .7 * R(i + 9)), .8, 0, 7); }
+    } else if (ch === '^') {
+      for (let i = 0; i < 2; i++) { const px = x + q * (.28 + .4 * R(i)), py = y + q * (.45 + .3 * R(i + 4)), w = q * .14;
+        ctx.moveTo(px - w, py); ctx.lineTo(px - w * .5, py - w * .9); ctx.lineTo(px + w * .4, py - w * .8); ctx.lineTo(px + w, py); ctx.closePath(); }
+    } else if (ch === '#' || ch === 'C') {
+      const n = ch === '#' ? 4 : 2;
+      for (let i = 0; i < n; i++) { const t = (i + .5) / n; if (ch === 'C') { line(x + q * .05, y + q * t * .9, x + q * .3, y + q * (t * .9 - .2), sd + i); line(x + q * .7, y + q * (t * .9 + .1), x + q * .95, y + q * (t * .9 - .1), sd + i + 7); }
+        else line(x + q * (t - .2), y + q * .92, x + q * (t + .2), y + q * .08, sd + i); }
+      if (ch === 'C') { ctx.stroke(); ctx.beginPath(); ctx.setLineDash([q * .08, q * .08]); line(x + q * .5, y + q * .05, x + q * .5, y + q * .95, sd + 3); ctx.stroke(); ctx.setLineDash([]); ctx.beginPath(); }
+    } else if (ch === '=') {
+      for (let i = 0; i < 2; i++) { const py = y + q * (.35 + .3 * i), px = x + q * .15; ctx.moveTo(px, py); ctx.bezierCurveTo(px + q * .15, py - q * .1, px + q * .25, py + q * .1, px + q * .4, py); ctx.bezierCurveTo(px + q * .55, py - q * .1, px + q * .6, py + q * .1, px + q * .7, py); }
+    } else if (ch === 'T' || ch === 'P') {
+      const n = ch === 'P' ? 1 : 2;
+      for (let i = 0; i < n; i++) { const px = x + q * (n === 1 ? .3 : .3 + .38 * i) + q * .06 * (R(i) - .5), py = y + q * (.42 + .12 * R(i + 3)), rr = q * .15;
+        ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.moveTo(px, py + rr); ctx.lineTo(px, py + rr * 1.8); }
+      if (ch === 'P') { ctx.stroke(); ctx.beginPath(); ctx.lineWidth *= 1.4; ctx.moveTo(x + q * .52, y + q * .82); ctx.quadraticCurveTo(x + q * .72, y + q * .4, x + q * .92, y + q * .82); ctx.stroke(); ctx.lineWidth /= 1.4; ctx.beginPath(); }
+    } else if (ch === '~' || ch === 'D') {
+      const k = K(r, c);
+      if (deepK(k)) {
+        ctx.moveTo(x + q * .5, y + q * .5);
+        for (let i = 0; i < 26; i++) { const a = i * .55, rr = q * .02 * i * .62; ctx.lineTo(x + q * .5 + Math.cos(a) * rr, y + q * .5 + Math.sin(a) * rr); }
+      } else if (litK(k) || walked(k)) {
+        for (let i = 0; i < 3; i++) { const px = x + q * (.25 + .25 * i), py = y + q * (.5 + .12 * (R(i) - .5)); ctx.moveTo(px + q * .07, py); ctx.ellipse(px, py, q * .07, q * .045, 0, 0, Math.PI * 2); }
+      } else {
+        for (let i = 0; i < 2; i++) { const py = y + q * (.4 + .28 * i); line(x + q * .18, py, x + q * .48, py, sd + i); line(x + q * .56, py, x + q * .82, py, sd + i + 5); }
+        ctx.moveTo(x + q * .7, y + q * .3); ctx.lineTo(x + q * .72, y + q * .12);
+      }
+    } else if (ch === 'L') {
+      ctx.moveTo(x + q * .38, y + q * .88); ctx.lineTo(x + q * .44, y + q * .3); ctx.lineTo(x + q * .56, y + q * .3); ctx.lineTo(x + q * .62, y + q * .88); ctx.closePath();
+      ctx.moveTo(x + q * .4, y + q * .3); ctx.lineTo(x + q * .5, y + q * .16); ctx.lineTo(x + q * .6, y + q * .3);
+      ctx.moveTo(x + q * .3, y + q * .22); ctx.lineTo(x + q * .16, y + q * .16); ctx.moveTo(x + q * .7, y + q * .22); ctx.lineTo(x + q * .84, y + q * .16);
+    } else if (ch === 'K') {
+      ctx.moveTo(x + q * .18, y + q * .8); ctx.lineTo(x + q * .5, y + q * .28); ctx.lineTo(x + q * .82, y + q * .8); ctx.closePath();
+      ctx.moveTo(x + q * .5, y + q * .8); ctx.lineTo(x + q * .5, y + q * .55);
+      ctx.moveTo(x + q * .5, y + q * .28); ctx.lineTo(x + q * .5, y + q * .1); ctx.lineTo(x + q * .68, y + q * .15); ctx.lineTo(x + q * .5, y + q * .2);
+    }
+    ctx.stroke();
+  }
+
+  function label(text, cx, cy, col, size) {
+    ctx.save();
+    ctx.font = `600 ${size || Math.max(10, Math.round(cs * .3))}px ${HAND}`;
+    const w = ctx.measureText(text).width + 8, h = (size || Math.max(10, Math.round(cs * .3))) + 6;
+    let x = Math.max(2, Math.min(W - w - 2, cx - w / 2)), y = Math.max(2, Math.min(H - h - 2, cy - h / 2));
+    ctx.fillStyle = 'rgba(251,252,248,.88)'; ctx.strokeStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = col; ctx.textBaseline = 'middle'; ctx.fillText(text, x + 4, y + h / 2 + .5);
+    ctx.restore();
+  }
+
+  function render(now) {
+    if (!W) size();
+    if (!W) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (GRP !== P) { GR = groups(); GRP = P; }
+    const k = know();
+    // 紙と方眼
+    ctx.fillStyle = COL.white; ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = COL.grid; ctx.beginPath();
+    for (let i = 1; i < P.w * 3; i++) { if (i % 3) { ctx.moveTo(i * cs / 3 + .5, 0); ctx.lineTo(i * cs / 3 + .5, H); } }
+    for (let i = 1; i < P.h * 3; i++) { if (i % 3) { ctx.moveTo(0, i * cs / 3 + .5); ctx.lineTo(W, i * cs / 3 + .5); } }
+    ctx.stroke();
+    ctx.strokeStyle = COL.grid2; ctx.beginPath();
+    for (let i = 0; i <= P.w; i++) { ctx.moveTo(i * cs + .5, 0); ctx.lineTo(i * cs + .5, H); }
+    for (let i = 0; i <= P.h; i++) { ctx.moveTo(0, i * cs + .5); ctx.lineTo(W, i * cs + .5); }
+    ctx.stroke();
+
+    // 水彩：歩いたところ・決まりが分かった生きもののなわばり・光った浅瀬・深み
+    ctx.save(); ctx.globalCompositeOperation = 'multiply';
+    for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) {
+      const kk = K(r, c); if (!seen(kk)) continue;
+      const ch = P.g[r][c], x = c * cs + cs / 2, y = r * cs + cs / 2, sd = r * 17 + c * 5;
+      const ar = areaOf(r, c);
+      if (deepK(kk)) blob(x, y, cs * .62, COL['w-deep'], .55, sd);
+      else if (litK(kk)) blob(x, y, cs * .6, COL['w-lit'], .6, sd);
+      if (walked(kk)) blob(x, y, cs * .66, COL[WASH[ch]], inked(kk) ? .55 : .35, sd + 1);
+      else if (ar && k[ar].level === 2) blob(x, y, cs * .64, ar === 'crabs' ? '#d9b3a3' : COL[WASH[ch]], .38, sd + 2);
+    }
+    ctx.restore();
+
+    // 霧
+    for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) {
+      if (seen(K(r, c))) continue;
+      ctx.fillStyle = COL.fog; ctx.globalAlpha = .82; ctx.fillRect(c * cs, r * cs, cs, cs); ctx.globalAlpha = 1;
+    }
+    // 霧の境目（破線）
+    ctx.save(); ctx.strokeStyle = COL.ink2; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]); ctx.beginPath();
+    for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) {
+      if (!seen(K(r, c))) continue;
+      const x = c * cs, y = r * cs;
+      if (r > 0 && !seen(K(r - 1, c))) { ctx.moveTo(x, y); ctx.lineTo(x + cs, y); }
+      if (r < P.h - 1 && !seen(K(r + 1, c))) { ctx.moveTo(x, y + cs); ctx.lineTo(x + cs, y + cs); }
+      if (c > 0 && !seen(K(r, c - 1))) { ctx.moveTo(x, y); ctx.lineTo(x, y + cs); }
+      if (c < P.w - 1 && !seen(K(r, c + 1))) { ctx.moveTo(x + cs, y); ctx.lineTo(x + cs, y + cs); }
+    }
+    ctx.stroke(); ctx.restore();
+
+    // インク（清書ずみ）と鉛筆（この遠征）
+    for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) {
+      const kk = K(r, c); if (!seen(kk)) continue;
+      sym(P.g[r][c], c * cs, r * cs, r, c, inked(kk) ? COL.ink : COL.pencil);
+    }
+    // 灯台は霧の中でもうっすら（目標）
+    const [gr, gc] = P.goal;
+    if (!seen(K(gr, gc))) { ctx.globalAlpha = .55; sym('L', gc * cs, gr * cs, gr, gc, COL.ink2); ctx.globalAlpha = 1; }
+
+    // ラベル
+    for (const gp of GR) {
+      const all = gp.cells.filter(([r, c]) => seen(K(r, c)));
+      if (!all.length) continue;
+      const free = all.filter(([r, c]) => P.g[r][c] !== 'P' && !(r === s.r && c === s.c) && !P.dens.some(([y, x]) => Math.abs(y - r) + Math.abs(x - c) === 0));
+      const sc = free.length ? free : all;
+      if (!sc.length) continue;
+      const my = sc.reduce((a, [r]) => a + r, 0) / sc.length, mx = sc.reduce((a, [, c]) => a + c, 0) / sc.length;
+      let best = sc[0], bd = 1e9; sc.forEach(([r, c]) => { const d = (r - my) ** 2 + (c - mx) ** 2; if (d < bd) { bd = d; best = [r, c]; } });
+      const kk = k[gp.k];
+      const yOff = gp.k === 'crabs' ? (best[0] + 1 < P.h ? cs * .95 : -cs * .5) : 0;
+      label(kk.tile, best[1] * cs + cs / 2, best[0] * cs + cs / 2 + yOff, kk.level === 2 ? COL.ink : COL.red);
+    }
+    label('拠点', P.camp[1] * cs + cs * 1.45, P.camp[0] * cs + cs * .5, COL.ink2, Math.max(9, Math.round(cs * .26)));
+    label(seen(K(gr, gc)) ? '灯台' : '灯台？', gc * cs + cs / 2, gr * cs + (gr === 0 ? cs * 1.05 : -cs * .1), COL.ink2, Math.max(9, Math.round(cs * .26)));
+
+    // 生きもの（2 マス先まで、いまの様子）
+    const w = L.weatherAt(s.t), near = (r, c) => Math.max(Math.abs(r - s.r), Math.abs(c - s.c)) <= 2;
+    P.dens.forEach(([r, c]) => { if (near(r, c)) beast(c * cs, r * cs, L.stateOf('beast', w) === 'sleep', now); });
+    for (let r = 0; r < P.h; r++) for (let c = 0; c < P.w; c++) if (P.g[r][c] === 'C' && near(r, c) && L.stateOf('crabs', w) === 'block') crabs(c * cs, r * cs, now);
+
+    // 天気
+    if (w === 'night') { ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(70,82,140,.38)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    if (w === 'rain') {
+      ctx.save(); ctx.strokeStyle = 'rgba(75,127,174,.35)'; ctx.lineWidth = 1; ctx.beginPath();
+      const off = reduced ? 0 : (now / 40) % 24;
+      for (let i = -H; i < W; i += 24) for (let j = 0; j < H; j += 30) { const x = i + j * .3 + off * .3, y = j + off; ctx.moveTo(x, y); ctx.lineTo(x - 3, y + 9); }
+      ctx.stroke(); ctx.restore();
+    }
+    // 光る虫（夜、2 マス先までの浅瀬）
+    if (w === 'night') {
+      const v = L.sight(P, s.r, s.c, s.t);
+      ctx.save(); ctx.globalCompositeOperation = 'screen';
+      v.lit.forEach(([r, c], i) => {
+        const hx = c * cs + cs / 2, hy = r * cs + cs / 2, h = ctx.createRadialGradient(hx, hy, 0, hx, hy, cs * .7);
+        h.addColorStop(0, 'rgba(214,234,90,.45)'); h.addColorStop(1, 'rgba(214,234,90,0)');
+        ctx.fillStyle = h; ctx.fillRect(hx - cs * .7, hy - cs * .7, cs * 1.4, cs * 1.4);
+        for (let j = 0; j < 3; j++) {
+          const ph = reduced ? .7 : .55 + .45 * Math.sin(now / 380 + i * 1.7 + j * 2.1);
+          const x = c * cs + cs * (.25 + .25 * j), y = r * cs + cs * (.45 + .2 * rnd(r, c, j));
+          const g = ctx.createRadialGradient(x, y, 0, x, y, cs * .22);
+          g.addColorStop(0, `rgba(236,248,120,${.95 * ph})`); g.addColorStop(1, 'rgba(236,248,120,0)');
+          ctx.fillStyle = g; ctx.fillRect(x - cs * .25, y - cs * .25, cs * .5, cs * .5);
+        }
+      });
+      ctx.restore();
+    }
+
+    // 道のりの予告
+    if (pending) {
+      ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 2; ctx.setLineDash([2, 5]); ctx.lineCap = 'round'; ctx.beginPath();
+      ctx.moveTo(s.c * cs + cs / 2, s.r * cs + cs / 2);
+      pending.path.forEach(([r, c]) => ctx.lineTo(c * cs + cs / 2, r * cs + cs / 2));
+      ctx.stroke(); ctx.setLineDash([]);
+      const [tr, tc] = pending.to; ctx.beginPath(); ctx.arc(tc * cs + cs / 2, tr * cs + cs / 2, cs * .3, 0, 7); ctx.stroke();
+      ctx.restore();
+      label('食料 −' + pending.cost, tc * cs + cs / 2, tr * cs - cs * .15, COL.ink);
+    }
+
+    // 探検家
+    const sp = reduced ? 1 : .3;
+    draw.r += (s.r - draw.r) * sp; draw.c += (s.c - draw.c) * sp;
+    const px = draw.c * cs + cs / 2, py = draw.r * cs + cs / 2;
+    ctx.save();
+    ctx.fillStyle = COL.white; ctx.strokeStyle = COL.ink; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, py + cs * .08, cs * .22, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = COL.ink; ctx.beginPath(); ctx.ellipse(px, py - cs * .1, cs * .26, cs * .07, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(px, py - cs * .13, cs * .13, Math.PI, 0); ctx.fill();
+    ctx.restore();
+
+    if (flash) {
+      const a = 1 - (now - flash.t) / 450;
+      if (a <= 0) flash = null; else { ctx.save(); ctx.globalAlpha = a * .25; ctx.fillStyle = flash.col; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    }
+  }
+  function beast(x, y, sleep, now) {
+    const q = cs; ctx.save();
+    ctx.fillStyle = 'rgba(31,43,54,.88)'; ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.5;
+    if (sleep) {
+      ctx.beginPath(); ctx.ellipse(x + q * .5, y + q * .62, q * .32, q * .2, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = COL.white; ctx.font = `600 ${Math.round(q * .3)}px ${HAND}`; ctx.fillStyle = COL.ink;
+      const b = reduced ? 0 : Math.sin(now / 500) * q * .04;
+      ctx.fillText('z', x + q * .66, y + q * .3 + b); ctx.fillText('z', x + q * .8, y + q * .16 - b);
+    } else {
+      ctx.beginPath(); ctx.ellipse(x + q * .5, y + q * .55, q * .3, q * .26, 0, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x + q * .28, y + q * .38); ctx.lineTo(x + q * .3, y + q * .12); ctx.lineTo(x + q * .42, y + q * .32);
+      ctx.moveTo(x + q * .58, y + q * .32); ctx.lineTo(x + q * .7, y + q * .12); ctx.lineTo(x + q * .72, y + q * .38); ctx.fill();
+      ctx.fillStyle = '#ff6a4a';
+      ctx.beginPath(); ctx.arc(x + q * .4, y + q * .5, q * .05, 0, 7); ctx.arc(x + q * .6, y + q * .5, q * .05, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function crabs(x, y, now) {
+    const q = cs; ctx.save(); ctx.strokeStyle = COL.ink; ctx.lineWidth = 1.2; ctx.fillStyle = 'rgba(184,64,44,.75)';
+    [[.32, .3], [.66, .48], [.38, .72]].forEach(([a, b], i) => {
+      const jx = reduced ? 0 : Math.sin(now / 300 + i * 2) * q * .03;
+      const cx = x + q * a + jx, cy = y + q * b;
+      ctx.beginPath(); ctx.ellipse(cx, cy, q * .13, q * .08, 0, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - q * .12, cy - q * .02); ctx.lineTo(cx - q * .19, cy - q * .1); ctx.moveTo(cx + q * .12, cy - q * .02); ctx.lineTo(cx + q * .19, cy - q * .1); ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function loop(now) { if (!screens.game.hidden) render(now); requestAnimationFrame(loop); }
+
+  /* ---- タップ ---- */
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (cardOpen) return;
+    const rc = cv.getBoundingClientRect();
+    const c = Math.floor((e.clientX - rc.left) / cs), r = Math.floor((e.clientY - rc.top) / cs);
+    if (r < 0 || r >= P.h || c < 0 || c >= P.w) return;
+    tap(r, c);
+  });
+  function tap(r, c) {
+    if (walking) { walking = null; pending = null; return; }
+    const d = Math.abs(r - s.r) + Math.abs(c - s.c);
+    if (d === 0) { pending = null; return; }
+    if (d === 1) { pending = null; act([r - s.r, c - s.c]); return; }
+    if (pending && pending.to[0] === r && pending.to[1] === c) { walk(pending.path); pending = null; return; }
+    if (known(r, c) === null || !L.passable(known(r, c))) {
+      pending = null;
+      say(seen(K(r, c)) ? 'そこへの道はまだ分からない' : '霧の中へは 1 歩ずつ', '隣のマスをタップして進む');
+      return;
+    }
+    const rt = L.route(P, known, [s.r, s.c], [r, c]);
+    if (!rt) { pending = null; say('地図の上では、そこへの道がつながっていない', ''); return; }
+    pending = { to: [r, c], path: rt.path, cost: rt.cost };
+    say('もう一度タップで出発', '地図にある道を歩く。決まりの分かった生きものの前では止まる');
+  }
+  function walk(path) {
+    walking = path.slice();
+    const tick = () => {
+      if (!walking || !walking.length || cardOpen) { walking = null; return; }
+      const [r, c] = walking[0];
+      const w0 = L.weatherAt(s.t), k = know();
+      // 決まりが分かっている生きものの前では、自動では進まない（知識が道案内になる）
+      if (k.beast.level === 2 && L.inForest(P, r, c) && !L.inForest(P, s.r, s.c) && L.stateOf('beast', w0) === 'awake') {
+        walking = null; say('森の手前で止まった：獣が起きている', '図鑑より：雨なら森を抜けられる'); hud(); return;
+      }
+      if (k.crabs.level === 2 && P.g[r][c] === 'C' && L.stateOf('crabs', w0) === 'block') {
+        walking = null; say('細道の手前で止まった：岩の群れがいる', '図鑑より：晴なら通れる'); hud(); return;
+      }
+      walking.shift();
+      const res = act([r - s.r, c - s.c]);
+      if (!res || res.kind !== 'move' || res.end || L.weatherAt(s.t) !== w0 || s.r !== r || s.c !== c) { walking = null; hud(); return; }
+      setTimeout(tick, reduced ? 90 : 190);
+    };
+    tick();
+  }
+
+  /* ---- 始める ---- */
+  if (G.done) { newExpedition(); show('game'); showEnd(); } else { newExpedition(); show('game'); }
+  requestAnimationFrame(loop);
+  M.init();
+
+  if (TEST) window.__tanken = {
+    act: a => act(a), tap, state: () => ({ s, exp, G, isl: G.isl, card: cardOpen }), know, openBook, showEnd, show, metrics: () => M.get(),
+    next: () => { const b = document.querySelector('#cardB .pri'); if (b) b.click(); },
+    seq(str) { const D = { U: [-1, 0], D: [1, 0], L: [0, -1], R: [0, 1] }; for (const ch of str) { if (cardOpen) break; act(ch === 'W' ? 'wait' : ch === 'O' ? 'observe' : D[ch]); } },
+  };
+})();
+</script>
+</body></html>

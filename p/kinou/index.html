@@ -1,0 +1,1161 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body><title>昨日の私のダンジョン</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap");
+/* 構成：上から「部屋名・一言」「時の目盛り」「盤面（灯りと影）」「十字ボタン」の1画面。単一テーマ（地下の遺跡、暗い） */
+:root {
+  color-scheme: dark;
+  --bg: #0b0d10;
+  --void: #07080a;
+  --wall: #22252a;
+  --wall-top: #2d3137;
+  --wall-face: #15171b;
+  --floor: #1a1c1f;
+  --floor-2: #1f2124;
+  --grout: #111214;
+  --ink: #e4dccb;
+  --muted: #8f897c;
+  --faint: #5a5852;
+  --line: #2a2d32;
+  --panel: #111317;
+  --btn: #1a1d22;
+  --btn-hi: #262a31;
+  --lamp: #f0b25e;
+  --lamp-glow: #ffd596;
+  --echo: #a8d3e2;
+  --rune-a: #6cc7a6;
+  --rune-b: #e58fae;
+  --rune-c: #9aaeff;
+  --box: #4a4339;
+  --box-hi: #6b6153;
+  --danger: #d9826b;
+  --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+}
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+#app {
+  position: relative; height: 100%; max-width: 520px; margin: 0 auto; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 8px;
+  padding-block: 8px 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+/* 部屋名 */
+.top { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.roomname { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.roomno { font-family: var(--font-display); font-weight: 800; font-size: 22px; color: var(--lamp); font-variant-numeric: tabular-nums; }
+.roomtitle { font-family: var(--font-display); font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iconbtn {
+  border: 1px solid var(--line); background: var(--btn); border-radius: 8px; height: 34px; padding: 0 10px;
+  font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.iconbtn:active { background: var(--btn-hi); }
+.hint { font-size: 13px; color: var(--muted); min-height: 18px; letter-spacing: .04em; }
+/* 時の目盛り */
+#tl { display: flex; flex-direction: column; gap: 3px; }
+.lane { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; }
+.lane .who { font-size: 11px; color: var(--muted); letter-spacing: .05em; white-space: nowrap; }
+.lane.me .who { color: var(--lamp); }
+.lane.ghost .who { color: var(--echo); }
+.track { display: grid; gap: 2px; }
+.tk {
+  height: 18px; border-radius: 3px; background: var(--panel); display: grid; place-items: center;
+  font-size: 11px; line-height: 1; color: var(--faint); position: relative; font-variant-numeric: tabular-nums;
+}
+.lane.ghost .tk { color: var(--echo); }
+.lane.me .tk.done { color: var(--lamp); }
+.tk.now { box-shadow: inset 0 0 0 1px var(--lamp); }
+.tk.past { opacity: .55; }
+.tk.sw::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 1px; height: 3px; border-radius: 2px; background: var(--swc); }
+.tk.blk { color: var(--danger); }
+.ticks .tk { background: none; height: 12px; font-size: 10px; color: var(--faint); }
+.ticks .tk.now { box-shadow: none; color: var(--lamp); }
+/* 盤面 */
+.boardwrap { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
+#board { display: block; touch-action: none; border-radius: 6px; cursor: pointer; max-width: 100%; }
+/* 操作 */
+.controls { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 8px; }
+.pad { display: grid; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 50px); gap: 4px; }
+.pad button {
+  border: 1px solid var(--line); background: var(--btn); border-radius: 10px; cursor: pointer; display: grid; place-items: center;
+  touch-action: manipulation;
+}
+.pad button:active, .pad button.hit { background: var(--btn-hi); border-color: var(--lamp); }
+.pad svg { width: 22px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.pad .wait { font-size: 13px; color: var(--lamp); letter-spacing: .08em; }
+.side { display: flex; flex-direction: column; gap: 8px; }
+.side.r { align-items: flex-end; }
+.side.l { align-items: flex-start; }
+.sbtn {
+  border: 1px solid var(--line); background: none; border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--muted);
+  cursor: pointer; display: inline-flex; flex-direction: column; align-items: center; gap: 2px; min-width: 64px; white-space: nowrap;
+}
+.sbtn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sbtn:active { background: var(--btn-hi); }
+.sbtn.lit { color: var(--lamp); border-color: var(--lamp); }
+/* 重ねる画面 */
+.sheet {
+  position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; justify-content: center; gap: 16px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.sheet h2 { font-family: var(--font-display); font-weight: 800; font-size: 28px; margin: 0; text-wrap: balance; }
+.sheet .sub { color: var(--muted); font-size: 14px; margin: 0; }
+.starrow { display: flex; gap: 6px; }
+.starrow svg { width: 34px; height: 34px; }
+.primary {
+  border: 0; background: var(--lamp); color: #1c1306; font-weight: 700; border-radius: 10px; padding: 14px 18px; font-size: 16px; cursor: pointer;
+}
+.secondary { border: 1px solid var(--line); background: var(--btn); border-radius: 10px; padding: 12px 16px; font-size: 14px; cursor: pointer; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.rooms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.rtile {
+  border: 1px solid var(--line); background: var(--btn); border-radius: 8px; padding: 10px 8px; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; min-height: 68px; min-width: 0;
+}
+.rtile .n { font-family: var(--font-display); font-weight: 800; font-size: 20px; color: var(--lamp); }
+.rtile .nm { font-size: 12px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rtile .st { font-size: 12px; color: var(--lamp); letter-spacing: 1px; }
+.rtile[disabled] { cursor: default; opacity: .45; }
+.rtile.locked { background: var(--panel); border-style: dashed; }
+.rtile.locked .n { color: var(--faint); }
+.rtile.locked .nm { color: var(--muted); }
+.label { font-size: 11px; letter-spacing: .12em; color: var(--muted); }
+.vault {
+  border: 1px dashed var(--faint); border-radius: 10px; padding: 14px; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center;
+  background: var(--panel);
+}
+.vault svg { width: 30px; height: 30px; stroke: var(--muted); fill: none; stroke-width: 2; }
+.vault b { font-family: var(--font-display); font-size: 17px; display: block; }
+.vault span { font-size: 13px; color: var(--muted); }
+.survey { display: flex; flex-direction: column; gap: 8px; }
+.survey p { margin: 0; font-size: 15px; font-weight: 700; }
+.opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.opt { border: 1px solid var(--line); background: var(--btn); border-radius: 8px; padding: 12px; font-size: 15px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.opt[aria-pressed="true"] { border-color: var(--lamp); color: var(--lamp); background: var(--btn-hi); }
+.thanks { font-size: 13px; color: var(--echo); min-height: 18px; margin: 0; }
+.big { font-family: var(--font-display); font-weight: 800; font-size: 40px; color: var(--lamp); font-variant-numeric: tabular-nums; }
+@media (max-height: 700px) {
+  .pad { grid-template-rows: repeat(3, 42px); }
+  .tk { height: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div id="app">
+  <div class="top">
+    <div class="roomname"><span class="roomno" id="roomNo">1</span><span class="roomtitle" id="roomTitle"></span></div>
+    <button class="iconbtn" id="btnRooms" aria-label="部屋をえらぶ">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1.5" y="1.5" width="5" height="5"/><rect x="9.5" y="1.5" width="5" height="5"/><rect x="1.5" y="9.5" width="5" height="5"/><rect x="9.5" y="9.5" width="5" height="5"/></svg>部屋</button>
+    <button class="iconbtn" id="btnQuit">おわる</button>
+  </div>
+  <div class="hint" id="hint"></div>
+  <div id="tl"></div>
+  <div class="boardwrap" id="boardwrap"><canvas id="board" aria-label="盤面"></canvas></div>
+  <div class="controls">
+    <div class="side l">
+      <button class="sbtn" id="btnRetry" aria-label="やり直す（この探索を昨日の私にする）">
+        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v5h5"/></svg>やり直す</button>
+    </div>
+    <div class="pad" id="pad">
+      <span></span>
+      <button data-d="U" aria-label="上"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+      <span></span>
+      <button data-d="L" aria-label="左"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button data-d="W" aria-label="待つ" class="waitbtn"><span class="wait">待つ</span></button>
+      <button data-d="R" aria-label="右"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <span></span>
+      <button data-d="D" aria-label="下"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      <span></span>
+    </div>
+    <div class="side r">
+      <button class="sbtn" id="btnErase" aria-label="過去の自分を消して最初から">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M6 20c.5-4 3-6 6-6s5.5 2 6 6"/><path d="M3 3l18 18"/></svg>昨日を消す</button>
+    </div>
+  </div>
+
+  <section class="sheet" id="sheetClear" hidden>
+    <span class="label" id="clearLabel">部屋 1</span>
+    <h2 id="clearTitle">抜けた</h2>
+    <div class="starrow" id="clearStars"></div>
+    <p class="sub" id="clearStat"></p>
+    <div class="row">
+      <button class="primary" id="btnNext">次の部屋へ</button>
+      <button class="secondary" id="btnAgainRoom">この部屋をもう一度</button>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheetRooms" hidden>
+    <h2>部屋</h2>
+    <span class="label">入門編</span>
+    <div class="rooms" id="roomGrid"></div>
+    <span class="label">本編</span>
+    <div class="rooms" id="lockedGrid"></div>
+    <div class="row"><button class="secondary" id="btnCloseRooms">もどる</button></div>
+  </section>
+
+  <section class="sheet" id="sheetEnd" hidden>
+    <span class="label" id="endLabel">入門編</span>
+    <h2 id="endTitle">ここまで</h2>
+    <div><span class="big" id="endStars">0</span> <span class="sub" id="endOf">/ 18 ★</span></div>
+    <div class="vault">
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      <div><b>本編：40部屋＋新しい仕掛け</b><span>動く床、鏡の自分</span></div>
+    </div>
+    <div class="survey">
+      <p>有料の完全版があったら、いくらなら買いますか？</p>
+      <div class="opts" id="opts">
+        <button class="opt" data-v="買わない" aria-pressed="false">買わない</button>
+        <button class="opt" data-v="480円" aria-pressed="false">480円</button>
+        <button class="opt" data-v="800円" aria-pressed="false">800円</button>
+        <button class="opt" data-v="1,200円" aria-pressed="false">1,200円</button>
+      </div>
+      <p class="thanks" id="thanks"></p>
+    </div>
+    <div class="row">
+      <button class="primary" id="btnReplay">もう一度遊ぶ</button>
+      <button class="secondary" id="btnResume" hidden>つづける</button>
+    </div>
+  </section>
+</div>
+
+<script id="logic">
+/* ===== 昨日の私のダンジョン：ゲームのロジック（純粋関数のみ。DOM に触れない） ===== */
+var Kinou = (function () {
+  "use strict";
+  var DIRS = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0], W: [0, 0] };
+  var MOVES = ["U", "D", "L", "R", "W"];
+
+  // 記号: # 壁 / . 床 / S 入口 / E 出口 / a b c スイッチ / A B C 対応する扉 / o 箱
+  var ROOM_DEFS = [
+    { name: "入口の回廊", hint: "灯りの階段へ", turns: 12, maxGhosts: 2, parRuns: 1, parTurns: 10,
+      map: ["#######", "##E####", "##.####", "##...##", "####.##", "##...##", "##.####", "##S####", "#######"] },
+    { name: "留め石の間", hint: "乗ったまま、待ってみる", turns: 10, maxGhosts: 2, parRuns: 2, parTurns: 8,
+      map: ["#######", "###E###", "###A###", "##...##", "##.#.##", "##.#a##", "##...##", "###S###", "#######"] },
+    { name: "石の重さ", hint: "石も、重さになる", turns: 14, maxGhosts: 2, parRuns: 1, parTurns: 13,
+      map: ["#######", "##E####", "##A####", "#.....#", "#.###.#", "#.o..a#", "#.#####", "#S#####", "#######"] },
+    { name: "二つの扉", hint: "昨日の私は、ふたりまで", turns: 12, maxGhosts: 2, parRuns: 3, parTurns: 11,
+      map: ["#######", "#E#####", "#B...b#", "###A###", "##...##", "##.#.##", "#a...##", "###S###", "#######"] },
+    { name: "ひとりの昨日", hint: "この部屋の昨日は、ひとりだけ", turns: 12, maxGhosts: 1, parRuns: 2, parTurns: 10,
+      map: ["#######", "####.a#", "####.##", "#...b##", "#.##o##", "#S...B#", "#####A#", "#####E#", "#######"] },
+    { name: "刻の間", hint: "待つのも一手", turns: 14, maxGhosts: 2, parRuns: 3, parTurns: 13,
+      map: ["#######", "#E###b#", "#B###.#", "#.###.#", "#A###C#", "#.....#", "#a#.c##", "###S###", "#######"] }
+  ];
+
+  function parseRoom(def) {
+    var h = def.map.length, w = def.map[0].length;
+    var kind = [], boxes = [], switches = [], doors = [], start = -1, exit = -1;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var ch = def.map[y][x], i = y * w + x;
+        if (ch === "o") { boxes.push(i); ch = "."; }
+        if (ch === "S") { start = i; ch = "."; }
+        if (ch === "E") exit = i;
+        if (/[a-c]/.test(ch)) switches.push({ i: i, c: ch });
+        if (/[A-C]/.test(ch)) doors.push({ i: i, c: ch.toLowerCase() });
+        kind.push(ch);
+      }
+    }
+    return { name: def.name, hint: def.hint, w: w, h: h, kind: kind, start: start, exit: exit,
+      boxes: boxes, switches: switches, doors: doors, turns: def.turns, maxGhosts: def.maxGhosts,
+      parRuns: def.parRuns, parTurns: def.parTurns };
+  }
+
+  function initState(room, ghostCount, withMe) {
+    var g = [];
+    for (var k = 0; k < ghostCount; k++) g.push(room.start);
+    return { t: 0, me: withMe === false ? -1 : room.start, ghosts: g, boxes: room.boxes.slice(), cleared: false };
+  }
+
+  function neighbor(room, i, d) {
+    var v = DIRS[d], x = i % room.w + v[0], y = Math.floor(i / room.w) + v[1];
+    if (x < 0 || y < 0 || x >= room.w || y >= room.h) return -1;
+    return y * room.w + x;
+  }
+
+  function occupied(st, i) {
+    return st.me === i || st.ghosts.indexOf(i) >= 0 || st.boxes.indexOf(i) >= 0;
+  }
+
+  // スイッチが押されている色の集合（誰か・箱が乗っている）
+  function pressedColors(room, st) {
+    var out = {};
+    room.switches.forEach(function (s) { if (occupied(st, s.i)) out[s.c] = true; });
+    return out;
+  }
+
+  // ターン開始時点で開いている扉（スイッチが押されているか、扉のマスに何かがいる）
+  function openDoors(room, st) {
+    var pressed = pressedColors(room, st), open = {};
+    room.doors.forEach(function (d) { if (pressed[d.c] || occupied(st, d.i)) open[d.i] = true; });
+    return open;
+  }
+
+  function passable(room, open, i) {
+    if (i < 0) return false;
+    var k = room.kind[i];
+    if (k === "#") return false;
+    if (/[A-C]/.test(k)) return !!open[i];
+    return true;
+  }
+
+  // 1ターン進める。順番は「過去の自分（古い順）→ 今の自分」。扉の開閉はターン開始時点で決まる。
+  // 今の自分の移動が不可能なら ok:false（ターンは進まない）。過去の自分は進めなければその場で待つ。
+  function step(room, st, ghostInputs, myInput) {
+    var open = openDoors(room, st);
+    var cur = { t: st.t + 1, me: st.me, ghosts: st.ghosts.slice(), boxes: st.boxes.slice(), cleared: false };
+    var ghostBlocked = [], pushes = [];
+
+    function tryMove(from, d, isGhost) {
+      if (d === "W" || from < 0) return from;
+      var to = neighbor(room, from, d);
+      if (!passable(room, open, to)) return null;
+      if (isGhost && to === cur.me) return null;
+      var bi = cur.boxes.indexOf(to);
+      if (bi >= 0) {
+        var beyond = neighbor(room, to, d);
+        if (!passable(room, open, beyond) || room.kind[beyond] === "E" || cur.boxes.indexOf(beyond) >= 0 ||
+            beyond === cur.me || cur.ghosts.indexOf(beyond) >= 0) return null;
+        cur.boxes[bi] = beyond;
+        pushes.push(bi);
+      }
+      return to;
+    }
+
+    for (var g = 0; g < cur.ghosts.length; g++) {
+      var inp = (ghostInputs[g] && ghostInputs[g][st.t]) || "W";
+      var r = tryMove(cur.ghosts[g], inp, true);
+      if (r === null) { ghostBlocked[g] = true; } else { cur.ghosts[g] = r; }
+    }
+    var mr = tryMove(cur.me, myInput, false);
+    if (mr === null) return { ok: false, state: st, ghostBlocked: [], pushes: [] };
+    cur.me = mr;
+    cur.cleared = cur.me >= 0 && cur.me === room.exit;
+    return { ok: true, state: cur, ghostBlocked: ghostBlocked, pushes: pushes };
+  }
+
+  // 過去の自分だけの再生（今の自分がいない場合）。タイムラインの予告と軌跡の表示に使う
+  function previewGhosts(room, ghostInputs) {
+    var st = initState(room, ghostInputs.length, false), frames = [st];
+    for (var t = 0; t < room.turns; t++) { st = step(room, st, ghostInputs, "W").state; frames.push(st); }
+    return frames;
+  }
+
+  // 入力列を最初から再生する（無効な入力は飛ばしてターンを使わない＝プレイと同じ扱い）
+  function replay(room, ghostInputs, inputs) {
+    var st = initState(room, ghostInputs.length), states = [st], valid = [];
+    for (var k = 0; k < inputs.length && st.t < room.turns && !st.cleared; k++) {
+      var r = step(room, st, ghostInputs, inputs[k]);
+      if (r.ok) { st = r.state; states.push(st); valid.push(inputs[k]); }
+    }
+    return { state: st, states: states, valid: valid.join("") };
+  }
+
+  function stateKey(st) {
+    return st.t + "|" + st.me + "|" + st.ghosts.join(",") + "|" + st.boxes.slice().sort(function (a, b) { return a - b; }).join(",");
+  }
+
+  // 過去の自分を固定したときの、今の自分の最短クリア（幅優先探索）。解なしは null
+  function solvePresent(room, ghostInputs) {
+    var start = initState(room, ghostInputs.length), queue = [[start, ""]], seen = {};
+    seen[stateKey(start)] = true;
+    while (queue.length) {
+      var item = queue.shift(), st = item[0];
+      if (st.t >= room.turns) continue;
+      for (var m = 0; m < MOVES.length; m++) {
+        var r = step(room, st, ghostInputs, MOVES[m]);
+        if (!r.ok) continue;
+        var path = item[1] + MOVES[m];
+        if (r.state.cleared) return path;
+        var key = stateKey(r.state);
+        if (seen[key]) continue;
+        seen[key] = true;
+        queue.push([r.state, path]);
+      }
+    }
+    return null;
+  }
+
+  function stars(room, runsUsed, turnsUsed) {
+    return 1 + (runsUsed <= room.parRuns ? 1 : 0) + (turnsUsed <= room.parTurns ? 1 : 0);
+  }
+
+  return { DIRS: DIRS, MOVES: MOVES, ROOM_DEFS: ROOM_DEFS, parseRoom: parseRoom, initState: initState,
+    step: step, openDoors: openDoors, pressedColors: pressedColors, previewGhosts: previewGhosts,
+    replay: replay, solvePresent: solvePresent, stateKey: stateKey, stars: stars, neighbor: neighbor };
+})();
+if (typeof module !== "undefined" && module.exports) module.exports = Kinou;
+</script>
+
+<script>
+(function () {
+  "use strict";
+  var K = Kinou;
+  var ROOMS = K.ROOM_DEFS.map(K.parseRoom);
+  var LOCKED = ["動く床", "鏡の私", "砂の刻", "三日前の私", "崩れる橋", "鏡写しの扉"];
+  var GLYPH = { U: "↑", D: "↓", L: "←", R: "→", W: "·" };
+  var reduceMotion = false;
+  try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) {}
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- 色（:root のトークンから読む） ----------
+  var C = {};
+  function readTokens() {
+    var cs = getComputedStyle(document.documentElement);
+    ["bg", "void", "wall", "wall-top", "wall-face", "floor", "floor-2", "grout", "ink", "muted", "faint", "lamp", "lamp-glow",
+     "echo", "rune-a", "rune-b", "rune-c", "box", "box-hi", "danger"].forEach(function (k) {
+      C[k] = (cs.getPropertyValue("--" + k) || "").trim() || "#888";
+    });
+  }
+  readTokens();
+  function rune(c) { return C["rune-" + c]; }
+  function rgba(hex, a) {
+    var h = hex.replace("#", "");
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h, 16);
+    return "rgba(" + (n >> 16 & 255) + "," + (n >> 8 & 255) + "," + (n & 255) + "," + a + ")";
+  }
+
+  // ---------- 保存（この端末のみ。失敗しても遊べる） ----------
+  var LS_KEY = "kinou-dungeon-v1";
+  function loadLocal() {
+    try { var s = JSON.parse(localStorage.getItem(LS_KEY) || "null"); if (s && s.best) return s; } catch (e) {}
+    return null;
+  }
+  var save = loadLocal() || { best: [0, 0, 0, 0, 0, 0], roomTime: [0, 0, 0, 0, 0, 0], fails2: 0, metrics: null };
+  function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(save)); } catch (e) {} }
+
+  // ---------- 計測 ----------
+  var Metrics = (function () {
+    var now = new Date().toISOString();
+    var base = save.metrics || {
+      firstPlayAt: now, updatedAt: now, sessions: 0, runsStarted: 0, runsCompleted: 0, firstRunCleared: null,
+      replayed: false, priceAnswer: null, bestScore: 0, tutorialStuck: false, roomsCleared: 0, stuckRoom: null, totalStars: 0
+    };
+    var localSessionsBefore = base.sessions || 0;
+    var data = Object.assign({}, base, { sessions: localSessionsBefore + 1, updatedAt: now });
+    var ref = null, writing = false, dirty = false;
+    save.metrics = data; persist();
+
+    function flush() {
+      if (!ref) return;
+      if (writing) { dirty = true; return; }
+      writing = true;
+      var snapshot = Object.assign({}, data);
+      Promise.resolve().then(function () { return ref.set(snapshot); }).catch(function () {}).then(function () {
+        writing = false;
+        if (dirty) { dirty = false; flush(); }
+      });
+    }
+    function set(patch) {
+      var changed = false;
+      Object.keys(patch).forEach(function (k) { if (data[k] !== patch[k]) { data[k] = patch[k]; changed = true; } });
+      if (!changed) return;
+      data.updatedAt = new Date().toISOString();
+      save.metrics = data; persist();
+      flush();
+    }
+    function merge(remote) {
+      var m = Object.assign({}, data);
+      m.sessions = Math.max(remote.sessions || 0, localSessionsBefore) + 1;
+      ["runsStarted", "runsCompleted", "bestScore", "roomsCleared", "totalStars"].forEach(function (k) {
+        m[k] = Math.max(Number(remote[k]) || 0, Number(m[k]) || 0);
+      });
+      ["replayed", "tutorialStuck"].forEach(function (k) { m[k] = !!(remote[k] || m[k]); });
+      if (m.firstRunCleared === null && typeof remote.firstRunCleared === "boolean") m.firstRunCleared = remote.firstRunCleared;
+      if (m.priceAnswer === null && typeof remote.priceAnswer === "string") m.priceAnswer = remote.priceAnswer;
+      if (m.stuckRoom === null && remote.stuckRoom != null) m.stuckRoom = remote.stuckRoom;
+      if (remote.firstPlayAt && remote.firstPlayAt < m.firstPlayAt) m.firstPlayAt = remote.firstPlayAt;
+      return m;
+    }
+    function connect() {
+      var cl = window.claude;
+      if (!cl || typeof cl.use !== "function") return;
+      Promise.all([cl.use("db"), cl.use("user")]).then(function (r) {
+        var db = r[0], user = r[1];
+        if (!db || !user) return null;
+        return Promise.resolve(user.id()).then(function (id) {
+          if (!id) return null;
+          ref = db.doc("plays/" + id);
+          return ref.get().then(function (snap) {
+            if (snap && snap.exists) { data = merge(snap.data() || {}); save.metrics = data; persist(); }
+            flush();
+          });
+        });
+      }).catch(function () {});
+    }
+    return { set: set, get: function () { return data; }, connect: connect };
+  })();
+
+  // ---------- ゲームの状態 ----------
+  var G = {
+    ri: 0, room: ROOMS[0], ghosts: [], inputs: [], states: [], preview: [], runsUsed: 1, failedRuns: 0,
+    anim: null, seq: null, locked: false, blocked: [], clearedAt: 0, armedStart: false, anyInput: false,
+    bump: null, roomEnter: Date.now()
+  };
+
+  function cur() { return G.states[G.states.length - 1]; }
+
+  function startRoom(ri, fresh) {
+    accrueTime();
+    G.ri = ri; G.room = ROOMS[ri]; G.ghosts = []; G.runsUsed = 1; G.failedRuns = 0;
+    G.armedStart = ri === 0; G.seq = null; G.anim = null; G.clearedAt = 0;
+    $("roomNo").textContent = ri + 1;
+    $("roomTitle").textContent = G.room.name;
+    $("hint").textContent = G.room.hint;
+    hideSheets();
+    resetRun();
+    layout();
+    staticLayer = null;
+  }
+
+  function resetRun() {
+    G.inputs = [];
+    G.states = [K.initState(G.room, G.ghosts.length)];
+    G.preview = K.previewGhosts(G.room, G.ghosts);
+    G.blocked = [];
+    G.anim = null;
+    G.locked = false;
+    buildTimeline();
+  }
+
+  function accrueTime() {
+    var nowT = Date.now();
+    if (G.room && !G.clearedAt) save.roomTime[G.ri] = (save.roomTime[G.ri] || 0) + Math.min(nowT - G.roomEnter, 10 * 60 * 1000);
+    G.roomEnter = nowT;
+    var maxI = -1, maxV = 0;
+    save.roomTime.forEach(function (v, i) { if (v > maxV) { maxV = v; maxI = i; } });
+    persist();
+    if (maxI >= 0) Metrics.set({ stuckRoom: maxI + 1 });
+  }
+
+  // ---------- 入力 ----------
+  function input(d) {
+    if (!$("sheetClear").hidden || !$("sheetRooms").hidden || !$("sheetEnd").hidden) return;
+    if (G.seq) { finishSeq(); return; }
+    if (G.locked) return;
+    var st = cur();
+    if (st.cleared || st.t >= G.room.turns) return;
+    var r = K.step(G.room, st, G.ghosts, d);
+    if (!G.anyInput) G.anyInput = true;
+    if (!r.ok) { G.bump = { d: d, at: performance.now() }; return; }
+    if (G.armedStart) {
+      G.armedStart = false;
+      var rs = (Metrics.get().runsStarted || 0) + 1;
+      var p = { runsStarted: rs };
+      if (rs >= 2) p.replayed = true;
+      Metrics.set(p);
+    }
+    G.inputs.push(d);
+    G.states.push(r.state);
+    var nowT = performance.now();
+    r.ghostBlocked.forEach(function (b, g) { if (b) G.blocked[g] = nowT; });
+    G.anim = { from: st, to: r.state, start: nowT, dur: reduceMotion ? 0 : 120 };
+    updateTimeline();
+    if (r.state.cleared) { G.locked = true; setTimeout(onClear, reduceMotion ? 50 : 420); }
+    else if (r.state.t >= G.room.turns) { G.locked = true; setTimeout(function () { endRun(); }, reduceMotion ? 100 : 380); }
+  }
+
+  // 探索の終わり：入力列が過去の自分になる（上限なら同じ過去のままやり直し）
+  function endRun() {
+    var rec = G.inputs.join("");
+    if (!rec.length) { resetRun(); return; }
+    G.failedRuns++;
+    if (G.ri === 1) { save.fails2 = (save.fails2 || 0) + 1; persist(); }
+    var addGhost = G.ghosts.length < G.room.maxGhosts;
+    var back = G.states.slice().reverse();
+    G.locked = true;
+    playSeq({ frames: back, dur: Math.max(26, Math.min(70, 520 / back.length)), mode: "rewind" }, function () {
+      if (addGhost) G.ghosts.push(rec);
+      G.runsUsed++;
+      resetRun();
+      if (addGhost) {
+        // 新しい「昨日の私」が自分の動きをなぞるのを見せてから、今の自分の番にする
+        var frames = G.preview.slice(0, lastMoveTurn(G.preview) + 2);
+        G.locked = true;
+        playSeq({ frames: frames, dur: 150, mode: "echo", focus: G.ghosts.length - 1 }, function () { G.locked = false; });
+      }
+    });
+  }
+  function lastMoveTurn(frames) {
+    var last = 0;
+    for (var t = 1; t < frames.length; t++) if (frames[t].ghosts.join() !== frames[t - 1].ghosts.join()) last = t;
+    return Math.min(last, frames.length - 2);
+  }
+
+  function retry() {
+    if (G.seq) { finishSeq(); return; }
+    if (G.locked || cur().cleared) return;
+    if (!G.inputs.length) return;
+    endRun();
+  }
+  function erase() {
+    if (G.seq) finishSeq();
+    if (G.locked || cur().cleared) return;
+    if (!G.ghosts.length && !G.inputs.length) return;
+    var back = G.states.slice().reverse();
+    G.locked = true;
+    playSeq({ frames: back, dur: 30, mode: "rewind" }, function () {
+      G.ghosts = []; G.runsUsed++;
+      resetRun();
+    });
+  }
+
+  // ---------- 演出の再生 ----------
+  function playSeq(seq, done) {
+    if (reduceMotion) { done(); return; }
+    seq.start = performance.now(); seq.done = done;
+    G.seq = seq; G.anim = null;
+  }
+  function finishSeq() {
+    var s = G.seq; if (!s) return;
+    G.seq = null;
+    s.done && s.done();
+  }
+
+  // ---------- クリア ----------
+  function onClear() {
+    var st = cur();
+    accrueTime();
+    G.clearedAt = Date.now();
+    var stars = K.stars(G.room, G.runsUsed, st.t);
+    save.best[G.ri] = Math.max(save.best[G.ri] || 0, stars);
+    persist();
+    var total = save.best.reduce(function (a, b) { return a + b; }, 0);
+    var cleared = save.best.filter(function (b) { return b > 0; }).length;
+    var m = Metrics.get();
+    var patch = { totalStars: total, roomsCleared: Math.max(m.roomsCleared || 0, cleared), bestScore: Math.max(m.bestScore || 0, total) };
+    if (G.ri === 1 && m.firstRunCleared === null) patch.firstRunCleared = (save.fails2 || 0) <= 5;
+    if (G.ri === 5) patch.runsCompleted = (m.runsCompleted || 0) + 1;
+    Metrics.set(patch);
+
+    $("clearLabel").textContent = "部屋 " + (G.ri + 1) + "　" + G.room.name;
+    $("clearTitle").textContent = G.ri === 5 ? "入門編を抜けた" : "抜けた";
+    $("clearStars").innerHTML = starSvg(stars, 3);
+    $("clearStat").textContent = "探索 " + G.runsUsed + "回・最後は " + st.t + "ターン";
+    $("btnNext").textContent = G.ri === 5 ? "おわりへ" : "次の部屋へ";
+    $("sheetClear").hidden = false;
+    $("btnNext").focus({ preventScroll: true });
+  }
+  function starSvg(n, of) {
+    var s = "";
+    for (var i = 0; i < of; i++) {
+      var on = i < n;
+      s += '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.7 5.9 6.4.7-4.8 4.3 1.4 6.3L12 16.8 6.3 20l1.4-6.3L2.9 9.4l6.4-.7z" fill="' +
+        (on ? C.lamp : "none") + '" stroke="' + (on ? C.lamp : C.faint) + '" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+    }
+    return s + '<span style="position:absolute;left:-9999px">' + n + " / " + of + "</span>";
+  }
+
+  // ---------- 画面（部屋選び・おわり） ----------
+  function hideSheets() { ["sheetClear", "sheetRooms", "sheetEnd"].forEach(function (id) { $(id).hidden = true; }); }
+  function unlocked(i) { return i === 0 || save.best[i - 1] > 0 || save.best[i] > 0; }
+  function showRooms() {
+    var g = $("roomGrid"); g.innerHTML = "";
+    ROOMS.forEach(function (r, i) {
+      var b = document.createElement("button");
+      b.className = "rtile"; b.disabled = !unlocked(i);
+      var st = save.best[i] ? "★★★".slice(0, save.best[i]) + "☆☆☆".slice(save.best[i]) : (unlocked(i) ? "" : "");
+      b.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="nm"></span><span class="st">' + st + "</span>";
+      b.querySelector(".nm").textContent = r.name;
+      b.addEventListener("click", function () { startRoom(i, i === 0); });
+      g.appendChild(b);
+    });
+    var l = $("lockedGrid"); l.innerHTML = "";
+    LOCKED.forEach(function (nm, k) {
+      var d = document.createElement("div");
+      d.className = "rtile locked";
+      d.innerHTML = '<span class="n">' + (k + 7) + '</span><span class="nm"></span><span class="st"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="vertical-align:-1px"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>';
+      d.querySelector(".nm").textContent = nm;
+      d.querySelector(".st").style.color = C.muted;
+      l.appendChild(d);
+    });
+    $("sheetRooms").hidden = false;
+  }
+  function showEnd(kind) {
+    accrueTime();
+    hideSheets();
+    var total = save.best.reduce(function (a, b) { return a + b; }, 0);
+    $("endStars").textContent = total;
+    $("endOf").textContent = "/ 18 ★　" + save.best.filter(function (b) { return b > 0; }).length + " / 6 部屋";
+    $("endTitle").textContent = kind === "complete" ? "入門編、踏破" : "ここまで";
+    $("btnResume").hidden = kind === "complete";
+    var ans = Metrics.get().priceAnswer;
+    Array.prototype.forEach.call(document.querySelectorAll(".opt"), function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === ans)); });
+    $("thanks").textContent = ans ? "回答しました。ありがとう。" : "";
+    $("sheetEnd").hidden = false;
+  }
+
+  // ---------- 時の目盛り ----------
+  var tlCells = [];
+  function buildTimeline() {
+    var tl = $("tl"); tl.innerHTML = ""; tlCells = [];
+    var N = G.room.turns;
+    function mkLane(cls, label) {
+      var lane = document.createElement("div"); lane.className = "lane " + cls;
+      var who = document.createElement("span"); who.className = "who"; who.textContent = label;
+      var tr = document.createElement("div"); tr.className = "track"; tr.style.gridTemplateColumns = "repeat(" + N + ", 1fr)";
+      var cells = [];
+      for (var t = 0; t < N; t++) { var c = document.createElement("span"); c.className = "tk"; tr.appendChild(c); cells.push(c); }
+      lane.appendChild(who); lane.appendChild(tr); tl.appendChild(lane);
+      return cells;
+    }
+    var ticks = mkLane("ticks", "");
+    ticks.forEach(function (c, t) { c.textContent = t + 1; });
+    tlCells.push(ticks);
+    for (var g = 0; g < G.room.maxGhosts; g++) {
+      var cells = mkLane("ghost", g < G.ghosts.length ? (g + 1) + "回目" : "");
+      if (g < G.ghosts.length) {
+        var rec = G.ghosts[g];
+        cells.forEach(function (c, t) {
+          c.textContent = rec[t] ? GLYPH[rec[t]] : "";
+          var pos = G.preview[t + 1] && G.preview[t + 1].ghosts[g];
+          var sw = G.room.switches.filter(function (s) { return s.i === pos; })[0];
+          if (sw) { c.classList.add("sw"); c.style.setProperty("--swc", rune(sw.c)); }
+        });
+      } else {
+        cells.forEach(function (c) { c.style.opacity = ".35"; });
+      }
+      tlCells.push(cells);
+    }
+    tlCells.push(mkLane("me", "いま"));
+    updateTimeline();
+  }
+  function updateTimeline() {
+    var t = cur().t, N = G.room.turns, meCells = tlCells[tlCells.length - 1];
+    tlCells.forEach(function (cells) {
+      cells.forEach(function (c, k) { c.classList.toggle("now", k === t && t < N); c.classList.toggle("past", k < t); });
+    });
+    meCells.forEach(function (c, k) {
+      c.textContent = G.inputs[k] ? GLYPH[G.inputs[k]] : "";
+      c.classList.toggle("done", k < G.inputs.length);
+      var st = G.states[k + 1];
+      var sw = st && G.room.switches.filter(function (s) { return s.i === st.me; })[0];
+      c.classList.toggle("sw", !!sw);
+      if (sw) c.style.setProperty("--swc", rune(sw.c));
+    });
+    for (var g = 0; g < G.ghosts.length; g++) {
+      var cells = tlCells[1 + g];
+      if (!cells) continue;
+      cells.forEach(function (c, k) {
+        var st = G.states[k + 1], pv = G.preview[k + 1];
+        c.classList.toggle("blk", !!(st && pv && st.ghosts[g] !== pv.ghosts[g]));
+      });
+    }
+  }
+
+  // ---------- 盤面の描画 ----------
+  var canvas = $("board"), ctx = canvas.getContext("2d");
+  var light = document.createElement("canvas"), lctx = light.getContext("2d");
+  var S = 40, dpr = 1, staticLayer = null;
+
+  function layout() {
+    var wrap = $("boardwrap"), r = wrap.getBoundingClientRect();
+    var s = Math.floor(Math.min(r.width / G.room.w, r.height / G.room.h));
+    s = Math.max(20, Math.min(64, s));
+    dpr = Math.min(3, window.devicePixelRatio || 1);
+    if (s !== S || canvas.width !== Math.round(s * G.room.w * dpr)) {
+      S = s;
+      canvas.style.width = S * G.room.w + "px"; canvas.style.height = S * G.room.h + "px";
+      canvas.width = Math.round(S * G.room.w * dpr); canvas.height = Math.round(S * G.room.h * dpr);
+      light.width = canvas.width; light.height = canvas.height;
+      staticLayer = null;
+    }
+  }
+
+  function hash(i, k) { var x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); }
+
+  function buildStatic() {
+    var room = G.room, c = document.createElement("canvas");
+    c.width = canvas.width; c.height = canvas.height;
+    var g = c.getContext("2d"); g.scale(dpr, dpr);
+    g.fillStyle = C.void; g.fillRect(0, 0, room.w * S, room.h * S);
+    for (var y = 0; y < room.h; y++) for (var x = 0; x < room.w; x++) {
+      var i = y * room.w + x, k = room.kind[i], px = x * S, py = y * S;
+      if (k === "#") {
+        var below = y + 1 < room.h ? room.kind[i + room.w] : "#";
+        var any = false;
+        [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(function (d) {
+          var nx = x + d[0], ny = y + d[1];
+          if (nx >= 0 && ny >= 0 && nx < room.w && ny < room.h && room.kind[ny * room.w + nx] !== "#") any = true;
+        });
+        if (!any) continue;
+        g.fillStyle = C.wall; g.fillRect(px, py, S, S);
+        // 石積み
+        g.strokeStyle = C["wall-face"]; g.lineWidth = 1;
+        var rows = 3;
+        for (var r = 0; r < rows; r++) {
+          var yy = py + r * S / rows;
+          g.beginPath(); g.moveTo(px, yy + .5); g.lineTo(px + S, yy + .5); g.stroke();
+          var off = (r % 2 ? .5 : 0) + hash(i, r) * .2;
+          var bx = px + ((off * S) % S);
+          g.beginPath(); g.moveTo(bx + .5, yy); g.lineTo(bx + .5, yy + S / rows); g.stroke();
+        }
+        g.fillStyle = C["wall-top"]; g.fillRect(px, py, S, 2);
+        if (below !== "#") {
+          g.fillStyle = C["wall-face"]; g.fillRect(px, py + S * .62, S, S * .38);
+          g.fillStyle = rgba(C.ink, .06); g.fillRect(px, py + S * .62, S, 1);
+        }
+      } else {
+        g.fillStyle = hash(i, 3) > .5 ? C.floor : C["floor-2"]; g.fillRect(px, py, S, S);
+        g.strokeStyle = C.grout; g.lineWidth = 1.2; g.strokeRect(px + .6, py + .6, S - 1.2, S - 1.2);
+        if (hash(i, 7) > .55) {
+          g.strokeStyle = rgba(C.ink, .045); g.beginPath();
+          g.moveTo(px + S * hash(i, 1), py + S * .2); g.lineTo(px + S * hash(i, 2), py + S * .8); g.stroke();
+        }
+        if (k === "E") drawExit(g, px, py);
+        if (i === room.start) {
+          g.strokeStyle = rgba(C.ink, .14); g.lineWidth = 1;
+          g.beginPath(); g.arc(px + S / 2, py + S / 2, S * .32, 0, Math.PI * 2); g.stroke();
+        }
+      }
+    }
+    staticLayer = c;
+  }
+
+  // 出口：上へ続く階段の口。奥から灯りが差す
+  function drawExit(g, px, py) {
+    var l = px + S * .16, r = px + S * .84, top = py + S * .44, bot = py + S * .94, cx = px + S / 2;
+    g.beginPath();
+    g.moveTo(l, bot); g.lineTo(l, top); g.arc(cx, top, (r - l) / 2, Math.PI, 0); g.lineTo(r, bot); g.closePath();
+    var gr = g.createLinearGradient(0, py + S * .1, 0, bot);
+    gr.addColorStop(0, rgba(C["lamp-glow"], .85)); gr.addColorStop(1, rgba(C.lamp, .18));
+    g.fillStyle = gr; g.fill();
+    g.strokeStyle = C["wall-top"]; g.lineWidth = S * .06; g.stroke();
+    g.strokeStyle = rgba(C.void, .55); g.lineWidth = 1.5;
+    [.56, .68, .8].forEach(function (k, n) {
+      var y = py + S * k, ins = S * (.06 + n * .02);
+      g.beginPath(); g.moveTo(l + ins, y); g.lineTo(r - ins, y); g.stroke();
+    });
+  }
+
+  function runePath(g, c, cx, cy, r) {
+    g.beginPath();
+    if (c === "a") { g.moveTo(cx, cy - r); g.lineTo(cx + r, cy); g.lineTo(cx, cy + r); g.lineTo(cx - r, cy); g.closePath(); }
+    else if (c === "b") { g.moveTo(cx, cy - r); g.lineTo(cx + r * .95, cy + r * .75); g.lineTo(cx - r * .95, cy + r * .75); g.closePath(); }
+    else { g.arc(cx, cy, r * .85, 0, Math.PI * 2); }
+  }
+
+  function drawFigure(g, cx, cy, kind, alpha, label) {
+    var s = S;
+    g.save();
+    g.globalAlpha = alpha;
+    // 影
+    g.fillStyle = "rgba(0,0,0,.45)";
+    g.beginPath(); g.ellipse(cx, cy + s * .34, s * .24, s * .07, 0, 0, Math.PI * 2); g.fill();
+    var body = function () {
+      g.beginPath();
+      g.moveTo(cx - s * .25, cy + s * .34);
+      g.quadraticCurveTo(cx - s * .22, cy + s * .02, cx - s * .14, cy - s * .08);
+      g.arc(cx, cy - s * .14, s * .16, Math.PI * 1.05, Math.PI * 1.95);
+      g.quadraticCurveTo(cx + s * .22, cy + s * .02, cx + s * .25, cy + s * .34);
+      g.quadraticCurveTo(cx, cy + s * .4, cx - s * .25, cy + s * .34);
+      g.closePath();
+    };
+    if (kind === "me") {
+      body(); g.fillStyle = C.ink; g.fill();
+      g.fillStyle = C["wall-face"];
+      g.beginPath(); g.ellipse(cx, cy - s * .12, s * .085, s * .1, 0, 0, Math.PI * 2); g.fill();
+      // ランタン
+      g.shadowColor = C.lamp; g.shadowBlur = s * .4;
+      g.fillStyle = C["lamp-glow"];
+      g.beginPath(); g.arc(cx + s * .27, cy + s * .1, s * .075, 0, Math.PI * 2); g.fill();
+      g.shadowBlur = 0;
+      g.strokeStyle = C.lamp; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(cx + s * .27, cy + s * .02); g.lineTo(cx + s * .2, cy - s * .02); g.stroke();
+    } else {
+      g.shadowColor = C.echo; g.shadowBlur = s * .35;
+      body(); g.fillStyle = rgba(C.echo, .30); g.fill();
+      g.shadowBlur = 0;
+      g.strokeStyle = rgba(C.echo, .85); g.lineWidth = 1.4; g.stroke();
+      g.fillStyle = rgba(C.void, .6);
+      g.beginPath(); g.ellipse(cx, cy - s * .12, s * .075, s * .09, 0, 0, Math.PI * 2); g.fill();
+      if (label) {
+        g.fillStyle = C.echo; g.font = "700 " + Math.round(s * .22) + "px " + getComputedStyle(document.body).fontFamily;
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.fillText(label, cx, cy + s * .16);
+      }
+    }
+    g.restore();
+  }
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function posOf(i) { return [i % G.room.w, Math.floor(i / G.room.w)]; }
+  function interp(ia, ib, t) {
+    if (ia < 0 || ib < 0) return ib < 0 ? null : posOf(ib);
+    var a = posOf(ia), b = posOf(ib);
+    var e = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    return [lerp(a[0], b[0], e), lerp(a[1], b[1], e)];
+  }
+
+  // いま見せる場面（位置は補間）
+  function view(now) {
+    var from, to, t, mode = "play", focus = -1;
+    if (G.seq) {
+      var s = G.seq, f = Math.max(0, (now - s.start) / s.dur), k = Math.floor(f);
+      if (k >= s.frames.length - 1) { finishSeq(); return view(now); }
+      from = s.frames[k]; to = s.frames[k + 1]; t = f - k; mode = s.mode; focus = s.focus;
+    } else if (G.anim) {
+      t = G.anim.dur ? Math.max(0, Math.min(1, (now - G.anim.start) / G.anim.dur)) : 1;
+      from = G.anim.from; to = G.anim.to;
+      if (t >= 1) G.anim = null;
+    } else { from = to = cur(); t = 1; }
+    var v = { mode: mode, focus: focus, st: to, t: t };
+    v.me = mode === "echo" ? posOf(G.room.start) : interp(from.me, to.me, t);
+    v.ghosts = to.ghosts.map(function (gi, g) { return interp(from.ghosts.length === to.ghosts.length ? from.ghosts[g] : gi, gi, t); });
+    v.boxes = to.boxes.map(function (bi, b) { return interp(from.boxes[b], bi, t); });
+    return v;
+  }
+
+  function draw(now) {
+    if (!staticLayer) buildStatic();
+    var room = G.room, v = view(now), st = v.st;
+    var W = room.w * S, H = room.h * S;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(staticLayer, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var open = K.openDoors(room, st), pressed = K.pressedColors(room, st);
+
+    // スイッチ
+    room.switches.forEach(function (sw) {
+      var p = posOf(sw.i), px = p[0] * S, py = p[1] * S, on = !!pressed[sw.c] && (st.me === sw.i || st.ghosts.indexOf(sw.i) >= 0 || st.boxes.indexOf(sw.i) >= 0);
+      var ins = S * .14;
+      ctx.fillStyle = on ? rgba(rune(sw.c), .22) : C["wall-face"];
+      ctx.fillRect(px + ins, py + ins, S - ins * 2, S - ins * 2);
+      ctx.strokeStyle = rgba(rune(sw.c), on ? .95 : .55); ctx.lineWidth = 1.5;
+      ctx.strokeRect(px + ins, py + ins, S - ins * 2, S - ins * 2);
+      ctx.save();
+      if (on) { ctx.shadowColor = rune(sw.c); ctx.shadowBlur = S * .4; }
+      runePath(ctx, sw.c, px + S / 2, py + S / 2, S * .17);
+      ctx.strokeStyle = rune(sw.c); ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    });
+
+    // 扉
+    room.doors.forEach(function (d) {
+      var p = posOf(d.i), px = p[0] * S, py = p[1] * S, col = rune(d.c);
+      if (open[d.i]) {
+        ctx.fillStyle = C["wall-top"];
+        ctx.fillRect(px, py, S * .1, S); ctx.fillRect(px + S * .9, py, S * .1, S);
+        ctx.setLineDash([3, 3]);
+        runePath(ctx, d.c, px + S / 2, py + S / 2, S * .17);
+        ctx.strokeStyle = rgba(col, .5); ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.setLineDash([]);
+      } else {
+        ctx.fillStyle = C["wall-top"]; ctx.fillRect(px + 1, py + 1, S - 2, S - 2);
+        ctx.fillStyle = C.wall;
+        for (var b = 0; b < 4; b++) ctx.fillRect(px + S * (.12 + b * .21), py + S * .08, S * .1, S * .84);
+        ctx.strokeStyle = rgba(col, .7); ctx.lineWidth = 2; ctx.strokeRect(px + 2, py + 2, S - 4, S - 4);
+        ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = S * .25;
+        ctx.fillStyle = C["wall-top"]; ctx.beginPath(); ctx.arc(px + S / 2, py + S / 2, S * .24, 0, Math.PI * 2); ctx.fill();
+        runePath(ctx, d.c, px + S / 2, py + S / 2, S * .16);
+        ctx.fillStyle = col; ctx.fill();
+        ctx.restore();
+      }
+    });
+
+    // 過去の自分の軌跡（残像の道）
+    var tNow = st.t;
+    G.preview.length && G.ghosts.forEach(function (_, g) {
+      var focus = v.mode === "echo" ? (g === v.focus) : true;
+      ctx.save();
+      ctx.strokeStyle = rgba(C.echo, focus ? .28 : .12); ctx.lineWidth = Math.max(1.5, S * .05);
+      ctx.setLineDash([S * .08, S * .12]); ctx.lineCap = "round";
+      ctx.beginPath();
+      var prev = -1;
+      G.preview.forEach(function (f, t) {
+        var gi = f.ghosts[g]; if (gi === prev) return;
+        var p = posOf(gi);
+        if (prev < 0) ctx.moveTo(p[0] * S + S / 2, p[1] * S + S / 2); else ctx.lineTo(p[0] * S + S / 2, p[1] * S + S / 2);
+        prev = gi;
+      });
+      ctx.stroke(); ctx.setLineDash([]);
+      // 行き先の印
+      var endP = posOf(G.preview[G.preview.length - 1].ghosts[g]);
+      ctx.fillStyle = rgba(C.echo, .35);
+      ctx.beginPath(); ctx.arc(endP[0] * S + S / 2, endP[1] * S + S / 2, S * .07, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+
+    // 巻き戻し中：今の自分の軌跡
+    if (v.mode === "rewind" && G.seq) {
+      ctx.save();
+      ctx.strokeStyle = rgba(C.lamp, .35); ctx.lineWidth = S * .06; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath();
+      G.seq.frames.forEach(function (f, k) {
+        if (f.me < 0) return;
+        var p = posOf(f.me);
+        if (k === 0) ctx.moveTo(p[0] * S + S / 2, p[1] * S + S / 2); else ctx.lineTo(p[0] * S + S / 2, p[1] * S + S / 2);
+      });
+      ctx.stroke(); ctx.restore();
+    }
+
+    // 箱
+    v.boxes.forEach(function (p) {
+      var px = p[0] * S, py = p[1] * S, ins = S * .1;
+      ctx.fillStyle = "rgba(0,0,0,.4)"; ctx.fillRect(px + ins + 2, py + ins + 4, S - ins * 2, S - ins * 2);
+      ctx.fillStyle = C.box; ctx.fillRect(px + ins, py + ins, S - ins * 2, S - ins * 2);
+      ctx.fillStyle = C["box-hi"]; ctx.fillRect(px + ins, py + ins, S - ins * 2, S * .14);
+      ctx.strokeStyle = rgba(C.void, .6); ctx.lineWidth = 1.5;
+      ctx.strokeRect(px + S * .28, py + S * .36, S * .44, S * .36);
+      ctx.beginPath(); ctx.moveTo(px + S * .5, py + S * .36); ctx.lineTo(px + S * .5, py + S * .72); ctx.stroke();
+    });
+
+    // 過去の自分
+    v.ghosts.forEach(function (p, g) {
+      if (!p) return;
+      var shake = 0, bt = G.blocked[g];
+      if (bt && now - bt < 360) shake = Math.sin((now - bt) / 22) * S * .05;
+      var a = v.mode === "echo" ? (g === v.focus ? 1 : .55) : (v.mode === "rewind" ? .5 : .9);
+      drawFigure(ctx, p[0] * S + S / 2 + shake, p[1] * S + S / 2, "ghost", a, String(g + 1));
+      if (bt && now - bt < 700) {
+        ctx.strokeStyle = rgba(C.danger, .8 * (1 - (now - bt) / 700)); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p[0] * S + S / 2, p[1] * S + S / 2, S * .42, 0, Math.PI * 2); ctx.stroke();
+      }
+    });
+
+    // 今の自分
+    if (v.me) {
+      var bx = 0, by = 0;
+      if (G.bump && now - G.bump.at < 180) {
+        var dd = K.DIRS[G.bump.d], k2 = Math.sin((now - G.bump.at) / 180 * Math.PI) * S * .12;
+        bx = dd[0] * k2; by = dd[1] * k2;
+      }
+      var meA = v.mode === "echo" ? .3 : (v.mode === "rewind" ? .85 : 1);
+      drawFigure(ctx, v.me[0] * S + S / 2 + bx, v.me[1] * S + S / 2 + by, "me", meA);
+    }
+
+    // 灯りと影
+    var flick = reduceMotion ? 1 : 1 + Math.sin(now / 170) * .025 + Math.sin(now / 53) * .012;
+    lctx.setTransform(1, 0, 0, 1, 0, 0);
+    lctx.globalCompositeOperation = "source-over";
+    lctx.clearRect(0, 0, light.width, light.height);
+    lctx.fillStyle = "rgba(3,4,7,0.84)"; lctx.fillRect(0, 0, light.width, light.height);
+    lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lctx.globalCompositeOperation = "destination-out";
+    function hole(x, y, r, a) {
+      var gr = lctx.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, "rgba(0,0,0," + a + ")"); gr.addColorStop(.55, "rgba(0,0,0," + a * .6 + ")"); gr.addColorStop(1, "rgba(0,0,0,0)");
+      lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(x, y, r, 0, Math.PI * 2); lctx.fill();
+    }
+    if (v.me) hole(v.me[0] * S + S / 2, v.me[1] * S + S / 2, S * 3.4 * flick, v.mode === "echo" ? .55 : 1);
+    v.ghosts.forEach(function (p) { if (p) hole(p[0] * S + S / 2, p[1] * S + S / 2, S * 1.7, .7); });
+    var ep = posOf(room.exit); hole(ep[0] * S + S / 2, ep[1] * S + S / 2, S * 1.6, .8);
+    room.switches.forEach(function (sw) { var p = posOf(sw.i); hole(p[0] * S + S / 2, p[1] * S + S / 2, S * (pressed[sw.c] ? 1.3 : .8), pressed[sw.c] ? .6 : .35); });
+    room.doors.forEach(function (d) { var p = posOf(d.i); hole(p[0] * S + S / 2, p[1] * S + S / 2, S * .8, .35); });
+    // 遠くまでうっすら見えるように全体を少しだけ明るく
+    lctx.fillStyle = "rgba(0,0,0,.18)"; lctx.fillRect(0, 0, W, H);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(light, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // ランタンの暖かい光
+    if (v.me) {
+      ctx.save(); ctx.globalCompositeOperation = "lighter";
+      var lx = v.me[0] * S + S / 2, ly = v.me[1] * S + S / 2;
+      var gl = ctx.createRadialGradient(lx, ly, 0, lx, ly, S * 2.2 * flick);
+      gl.addColorStop(0, rgba(C.lamp, v.mode === "echo" ? .05 : .16)); gl.addColorStop(1, rgba(C.lamp, 0));
+      ctx.fillStyle = gl; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    // 巻き戻しの色
+    if (v.mode === "rewind") {
+      ctx.fillStyle = rgba(C.echo, .10); ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = rgba(C.echo, .07);
+      var off = (now / 6) % 6;
+      for (var yy = -6 + off; yy < H; yy += 6) ctx.fillRect(0, yy, W, 1.5);
+      ctx.fillStyle = rgba(C.echo, .9);
+      ctx.beginPath();
+      var ix = S * .3, iy = S * .3, ih = S * .36;
+      ctx.moveTo(ix + ih * .55, iy); ctx.lineTo(ix, iy + ih / 2); ctx.lineTo(ix + ih * .55, iy + ih); ctx.closePath();
+      ctx.moveTo(ix + ih * 1.1, iy); ctx.lineTo(ix + ih * .55, iy + ih / 2); ctx.lineTo(ix + ih * 1.1, iy + ih); ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function frame(now) {
+    try { draw(now); } catch (e) { console.error(e); }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- 操作のつなぎこみ ----------
+  Array.prototype.forEach.call(document.querySelectorAll("#pad button"), function (b) {
+    b.addEventListener("pointerdown", function (e) { e.preventDefault(); input(b.dataset.d); b.classList.add("hit"); setTimeout(function () { b.classList.remove("hit"); }, 120); });
+    b.addEventListener("click", function (e) { if (e.detail === 0) input(b.dataset.d); });
+  });
+  $("btnRetry").addEventListener("click", retry);
+  $("btnErase").addEventListener("click", erase);
+  $("btnRooms").addEventListener("click", function () { showRooms(); });
+  $("btnCloseRooms").addEventListener("click", function () { $("sheetRooms").hidden = true; });
+  $("btnQuit").addEventListener("click", function () { showEnd("quit"); });
+  $("btnResume").addEventListener("click", function () { $("sheetEnd").hidden = true; G.roomEnter = Date.now(); });
+  $("btnNext").addEventListener("click", function () { if (G.ri === 5) showEnd("complete"); else startRoom(G.ri + 1); });
+  $("btnAgainRoom").addEventListener("click", function () { startRoom(G.ri, G.ri === 0); });
+  $("btnReplay").addEventListener("click", function () { startRoom(0, true); });
+  Array.prototype.forEach.call(document.querySelectorAll(".opt"), function (b) {
+    b.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll(".opt"), function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+      Metrics.set({ priceAnswer: b.dataset.v });
+      $("thanks").textContent = "回答しました。ありがとう。";
+    });
+  });
+
+  // 盤面：スワイプ、または隣のマスをタップ（自分をタップで待つ）
+  var down = null;
+  canvas.addEventListener("pointerdown", function (e) { down = { x: e.clientX, y: e.clientY }; try { canvas.setPointerCapture(e.pointerId); } catch (er) {} });
+  canvas.addEventListener("pointerup", function (e) {
+    if (!down) return;
+    var dx = e.clientX - down.x, dy = e.clientY - down.y; down = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 18) {
+      input(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "R" : "L") : (dy > 0 ? "D" : "U"));
+      return;
+    }
+    if (G.seq) { finishSeq(); return; }
+    var r = canvas.getBoundingClientRect();
+    var cx = Math.floor((e.clientX - r.left) / S), cy = Math.floor((e.clientY - r.top) / S);
+    var me = cur().me; if (me < 0) return;
+    var mx = me % G.room.w, my = Math.floor(me / G.room.w), ddx = cx - mx, ddy = cy - my;
+    if (ddx === 0 && ddy === 0) input("W");
+    else if (Math.abs(ddx) + Math.abs(ddy) === 1) input(ddx === 1 ? "R" : ddx === -1 ? "L" : ddy === 1 ? "D" : "U");
+  });
+  canvas.addEventListener("pointercancel", function () { down = null; });
+
+  window.addEventListener("keydown", function (e) {
+    var map = { ArrowUp: "U", ArrowDown: "D", ArrowLeft: "L", ArrowRight: "R", w: "U", s: "D", a: "L", d: "R", " ": "W", ".": "W" };
+    if (map[e.key]) { e.preventDefault(); input(map[e.key]); }
+    else if (e.key === "r" || e.key === "Backspace") { e.preventDefault(); retry(); }
+  });
+  window.addEventListener("resize", layout);
+  try { new ResizeObserver(layout).observe($("boardwrap")); } catch (e) {}
+
+  // ---------- 開始 ----------
+  var firstOpen = save.best.every(function (b) { return !b; });
+  var startAt = 0;
+  for (var i = 0; i < ROOMS.length; i++) { if (!save.best[i]) { startAt = i; break; } }
+  startRoom(startAt, startAt === 0);
+  requestAnimationFrame(frame);
+  Metrics.connect();
+  if (firstOpen && (Metrics.get().sessions || 0) <= 1) {
+    setTimeout(function () { if (!G.anyInput && G.ri === 0) Metrics.set({ tutorialStuck: true }); }, 30000);
+  }
+  document.addEventListener("visibilitychange", function () { if (document.hidden) accrueTime(); else G.roomEnter = Date.now(); });
+})();
+</script>
+</body></html>
