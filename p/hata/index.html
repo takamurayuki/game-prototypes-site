@@ -89,8 +89,9 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
   font-size:12px;font-weight:700;color:var(--ink2);touch-action:none}
 .key svg{width:30px;height:30px}
 .key.on{background:var(--btn-hi);border-bottom-width:1px;transform:translateY(3px)}
-.key.fall{border-color:#6a3a35;color:var(--spike-lt)}
-.key.fall.on{background:#3a2420}
+.key.swap{border-color:#7a6a2a;color:var(--flag)}
+.key.swap.on{background:#3a3418}
+.key.swap.off{opacity:.45}
 .key.jump{width:96px}
 
 /* タイトル・終了 */
@@ -162,7 +163,7 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
     <div class="play" id="play">
      <div class="hint" id="hint"></div>
      <div class="field" id="field">
-      <canvas id="cv" aria-label="ステージ。引っぱって離すと旗を投げる"></canvas>
+      <canvas id="cv" aria-label="ステージ。引っぱって離すと旗を投げる。入れ替えボタンで旗の位置へ乗り移る"></canvas>
       <button type="button" class="skip" id="skip" hidden>この面をとばす</button>
       <div class="card" id="clearCard" hidden>
         <h2>クリア</h2>
@@ -190,8 +191,8 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
           <svg viewBox="0 0 30 30"><path d="M11 6 L21 15 L11 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
       <div class="grp">
-        <button type="button" class="key fall" data-k="down">
-          <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><rect x="5" y="17" width="16" height="7" rx="2.5"/><circle cx="17" cy="20.5" r=".6" fill="currentColor"/><path d="M5 27h21"/><path d="M22 6l3 3m0-3l-3 3"/></svg>倒れる</button>
+        <button type="button" class="key swap" data-k="swap">
+          <svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h17l-4-4"/><path d="M24 19H7l4 4"/></svg>入れ替え</button>
         <button type="button" class="key jump" data-k="jump">
           <svg viewBox="0 0 30 30"><path d="M7 19 L15 9 L23 19" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>ジャンプ</button>
       </div>
@@ -223,18 +224,29 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
  * 座標はマス単位。x→右、y→下。主人公は (x=足元の中心, y=足の高さ)。
  * 1 tick = 1/60 秒の固定ステップ。同じ入力列なら必ず同じ結果になる。
  *
- * 旗のルール（すべての面で同じ）：
- *  - 旗は1本。持っている間は手の中。引っぱって離すと放物線で飛ぶ
- *  - 飛んでいる旗は「壁・床・天井・トゲに当たったらそこに刺さる」「一定時間(0.75秒)飛んだら、その場で止まる（空中なら浮く）」
- *  - 鉄格子は旗だけ通す（主人公は通れない）。画面の下へ落ちた旗は穴の底に残る
- *  - 止まった旗に触れると拾う。倒れると、旗が最後に止まった場所で起き上がり、旗を持ち直す
- *  - 起き上がった場所がトゲや穴の底ならすぐまた倒れる＝詰み（面を最初からやり直す）
+ * 再設計 v2（物理試作・第1弾）：「投げて、入れ替わる」
+ *  - 旗は1本。引いて離すと放物線で飛ぶ。壁・床に刺さる／鉄格子はすり抜ける／0.75秒でその場に浮く
+ *  - 画面の端（左右上）を越えた旗・下へ落ちた旗は消えて手に戻る（交換できない）。トゲに刺さった旗とは交換できない
+ *  - 入れ替えボタン：自分が旗の位置と速度を受け取り、旗は手に戻る
+ *      飛行中の旗 → 投射状態（重力24）で飛ぶ。浮いた旗 → その場から落ちる。どちらも空中チャージを1つ使う
+ *      地形に刺さった旗 → 法線側に収まる位置へ。無料でチャージ回復、12ステップぶら下がる
+ *  - 地上は加速・減速あり、空中は小さな加速だけ（慣性）。助走で旗の初速が伸びる
+ *  - 穴・トゲ → 復帰点（地形の上に6フレーム以上立った地点）へ0.5秒で巻き戻し
+ * 処理順（固定）：入力 → 入れ替え → 投げの開放 → 自分の積分 → 旗の積分（細分ステップ）
+ *               → 刺さり・浮遊判定 → 危険判定 → 接地・回復・復帰点の更新 → 助走値の更新
  */
 const L = (() => {
   const W = 16, H = 18, DT = 1 / 60;
-  const P = { w: 0.6, h: 0.9, speed: 5.5, g: 38, jump: 13.5, maxFall: 18, coyote: 5, buffer: 6 };
-  const F = { vmax: 17, g: 24, ticks: 45, sub: 4, reach: 0.3, hand: 0.35, pole: 1.0 };
-  const RESPAWN = 24;           // 倒れてから起き上がるまで（tick）
+  const P = {
+    w: 0.6, h: 0.9, speed: 5.5,
+    accel: 5.5 / (18 / 60),        // 停止→最高速 18フレーム
+    decel: 2 * 5.5 / (18 / 60),    // 逆入力・手を離したときの減速（2倍）
+    airAcc: 20,                    // 空中の入力は加速だけ
+    g: 38, jump: 13.5, maxFall: 18, coyote: 5, buffer: 6,
+  };
+  const F = { vmax: 17, g: 24, ticks: 45, sub: 4, reach: 0.3, hand: 0.35, pole: 1.0, run: 0.35 };
+  const VCAP = F.vmax * (1 + F.run);   // 22.95：速度ベクトルの上限（旗の最大初速）
+  const HANG = 12, SWAP_HOLD = 3, REWIND = 30, CHECK = 6, SLIDE = 0.45, SLIDE_STEP = 0.05;
   const EPS = 1e-6;
 
   /* ---- 面の読み込み ---- */
@@ -257,7 +269,6 @@ const L = (() => {
     return lv.grid[y][x];
   }
   const playerSolid = c => c === '#' || c === '|';
-  // 箱 [x0,x1]x[y0,y1] が主人公にとっての壁に重なるか
   function boxSolid(lv, x0, y0, x1, y1) {
     for (let ty = Math.floor(y0 + EPS); ty <= Math.floor(y1 - EPS); ty++)
       for (let tx = Math.floor(x0 + EPS); tx <= Math.floor(x1 - EPS); tx++)
@@ -271,83 +282,135 @@ const L = (() => {
         if (cell(lv, tx, ty) === '^' && x1 > tx + 0.1 && x0 < tx + 0.9 && y1 > ty + 0.5 && y0 < ty + 1) return true;
     return false;
   }
-  // 旗の先が刺さるか：'#' と画面の左右上の端と、トゲの下半分
+  const pSolid = (lv, x, y) => boxSolid(lv, x - P.w / 2, y - P.h, x + P.w / 2, y);
+  const pSpike = (lv, x, y) => boxSpike(lv, x - P.w / 2 + 0.04, y - P.h, x + P.w / 2 - 0.04, y + 0.02);
+  // 旗の先が当たるもの：画面の端（左右上）は 'edge'、'#' は 'wall'、トゲの下半分は 'spike'
+  // 端の判定は cell() と同じ境界（x<0・x>=W・y<0 が画面の外）にそろえる。x===W ちょうども端（地形には刺さらない）
   function flagHit(lv, x, y) {
-    if (x < 0 || x > W || y < 0) return 'wall';
+    if (x < 0 || x >= W || y < 0) return 'edge';
     if (y >= H) return null;
     const tx = Math.floor(x), ty = Math.floor(y), c = cell(lv, tx, ty);
     if (c === '#') return 'wall';
     if (c === '^' && y >= ty + 0.5) return 'spike';
     return null;
   }
+  const flagSolid = (lv, x, y) => { const h = flagHit(lv, x, y); return h === 'wall' || h === 'spike'; };
 
-  /* ---- 起き上がる位置：旗の根元に足を置き、壁にめり込むなら少しずらす ---- */
-  // 近い順に試す位置（下へずらすのを少し優先：天井に刺さった旗の下に立つ）
-  const OFFS = (() => {
-    const o = [];
-    for (let i = -20; i <= 20; i++) for (let j = -20; j <= 20; j++) {
-      const dx = i / 10, dy = j / 10, c = Math.hypot(dx, dy * (dy < 0 ? 1.5 : 1));
-      if (c <= 2) o.push([dx, dy, c + Math.abs(i) * 1e-4 + (i < 0 ? 1e-5 : 0)]);
-    }
-    return o.sort((a, b) => a[2] - b[2]);
-  })();
-  function spawnAt(lv, x, y) {
-    for (const [dx, dy] of OFFS) {
-      const cx = x + dx, fy = y + dy;
-      if (!boxSolid(lv, cx - P.w / 2, fy - P.h, cx + P.w / 2, fy)) return { x: cx, y: fy };
-    }
-    return { x, y };
+  // 速度の上限：大きさ VCAP 以下（向き保持）→ 下向きは maxFall
+  function capV(o) {
+    const m = Math.hypot(o.vx, o.vy);
+    if (m > VCAP) { o.vx = o.vx / m * VCAP; o.vy = o.vy / m * VCAP; }
+    if (o.vy > P.maxFall) o.vy = P.maxFall;
+    return o;
+  }
+  // 自由飛行の1サブステップ（旗と自分で共通）：重力を足す → 上限で丸める → 丸めた速度で動く。
+  // 速度 o.vx/o.vy を更新し、この1サブステップの移動量 [dx, dy] を返す。
+  // 旗も自分もこの関数だけで積分するので、上限が作動する軌道でも投射状態の自分は旗と同じ所を通る
+  function subMove(o, g, h) {
+    o.vy += g * h; capV(o);
+    return [o.vx * h, o.vy * h];
   }
 
   /* ---- 状態 ---- */
   function init(lv) {
-    const sp = spawnAt(lv, lv.start.x, lv.start.y);
+    const x = lv.start.x, y = lv.start.y - EPS;
     return {
-      t: 0, deaths: 0, clear: false, stuck: false,
-      p: { x: sp.x, y: sp.y, vx: 0, vy: 0, ground: false, coyote: 0, buf: 0, face: 1 },
-      hold: true, dead: 0, respT: -100,
-      // 旗：mode 'stop' | 'fly'。(x,y) は根元。kind 'ground' | 'air' | 'spike' | 'lost'
-      f: { mode: 'stop', x: lv.start.x, y: lv.start.y, vx: 0, vy: 0, age: 0, kind: 'ground', ang: -Math.PI / 2, sx: sp.x, sy: sp.y },
+      t: 0, clear: false,
+      p: { x, y, vx: 0, vy: 0, ground: true, coyote: 0, buf: 0, face: 1, proj: false, hang: 0 },
+      hold: true, charge: 1, a: 0, aHold: false, aimOn: false, swapBuf: 0,
+      stand: CHECK, cp: { x, y },              // 復帰点（開始位置は地形の上）
+      rew: 0, rewFrom: null, fails: 0, swaps: 0, inFlightSwaps: 0,
+      // 旗：mode 'fly' | 'stop'。kind 'fly' | 'ground'（地形に刺さった）| 'air'（浮いた）| 'spike'
+      // 手に戻ったら hold=true（f は最後の状態を残すだけ）
+      f: { mode: 'stop', x, y, vx: 0, vy: 0, age: 0, kind: 'none', ang: -Math.PI / 2, nx: 0, ny: -1, sx: 0, sy: 0 },
       ev: [],
     };
   }
-  function clone(s) { return { ...s, p: { ...s.p }, f: { ...s.f }, ev: [] }; }
+  function clone(s) { return { ...s, p: { ...s.p }, f: { ...s.f }, cp: { ...s.cp }, ev: [] }; }
 
-  /* ---- 旗を1tick飛ばす（予測線にも同じ関数を使う） ---- */
+  /* ---- 旗を1tick飛ばす（予測線にも同じ関数を使う）。止まったら kind を返す ---- */
   function flyTick(lv, f) {
     const n = F.sub, h = DT / n;
     for (let k = 0; k < n; k++) {
-      const nvy = f.vy + F.g * h;
-      const nx = f.x + f.vx * h, ny = f.y + nvy * h;
-      if (ny >= H + 0.6) { stopFlag(lv, f, nx, H + 0.6, 'lost'); return true; }
+      const v = { vx: f.vx, vy: f.vy }, [dx, dy] = subMove(v, F.g, h);
+      const nvx = v.vx, nvy = v.vy;
+      const nx = f.x + dx, ny = f.y + dy;
+      if (ny >= H + 0.6) { f.vx = nvx; f.vy = nvy; f.y = ny; f.x = nx; f.mode = 'stop'; f.kind = 'lost'; return 'lost'; }
       const hit = flagHit(lv, nx, ny);
-      if (hit) { f.vy = nvy; stopFlag(lv, f, f.x, f.y, hit === 'spike' ? 'spike' : 'ground'); return true; }
-      f.x = nx; f.y = ny; f.vy = nvy;
+      if (hit === 'edge') { f.x = nx; f.y = ny; f.mode = 'stop'; f.kind = 'edge'; return 'edge'; }
+      if (hit) {
+        // 法線：刺さる直前のサブステップで軸ごとに判定。両方なら速度の大きい軸、同点は縦
+        const hx = flagSolid(lv, nx, f.y), hy = flagSolid(lv, f.x, ny);
+        let axis;
+        if (hx && !hy) axis = 'x';
+        else if (hy && !hx) axis = 'y';
+        else axis = Math.abs(nvx) > Math.abs(nvy) ? 'x' : 'y';
+        if (axis === 'x') { f.nx = nvx > 0 ? -1 : 1; f.ny = 0; f.sx = nvx > 0 ? Math.floor(nx) : Math.floor(nx) + 1; f.sy = f.y; }
+        else { f.nx = 0; f.ny = nvy > 0 ? -1 : 1; f.sy = nvy > 0 ? Math.floor(ny) : Math.floor(ny) + 1; f.sx = f.x; }
+        f.vx = nvx; f.vy = nvy;
+        f.mode = 'stop'; f.kind = hit === 'spike' ? 'spike' : 'ground';
+        f.ang = Math.atan2(-f.vy, -f.vx);
+        f.vx = 0; f.vy = 0;
+        return f.kind;
+      }
+      f.x = nx; f.y = ny; f.vx = nvx; f.vy = nvy;
     }
     f.age++;
-    if (f.age >= F.ticks) { stopFlag(lv, f, f.x, f.y, 'air'); return true; }
-    return false;
-  }
-  function stopFlag(lv, f, x, y, kind) {
-    f.mode = 'stop'; f.x = x; f.y = y; f.kind = kind;
-    // 竿は飛んできた向きの逆へ突き出る。浮いた旗はまっすぐ立つ
-    f.ang = kind === 'air' || kind === 'lost' ? -Math.PI / 2 : Math.atan2(-f.vy, -f.vx);
-    if (kind === 'lost') { f.sx = x; f.sy = H + 2; }
-    else { const sp = spawnAt(lv, x, y); f.sx = sp.x; f.sy = sp.y; }
+    if (f.age >= F.ticks) { f.mode = 'stop'; f.kind = 'air'; f.ang = -Math.PI / 2; f.vx = 0; f.vy = 0; return 'air'; }
+    return null;
   }
   function handPos(p) { return { x: p.x, y: p.y - P.h + F.hand }; }
-  function clampV(vx, vy) {
+  // 投げの初速：u×(Vmax×p) ＋ (0.35×Vmax×a, 0)
+  function throwVel(vx, vy, a) {
     const m = Math.hypot(vx, vy);
     if (m > F.vmax) { vx = vx / m * F.vmax; vy = vy / m * F.vmax; }
-    return [vx, vy];
+    return capV({ vx: vx + F.run * F.vmax * (a || 0), vy });
   }
-  // 予測線：手から投げたときの通り道と止まる場所
-  function predict(lv, p, vx, vy) {
-    [vx, vy] = clampV(vx, vy);
-    const h = handPos(p), f = { mode: 'fly', x: h.x, y: h.y, vx, vy, age: 0 };
+  // 予測線：手から投げたときの通り道と止まる場所（助走 a を含む）
+  function predict(lv, p, vx, vy, a) {
+    const v = throwVel(vx, vy, a), h = handPos(p);
+    const f = { mode: 'fly', x: h.x, y: h.y, vx: v.vx, vy: v.vy, age: 0, kind: 'fly', ang: 0, nx: 0, ny: 0, sx: 0, sy: 0 };
     const pts = [[f.x, f.y]];
     for (let i = 0; i < 200; i++) { const done = flyTick(lv, f); pts.push([f.x, f.y]); if (done) break; }
     return { pts, end: f };
+  }
+  // 飛行中の旗の残りの通り道（交換後の自分の通り道の目安）
+  function flagPath(lv, f0) {
+    const f = { ...f0 }, pts = [[f.x, f.y]];
+    for (let i = 0; i < 200 && f.mode === 'fly'; i++) { flyTick(lv, f); pts.push([f.x, f.y]); }
+    return { pts, end: f };
+  }
+
+  /* ---- 入れ替えの着地点 ---- */
+  const okAt = (lv, x, y) => !pSolid(lv, x, y) && !pSpike(lv, x, y);
+  // 返り値 { x, y, ok, cost(使うチャージ), why }
+  function swapTarget(lv, s) {
+    const f = s.f;
+    if (s.hold) return { ok: false, why: 'hold' };
+    if (f.kind === 'spike') return { ok: false, why: 'spike' };
+    if (f.kind === 'ground') {
+      let x, y, along;
+      if (f.ny === -1) { x = f.x; y = f.sy - EPS; along = 'x'; }                  // 床：上に立つ
+      else if (f.ny === 1) { x = f.x; y = f.sy + P.h + EPS; along = 'x'; }        // 天井：下にぶら下がる
+      else if (f.nx === -1) { x = f.sx - P.w / 2 - EPS; y = f.y + P.h / 2; along = 'y'; } // 右の壁：左側に
+      else { x = f.sx + P.w / 2 + EPS; y = f.y + P.h / 2; along = 'y'; }           // 左の壁：右側に
+      if (okAt(lv, x, y)) return { x, y, ok: true, cost: 0 };
+      // 表面に沿う1軸だけ最大0.45マスずらす（上・左を先に）
+      for (let d = SLIDE_STEP; d <= SLIDE + EPS; d += SLIDE_STEP) {
+        const dd = Math.round(d * 100) / 100;
+        const tries = along === 'y' ? [[0, -dd], [0, dd]] : [[-dd, 0], [dd, 0]];
+        for (const [dx, dy] of tries) if (okAt(lv, x + dx, y + dy)) return { x: x + dx, y: y + dy, ok: true, cost: 0 };
+      }
+      return { x, y, ok: false, cost: 0, why: 'blocked' };
+    }
+    if (f.mode === 'fly' || f.kind === 'air') {
+      // 手の位置＝旗の位置になるように置く（予測線の続きがそのまま自分の通り道になる）
+      const x = f.x, y = f.y + P.h - F.hand;
+      if (s.charge < 1) return { x, y, ok: false, cost: 1, why: 'charge' };
+      if (!okAt(lv, x, y)) return { x, y, ok: false, cost: 1, why: 'blocked' };
+      return { x, y, ok: true, cost: 1 };
+    }
+    return { ok: false, why: 'none' };
   }
 
   /* ---- 当たり ---- */
@@ -358,7 +421,7 @@ const L = (() => {
   }
   function canPick(s) {
     const f = s.f;
-    if (s.hold || f.mode !== 'stop' || f.kind === 'lost') return false;
+    if (s.hold || f.mode !== 'stop' || (f.kind !== 'ground' && f.kind !== 'air')) return false;
     for (const k of [0, 0.5, 1]) {
       const x = f.x + Math.cos(f.ang) * F.pole * k, y = f.y + Math.sin(f.ang) * F.pole * k;
       if (distBoxPt(s.p, x, y) <= F.reach) return true;
@@ -369,123 +432,196 @@ const L = (() => {
     const e = lv.exit;
     return p.x + P.w / 2 > e.x + 0.2 && p.x - P.w / 2 < e.x + 0.8 && p.y > e.y - 1 && p.y - P.h < e.y + 1;
   }
-  function deadly(lv, p) {
-    if (p.y - P.h > H) return true;
-    return boxSpike(lv, p.x - P.w / 2 + 0.04, p.y - P.h, p.x + P.w / 2 - 0.04, p.y + 0.02);
-  }
-  function die(s) {
-    s.dead = RESPAWN; s.deaths++; s.p.vx = 0; s.p.vy = 0;
-    s.ev.push('die');
-    // 起き上がってすぐ倒れた＝旗が取り戻せない場所にある
-    if (s.t - s.respT <= 3) { s.stuck = true; s.ev.push('stuck'); }
-  }
+  function deadly(lv, p) { return p.y - P.h > H || pSpike(lv, p.x, p.y); }
+  function returnFlag(s) { s.hold = true; s.f.mode = 'stop'; }
 
   /* ---- 1 tick 進める ----
-   * inp: { l, r, jump(押した瞬間), throw: {vx,vy} | null, down(倒れるボタン) } */
+   * inp: { l, r, jump(押した瞬間), throw: {vx,vy}|null（引きの量。助走は中で足す）,
+   *        swap(押した瞬間), recall(旗が出ている間に引き始めた), aim(照準中) } */
   function step(lv, s0, inp) {
     const s = clone(s0); inp = inp || {};
-    if (s.clear || s.stuck) return s;
+    if (s.clear) return s;
     s.t++;
-    if (s.f.mode === 'fly' && flyTick(lv, s.f)) s.ev.push(s.f.kind === 'air' ? 'float' : s.f.kind === 'lost' ? 'lost' : 'plant');
+    const p = s.p, f = s.f;
 
-    if (s.dead > 0) {
-      s.dead--;
-      if (s.dead === 0) {
-        if (s.f.mode === 'fly') { s.dead = 1; return s; }   // 旗が止まるまで待つ
-        const p = s.p; p.x = s.f.sx; p.y = s.f.sy; p.vx = p.vy = 0; p.ground = false; p.coyote = 0; p.buf = 0;
-        s.hold = true; s.respT = s.t; s.ev.push('respawn');
+    // 巻き戻し中
+    if (s.rew > 0) {
+      s.rew--;
+      if (s.rew === 0) {
+        p.x = s.cp.x; p.y = s.cp.y; p.vx = p.vy = 0; p.ground = true; p.coyote = 0; p.buf = 0; p.proj = false; p.hang = 0;
+        s.hold = true; s.charge = 1; s.a = 0; s.aHold = false; s.aimOn = false; s.swapBuf = 0; s.stand = CHECK;
+        s.ev.push('rewound');
       }
       return s;
     }
-    if (inp.down) { die(s); return s; }
 
-    const p = s.p;
-    if (inp.throw && s.hold) {
-      const [vx, vy] = clampV(inp.throw.vx, inp.throw.vy), h = handPos(p);
-      s.f = { mode: 'fly', x: h.x, y: h.y, vx, vy, age: 0, kind: 'fly', ang: Math.atan2(vy, vx), sx: 0, sy: 0 };
-      s.hold = false; s.ev.push('throw');
-      if (vx) p.face = vx > 0 ? 1 : -1;
+    // 1. 入力
+    const dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
+    if (inp.recall && !s.hold) { returnFlag(s); s.ev.push('recall'); }
+    if (inp.swap) s.swapBuf = SWAP_HOLD;
+
+    // 2. 入れ替え（押してから3フレームは試し続ける）
+    if (s.swapBuf > 0) {
+      const tg = swapTarget(lv, s);
+      if (tg.ok) {
+        const wasFly = f.mode === 'fly';
+        p.x = tg.x; p.y = tg.y; p.coyote = 0; p.buf = 0; p.ground = false;
+        if (wasFly) { p.vx = f.vx; p.vy = f.vy; capV(p); p.proj = true; p.hang = 0; }
+        else { p.vx = 0; p.vy = 0; p.proj = false; p.hang = f.kind === 'ground' ? HANG : 0; }
+        if (f.kind === 'ground') s.charge = 1; else s.charge -= tg.cost;
+        s.swaps++; if (wasFly) s.inFlightSwaps++; s.stand = 0;
+        s.swapFrom = { x: s0.p.x, y: s0.p.y, kind: wasFly ? 'fly' : f.kind };
+        returnFlag(s); s.swapBuf = 0; s.ev.push('swap');
+      } else s.swapBuf--;
     }
 
-    const dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
-    p.vx = dir * P.speed; if (dir) p.face = dir;
+    // 3. 投げの開放（旗が出ていれば手に戻してから投げる）
+    if (inp.throw) {
+      const v = throwVel(inp.throw.vx, inp.throw.vy, s.a), h = handPos(p);
+      s.f = { mode: 'fly', x: h.x, y: h.y, vx: v.vx, vy: v.vy, age: 0, kind: 'fly', ang: Math.atan2(v.vy, v.vx), nx: 0, ny: 0, sx: 0, sy: 0 };
+      s.hold = false; p.proj = false; s.swapBuf = 0; s.ev.push('throw');
+      if (v.vx) p.face = v.vx > 0 ? 1 : -1;
+    }
+
+    // 4. 自分の積分
+    if (dir) p.face = dir;
+    if (p.ground) {
+      if (dir) {
+        if (p.vx * dir < 0) p.vx += dir * P.decel * DT;
+        else if (Math.abs(p.vx) < P.speed) p.vx = dir * Math.min(P.speed, Math.abs(p.vx) + P.accel * DT);
+        else p.vx = dir * Math.max(P.speed, Math.abs(p.vx) - P.decel * DT);
+      } else {
+        const d = P.decel * DT;
+        p.vx = Math.abs(p.vx) <= d ? 0 : p.vx - Math.sign(p.vx) * d;
+      }
+    } else if (dir) {
+      // 空中：±20マス/秒² の加速だけ（同方向にも頭打ちなし。制限は全体の上限 22.95／落下18 だけ）
+      p.vx += dir * P.airAcc * DT;
+    }
     p.buf = inp.jump ? P.buffer : Math.max(0, p.buf - 1);
     p.coyote = p.ground ? P.coyote : Math.max(0, p.coyote - 1);
-    if (p.buf > 0 && p.coyote > 0) { p.vy = -P.jump; p.buf = 0; p.coyote = 0; s.ev.push('jump'); }
-    p.vy = Math.min(P.maxFall, p.vy + P.g * DT);
+    if (p.buf > 0 && p.coyote > 0 && p.hang === 0) { p.vy = -P.jump; p.buf = 0; p.coyote = 0; p.ground = false; s.ev.push('jump'); }
+    // 積分は旗と同じ subMove を同じ細分（F.sub）で回す（重力→上限→移動の順もサブステップごとに同じ）。
+    // 投射状態の自分は、上限が作動する軌道でも予測線の続きを正確に通る。当たり判定は1tick分の移動量でまとめて行う
+    const g = p.hang > 0 ? 0 : p.proj ? F.g : P.g;
+    if (p.hang > 0) { p.hang--; p.vy = 0; }
+    let px = p.x, py = p.y;
+    for (let k = 0, h = DT / F.sub; k < F.sub; k++) { const [ddx, ddy] = subMove(p, g, h); px += ddx; py += ddy; }
+    const dy = py - p.y;
 
     // 横
-    let nx = p.x + p.vx * DT;
-    if (p.vx && boxSolid(lv, nx - P.w / 2, p.y - P.h, nx + P.w / 2, p.y)) {
+    let nx = px;
+    if (p.vx && pSolid(lv, nx, p.y)) {
       nx = p.vx > 0 ? Math.floor(nx + P.w / 2) - P.w / 2 - EPS : Math.floor(nx - P.w / 2) + 1 + P.w / 2 + EPS;
-      if (boxSolid(lv, nx - P.w / 2, p.y - P.h, nx + P.w / 2, p.y)) nx = p.x;
+      if (pSolid(lv, nx, p.y)) nx = p.x;
+      p.vx = 0; p.proj = false;
     }
     p.x = nx;
     // 縦
-    let ny = p.y + p.vy * DT; p.ground = false;
-    if (boxSolid(lv, p.x - P.w / 2, ny - P.h, p.x + P.w / 2, ny)) {
-      if (p.vy > 0) { ny = Math.floor(ny) - EPS; p.ground = true; }
+    let ny = py;
+    if (dy && pSolid(lv, p.x, ny)) {
+      if (dy > 0) ny = Math.floor(ny) - EPS;
       else ny = Math.floor(ny - P.h) + 1 + P.h + EPS;
-      if (boxSolid(lv, p.x - P.w / 2, ny - P.h, p.x + P.w / 2, ny)) ny = p.y;
-      p.vy = 0;
+      if (pSolid(lv, p.x, ny)) ny = p.y;
+      p.vy = 0; p.proj = false;
     }
     p.y = ny;
 
-    if (deadly(lv, p)) { die(s); return s; }
+    // 5・6. 旗の積分と刺さり・浮遊判定
+    if (!s.hold && s.f.mode === 'fly') {
+      const r = flyTick(lv, s.f);
+      if (r === 'edge' || r === 'lost') { returnFlag(s); s.ev.push(r); }
+      else if (r) s.ev.push(r === 'air' ? 'float' : r === 'spike' ? 'spike' : 'plant');
+    }
+
+    // 7. 危険判定
+    if (deadly(lv, p)) {
+      s.rew = REWIND; s.fails++; s.rewFrom = { x: p.x, y: p.y };
+      returnFlag(s); p.vx = p.vy = 0; s.ev.push('fail');
+      return s;
+    }
+
+    // 8. 接地・回復・復帰点
+    const onTile = p.vy >= 0 && pSolid(lv, p.x, p.y + 0.02);
+    p.ground = onTile;
+    if (p.ground) {
+      p.hang = 0; p.proj = false; s.charge = 1;
+      s.stand++;
+      if (s.stand >= CHECK) { s.cp.x = p.x; s.cp.y = p.y; }
+    } else s.stand = 0;
     if (canPick(s)) { s.hold = true; s.ev.push('pick'); }
     if (atExit(lv, p)) { s.clear = true; s.ev.push('clear'); }
+
+    // 9. 助走値：照準中に同じ向きを押し続けていれば保つ。それ以外は接地中の水平速度から取り直す
+    //    （照準を始めたtickは取り直し、以後は離すか逆を押すまで保つ）
+    const keep = !!inp.aim && s.aimOn && s.aHold && dir !== 0 && Math.sign(s.a) === dir;
+    if (!keep) s.a = p.ground ? Math.max(-1, Math.min(1, p.vx / P.speed)) : 0;
+    s.aHold = !!inp.aim && (s.aimOn ? keep : true);
+    s.aimOn = !!inp.aim;
     return s;
   }
 
-  /* ---- 入力列の再生（テストと「作者の記録」用）----
-   * ['R',n] 右をn tick  ['L',n]  ['W',n] 待つ  ['J'] / ['RJ',n] / ['LJ',n] 跳んでから押し続ける
-   * ['T',vx,vy] 投げる  ['D'] 倒れる */
+  /* ---- 入力列 ----
+   * 簡易記法（テスト用）：['R',n] 右をn tick  ['L',n]  ['W',n] 待つ  ['J'] / ['RJ',n] / ['LJ',n] 跳んでから押し続ける
+   * ['T',vx,vy] 投げる ['RT',vx,vy] 右を押しながら投げる  ['X'] 入れ替え ['RX'] 右を押しながら入れ替え  ['C'] 手元へ戻す
+   * 記録形式：[[ステップ番号, {入力}], ...]（空の入力のステップは省く）。toLog / fromLog で相互変換 */
   function expand(script) {
     const out = [];
     for (const c of script) {
       const [k, a, b] = c;
-      if (k === 'T') out.push({ throw: { vx: a, vy: b } });
-      else if (k === 'D') out.push({ down: true });
+      const l = k[0] === 'L', r = k[0] === 'R';
+      if (k.endsWith('T')) out.push({ l, r, throw: { vx: a, vy: b } });
+      else if (k.endsWith('X')) out.push({ l, r, swap: true });
+      else if (k === 'C') out.push({ recall: true });
       else if (k === 'J') out.push({ jump: true });
       else {
         const n = a || 1;
-        for (let i = 0; i < n; i++) out.push({ l: k[0] === 'L', r: k[0] === 'R', jump: k.endsWith('J') && i === 0 });
+        for (let i = 0; i < n; i++) out.push({ l, r, jump: k.endsWith('J') && i === 0 });
       }
     }
     return out;
   }
-  function replay(lv, script, extra) {
-    let s = init(lv); const ins = expand(script);
-    for (let i = 0; i < ins.length && !s.clear && !s.stuck; i++) s = step(lv, s, ins[i]);
-    for (let i = 0; i < (extra || 0) && !s.clear && !s.stuck; i++) s = step(lv, s, {});
+  const clean = o => { const r = {}; for (const k in o) if (o[k]) r[k] = o[k]; return r; };
+  function toLog(ins) { const log = []; ins.forEach((o, i) => { const c = clean(o); if (Object.keys(c).length) log.push([i + 1, c]); }); return log; }
+  function fromLog(log, n) {
+    const last = log.length ? log[log.length - 1][0] : 0, out = [];
+    for (let i = 0; i < Math.max(n || 0, last); i++) out.push({});
+    for (const [t, o] of log) out[t - 1] = { ...o };
+    return out;
+  }
+  function run(lv, ins, extra, s) {
+    s = s || init(lv);
+    for (let i = 0; i < ins.length && !s.clear; i++) s = step(lv, s, ins[i]);
+    for (let i = 0; i < (extra || 0) && !s.clear; i++) s = step(lv, s, {});
     return s;
   }
+  function replay(lv, script, extra) { return run(lv, expand(script), extra); }
 
-  /* ---- 7面 ---- */
+  /* ---- 7面（旧面をそのまま。作り直しは範囲外） ---- */
   const S = '................';
-  // author = 想定解の入力列（テストで再生）でのクリア時間（tick）
+  // author = 新規則での想定解の入力列（テストで再生）でのクリア時間（tick）。新規則で解が確認できた面だけ
   const LEVELS_DEF = [
-  { name: '旗', hint: '引っぱって、投げる', author: 144, map: [
+  { name: '旗', hint: '引っぱって、投げる', author: 0, map: [
     S,S,S,S,S,S,S,S,S,S,S,S,
     '..............E.',
     '...S.......#####',
     '######^^^#######',
     '################','################','################'] },
-  { name: '鉄格子', hint: '旗は、すりぬける', author: 91, map: [
+  { name: '鉄格子', hint: '旗は、すりぬける', author: 43, map: [
     S,S,S,S,S,
     '################',
     '#.......|......#','#.......|......#','#.......|......#','#.......|......#','#.......|......#','#.......|......#',
     '#.......|......#',
     '#.S.....|....E.#',
     '################','################','################','################'] },
-  { name: '崖', hint: 'あの上へ', author: 112, map: [
+  { name: '崖', hint: 'あの上へ', author: 105, map: [
     S,S,S,S,S,S,S,S,S,S,
     '..............E.',
     '..........######',
     '..........######',
     '.S........######',
     '#####.....######','#####.....######','#####.....######','#####.....######'] },
-  { name: '縦穴', hint: '落ちながら', author: 158, map: [
+  { name: '縦穴', hint: '落ちながら', author: 0, map: [
     '################',
     '#......#########',
     '#......#########',
@@ -500,7 +636,7 @@ const L = (() => {
     '..............E.',
     '...........#####',
     '...........#####','...........#####','...........#####','...........#####','...........#####'] },
-  { name: 'トゲの海', hint: 'ねらって', author: 119, map: [
+  { name: 'トゲの海', hint: 'ねらって', author: 0, map: [
     S,S,S,S,S,S,
     '################',
     '#...........|..#','#...........|..#','#...........|..#','#...........|..#',
@@ -508,7 +644,7 @@ const L = (() => {
     '#.....###...|.E#',
     '#.S^^^###^^^####',
     '################','################','################','################'] },
-  { name: '檻', hint: '近道、あるかも', author: 218, map: [
+  { name: '檻', hint: '近道、あるかも', author: 0, map: [
     '................',
     '................',
     '..........||||||',
@@ -525,7 +661,7 @@ const L = (() => {
     '................',
     '....S...........',
     '#####.....######','#####.....######','#####.....######'] },
-  { name: '塔', hint: '近道、あるかも', author: 265, map: [
+  { name: '塔', hint: '近道、あるかも', author: 0, map: [
     '################',
     '#S.....#.......#',
     '#......#.......#',
@@ -547,7 +683,8 @@ const L = (() => {
   ];
 
   const LEVELS = () => LEVELS_DEF.map(parse);
-  return { W, H, DT, P, F, RESPAWN, parse, cell, init, step, predict, handPos, canPick, flyTick, spawnAt, expand, replay, LEVELS_DEF, LEVELS };
+  return { W, H, DT, P, F, VCAP, HANG, SWAP_HOLD, REWIND, CHECK, SLIDE, parse, cell, init, step, predict, flagPath, throwVel, handPos,
+    swapTarget, canPick, flyTick, capV, subMove, pSolid, pSpike, expand, toLog, fromLog, run, replay, LEVELS_DEF, LEVELS };
 })();
 if (typeof module !== 'undefined') module.exports = L;
 </script>
@@ -633,7 +770,7 @@ const M = (() => {
   /* ---- 状態 ---- */
   let li = 0, lv = LV[0], s = null, acc = 0, last = 0, raf = 0, paused = false;
   const keys = { l: false, r: false, kl: false, kr: false };
-  let jumpQ = false, downQ = false, throwQ = null, aim = null;
+  let jumpQ = false, swapQ = false, recallQ = false, throwQ = null, aim = null;
   let fx = {}, stageWall = 0, skipTimer = 0, cardTimer = 0;
   const cv = $('#cv'), ctx = cv.getContext('2d'), play = $('#play'), hintEl = $('#hint');
   let cell = 20, cw = 320, ch = 360, dpr = 1, bg = null;
@@ -653,8 +790,8 @@ const M = (() => {
   }
   function startStage(i) {
     li = i; lv = LV[i]; s = L.init(lv); acc = 0; last = 0; paused = false;
-    aim = null; throwQ = null; jumpQ = downQ = false;
-    fx = { dieAt: -9, dieX: 0, dieY: 0, respAt: -9, pickAt: -9, pingAt: -9, clearAt: -9, parts: [] };
+    aim = null; throwQ = null; jumpQ = swapQ = recallQ = false;
+    fx = { dieAt: -9, dieX: 0, dieY: 0, respAt: -9, pickAt: -9, pingAt: -9, clearAt: -9, parts: [], swapAt: -9, swapFrom: null, swapTo: null, lostAt: -9, lostX: 0, lostY: 0 };
     $('#clearCard').hidden = true; $('#stuckCard').hidden = true; $('#skip').hidden = true;
     $('#restart').classList.remove('pulse');
     $('#sno').textContent = i + 1;
@@ -699,7 +836,7 @@ const M = (() => {
     $('#cBest').innerHTML = '';
     $('#cBest').append(sec(prog.best[li]));
     if (isNew && prev) { const n = document.createElement('span'); n.className = 'new'; n.textContent = '新記録'; $('#cBest').append(n); }
-    const showAuth = li >= 5;
+    const showAuth = li >= 5 && lv.author > 0;
     $('#cAuthL').hidden = $('#cAuth').hidden = !showAuth;
     $('#cAuth').textContent = sec(lv.author);
     $('#cTease').textContent = showAuth ? (prog.best[li] < lv.author ? '作者より速い。どこを通った？' : 'もっと速い道が、あるかも') : '';
@@ -714,22 +851,27 @@ const M = (() => {
 
   /* ---- 1 tick ---- */
   function tick() {
-    const inp = { l: keys.l || keys.kl, r: keys.r || keys.kr, jump: jumpQ, down: downQ, throw: throwQ };
-    jumpQ = downQ = false; throwQ = null;
+    const inp = { l: keys.l || keys.kl, r: keys.r || keys.kr, jump: jumpQ, swap: swapQ, recall: recallQ, throw: throwQ, aim: !!(aim && aim.live) };
+    jumpQ = swapQ = recallQ = false; throwQ = null;
+    const prevF = s.f;
     s = L.step(lv, s, inp);
-    for (const e of s.ev) onEvent(e);
-    if (aim && (!s.hold || s.dead)) aim = null;
+    for (const e of s.ev) onEvent(e, prevF);
+    if (aim && s.rew) aim = null;
   }
-  function onEvent(e) {
+  function onEvent(e, prevF) {
     const now = performance.now();
-    if (e === 'die') {
+    if (e === 'swap') {
+      fx.swapAt = now; fx.swapFrom = { x: s.swapFrom.x, y: s.swapFrom.y }; fx.swapTo = { x: s.p.x, y: s.p.y };
+      if (navigator.vibrate) try { navigator.vibrate(10); } catch (err) {}
+    }
+    if (e === 'edge' || e === 'lost') { fx.lostAt = now; fx.lostX = s.f.x; fx.lostY = Math.min(s.f.y, H - .3); }
+    if (e === 'fail') {
       M.apply(m => { m.deaths = (m.deaths || 0) + 1; }, true);
       fx.dieAt = now; fx.dieX = s.p.x; fx.dieY = s.p.y;
       if (!reduced) for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .3; fx.parts.push({ x: s.p.x, y: s.p.y - .45, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3 - 2, t0: now }); }
       if (navigator.vibrate) try { navigator.vibrate(20); } catch (err) {}
     }
-    if (e === 'stuck') { $('#stuckCard').hidden = false; $('#restart').classList.add('pulse'); }
-    if (e === 'respawn') fx.respAt = now;
+    if (e === 'rewound') fx.respAt = now;
     if (e === 'pick') fx.pickAt = now;
     if (e === 'throw') { if (!prog.threw) { prog.threw = true; saveProg(); } hintEl.classList.add('off'); }
     if (e === 'clear') onClear();
@@ -741,10 +883,10 @@ const M = (() => {
     raf = 0;
     if (screens.game.hidden) return;
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now;
-    if (!paused && s && !s.clear && !s.stuck) {
-      acc += dt * (aim ? 0.25 : 1);
+    if (!paused && s && !s.clear) {
+      acc += dt * (aim && aim.live ? 0.25 : 1);
       let n = 0;
-      while (acc >= L.DT && n < 8) { tick(); acc -= L.DT; n++; if (s.clear || s.stuck) break; }
+      while (acc >= L.DT && n < 8) { tick(); acc -= L.DT; n++; if (s.clear) break; }
       if (n >= 8) acc = 0;
     }
     draw(now);
@@ -836,13 +978,16 @@ const M = (() => {
     ctx.clearRect(0, 0, cw, ch);
     ctx.drawImage(bg, 0, 0, cw, ch);
     drawExit(t);
-    if (s.hold && !s.dead) drawAnchor(t);
-    if (!s.hold || s.dead) drawWorldFlag(t);
+    drawCheckpoint(t);
+    if (!s.hold && !s.rew) { drawWorldFlag(t); drawSwapTarget(t); }
     drawHero(t, now);
     drawFx(now);
-    if (aim) drawAim(t);
-    else if (li === 0 && !prog.threw && s.hold && !s.dead) drawTutorial(t);
-    if (now - fx.pingAt < 900) drawPing(now);
+    if (aim && aim.live) drawAim(t);
+    else if (li === 0 && !prog.threw && s.hold && !s.rew) drawTutorial(t);
+    if (now - fx.pingAt < 900 && !s.hold) drawPing(now);
+    drawCharge();
+    const sk = document.querySelector('.key.swap');
+    if (sk) sk.classList.toggle('off', !L.swapTarget(lv, s).ok);
   }
 
   function drawExit(t) {
@@ -892,13 +1037,6 @@ const M = (() => {
   function drawWorldFlag(t) {
     const f = s.f;
     if (f.mode === 'fly') { drawFlag(X(f.x), Y(f.y), Math.atan2(-f.vy, -f.vx), t, { glow: 1, fast: true }); return; }
-    if (f.kind === 'lost') {
-      const x = X(f.x), y = ch - cell * .2;
-      drawFlag(x, y, -Math.PI / 2 - .5, t, { glow: .6, alpha: .8 });
-      ctx.save(); ctx.fillStyle = C.danger; ctx.beginPath();
-      ctx.moveTo(x - cell * .3, y - cell * 1.9); ctx.lineTo(x + cell * .3, y - cell * 1.9); ctx.lineTo(x, y - cell * 1.45); ctx.closePath(); ctx.fill(); ctx.restore();
-      return;
-    }
     const bx = X(f.x), by = Y(f.y);
     if (f.kind === 'air') {
       // 浮いている：根元に光の輪
@@ -908,18 +1046,41 @@ const M = (() => {
     } else {
       ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(bx, by, cell * .22, cell * .1, 0, 0, 7); ctx.fill(); ctx.restore();
     }
-    drawFlag(bx, by, f.ang, t, { glow: li === 0 ? 2 : 1 });
+    drawFlag(bx, by, f.ang, t, { glow: f.kind === 'spike' ? 0 : 1, color: f.kind === 'spike' ? C.danger : null });
   }
 
-  // 持っている間：起き上がる場所（旗が最後に止まった場所）を薄く示す
-  function drawAnchor(t) {
-    const f = s.f, bx = X(f.x), by = Y(Math.min(f.y, H - .1));
-    if (Math.hypot(f.x - s.p.x, f.y - s.p.y) < 1.2) return;
-    drawFlag(bx, by, f.ang, t, { ghost: true, alpha: .55 });
-    // 根元の点線の輪＝ここで起き上がる
-    ctx.save(); ctx.strokeStyle = C.flag; ctx.globalAlpha = .6; ctx.lineWidth = 1.5; ctx.setLineDash([2, 3]);
-    ctx.beginPath(); ctx.ellipse(bx, by, cell * .4, cell * .16, 0, 0, 7); ctx.stroke();
+  // 復帰点：地形の上に6フレーム以上立った地点（失敗したらここへ巻き戻す）
+  function drawCheckpoint(t) {
+    const c = s.cp, bx = X(c.x), by = Y(c.y);
+    if (!s.rew && Math.hypot(c.x - s.p.x, c.y - s.p.y) < 1.2) return;
+    ctx.save(); ctx.strokeStyle = C.ink3; ctx.globalAlpha = .8; ctx.lineWidth = 1.5; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.ellipse(bx, by, cell * .36, cell * .13, 0, 0, 7); ctx.stroke(); ctx.restore();
+  }
+  // 入れ替え先の輪郭（緑＝交換できる、赤＝できない）。飛行中なら予測線の残りも
+  function drawSwapTarget(t) {
+    const tg = L.swapTarget(lv, s);
+    if (tg.x == null) return;
+    const w = cell * L.P.w, h = cell * L.P.h, x = X(tg.x) - w / 2, y = Y(tg.y) - h;
+    if (s.f.mode === 'fly' && tg.ok) {
+      const pr = L.flagPath(lv, s.f);
+      ctx.save(); ctx.fillStyle = C.ink2;
+      for (let i = 3; i < pr.pts.length; i += 3) { ctx.globalAlpha = .5 * (1 - i / pr.pts.length); ctx.beginPath(); ctx.arc(X(pr.pts[i][0]), Y(pr.pts[i][1] + L.P.h - L.F.hand), Math.max(1.4, cell * .06), 0, 7); ctx.fill(); }
+      ctx.restore();
+    }
+    ctx.save(); ctx.lineWidth = 2; ctx.setLineDash(tg.ok ? [] : [4, 3]);
+    ctx.strokeStyle = tg.ok ? C.exit : C.danger; ctx.globalAlpha = tg.ok ? .85 : .7;
+    rr(x, y, w, h - cell * .08, cell * .16); ctx.stroke();
+    if (!tg.ok) { ctx.beginPath(); ctx.moveTo(x + w * .2, y + h * .25); ctx.lineTo(x + w * .8, y + h * .75); ctx.moveTo(x + w * .8, y + h * .25); ctx.lineTo(x + w * .2, y + h * .75); ctx.stroke(); }
     ctx.restore();
+  }
+  // 空中チャージ（頭の上の小さな菱形。空なら輪郭だけ）
+  function drawCharge() {
+    if (s.rew) return;
+    const x = X(s.p.x), y = Y(s.p.y - L.P.h) - cell * .38, r = cell * .14;
+    ctx.save(); ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = C.flag;
+    if (s.charge > 0) { ctx.fillStyle = C.flag; ctx.fill(); } else { ctx.globalAlpha = .6; }
+    ctx.stroke(); ctx.restore();
   }
 
   function drawHero(t, now) {
@@ -927,13 +1088,12 @@ const M = (() => {
     const x = X(p.x), y = Y(p.y);
     ctx.save();
     ctx.lineWidth = Math.max(1.5, cell * .07); ctx.strokeStyle = C.heroInk; ctx.fillStyle = C.hero;
-    if (s.dead) {
-      const k = s.dead / L.RESPAWN;
-      ctx.globalAlpha = Math.max(0, Math.min(1, k * 1.6));
-      ctx.translate(x, y); ctx.rotate(p.face * Math.PI / 2);
-      rr(-w / 2, -h, w, h, cell * .14); ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = C.heroInk; ctx.lineWidth = Math.max(1.2, cell * .05);
-      for (const ex of [-.12, .12]) { const cx = ex * cell, cy = -h * .68, d = cell * .06; ctx.beginPath(); ctx.moveTo(cx - d, cy - d); ctx.lineTo(cx + d, cy + d); ctx.moveTo(cx + d, cy - d); ctx.lineTo(cx - d, cy + d); ctx.stroke(); }
+    if (s.rew) {
+      // 巻き戻し：失敗した場所から復帰点へすべるように戻る
+      const k = 1 - s.rew / L.REWIND, e = k * k * (3 - 2 * k), f0 = s.rewFrom || p;
+      const hx = X(f0.x + (s.cp.x - f0.x) * e), hy = Y(Math.min(f0.y, H + .5) + (s.cp.y - Math.min(f0.y, H + .5)) * e);
+      ctx.globalAlpha = .35 + .5 * k;
+      rr(hx - w / 2, hy - h, w, h - cell * .08, cell * .16); ctx.fill(); ctx.stroke();
       ctx.restore();
       return;
     }
@@ -970,7 +1130,23 @@ const M = (() => {
       ctx.fillRect(X(q.x + q.vx * k) - 2, Y(q.y + q.vy * k + 6 * k * k) - 2, 4, 4);
     }
     ctx.restore();
-    // 起き上がった・拾った：輪
+    // 入れ替え：元の位置の残像と、2点を結ぶ光の筋（地形を貫く）
+    if (fx.swapFrom) {
+      const k = (now - fx.swapAt) / 420;
+      if (k >= 0 && k < 1) {
+        const a = fx.swapFrom, b = fx.swapTo, w = cell * L.P.w, h = cell * L.P.h;
+        ctx.save(); ctx.globalAlpha = (1 - k) * .55; ctx.strokeStyle = C.hero; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+        rr(X(a.x) - w / 2, Y(a.y) - h, w, h - cell * .08, cell * .16); ctx.stroke(); ctx.setLineDash([]);
+        ctx.globalAlpha = (1 - k) * .8; ctx.strokeStyle = C.flag; ctx.lineWidth = Math.max(2, cell * .14) * (1 - k);
+        ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.y - .45)); ctx.lineTo(X(b.x), Y(b.y - .45)); ctx.stroke(); ctx.restore();
+      }
+    }
+    // 旗が端を越えた・落ちた：その場所に×（旗は手に戻る）
+    { const k = (now - fx.lostAt) / 700;
+      if (k >= 0 && k < 1) { const x = Math.max(.3, Math.min(W - .3, fx.lostX)), y = Math.max(.3, fx.lostY), d = cell * .28;
+        ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = C.danger; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(X(x) - d, Y(y) - d); ctx.lineTo(X(x) + d, Y(y) + d); ctx.moveTo(X(x) + d, Y(y) - d); ctx.lineTo(X(x) - d, Y(y) + d); ctx.stroke(); ctx.restore(); } }
+    // 復帰した・拾った：輪
     for (const [t0, col, big] of [[fx.respAt, C.flag, 1.6], [fx.pickAt, C.flag, 1]]) {
       const k = (now - t0) / 450; if (k < 0 || k > 1) continue;
       ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = 1 - k; ctx.lineWidth = 2;
@@ -990,7 +1166,7 @@ const M = (() => {
   // 旗が手元にないときに引っぱろうとした：旗の場所を指す
   function drawPing(now) {
     const k = (now - fx.pingAt) / 900, f = s.f;
-    const fx_ = X(f.x), fy = f.kind === 'lost' ? ch - cell * .6 : Y(f.y - .5);
+    const fx_ = X(f.x), fy = Y(f.y - .5);
     ctx.save(); ctx.strokeStyle = C.flag; ctx.globalAlpha = 1 - k; ctx.lineWidth = 2;
     ctx.setLineDash([4, 5]);
     ctx.beginPath(); ctx.moveTo(X(s.p.x), Y(s.p.y - .5)); ctx.lineTo(fx_, fy); ctx.stroke();
@@ -1008,7 +1184,7 @@ const M = (() => {
     return { vx: dx / len * v, vy: dy / len * v, pw };
   }
   function drawPath(v, alpha, t) {
-    const pr = L.predict(lv, s.p, v.vx, v.vy), pts = pr.pts, end = pr.end;
+    const pr = L.predict(lv, s.p, v.vx, v.vy, s.a), pts = pr.pts, end = pr.end;
     ctx.save(); ctx.globalAlpha = alpha;
     ctx.fillStyle = C.flag;
     for (let i = 2; i < pts.length; i += 2) {
@@ -1018,7 +1194,7 @@ const M = (() => {
     }
     ctx.globalAlpha = alpha;
     const ex = X(end.x), ey = Y(Math.min(end.y, H - .15));
-    if (end.kind === 'spike' || end.kind === 'lost') {
+    if (end.kind === 'spike' || end.kind === 'lost' || end.kind === 'edge') {
       ctx.strokeStyle = C.danger; ctx.lineWidth = 3; const d = cell * .3;
       ctx.beginPath(); ctx.moveTo(ex - d, ey - d); ctx.lineTo(ex + d, ey + d); ctx.moveTo(ex + d, ey - d); ctx.lineTo(ex - d, ey + d); ctx.stroke();
     } else if (end.kind === 'air') {
@@ -1079,21 +1255,23 @@ const M = (() => {
   /* ---- 引っぱって投げる（キャンバスの外の空白からでもよい） ---- */
   play.addEventListener('pointerdown', e => {
     if (e.target.closest('button') || e.target.closest('.card')) return;
-    if (!s || s.clear || s.stuck || screens.game.hidden) return;
+    if (!s || s.clear || s.rew || screens.game.hidden) return;
     e.preventDefault();
-    if (!s.hold || s.dead) { fx.pingAt = performance.now(); return; }
-    aim = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY };
+    // 旗が出ている間：12px 以上引いたら旗を手に戻して照準へ（それまでは旗は出たまま）
+    aim = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, live: s.hold };
+    if (!s.hold) fx.pingAt = performance.now();
     try { play.setPointerCapture(e.pointerId); } catch (err) {}
   });
   play.addEventListener('pointermove', e => {
     if (!aim || e.pointerId !== aim.id) return;
     e.preventDefault(); aim.x = e.clientX; aim.y = e.clientY;
+    if (!aim.live && Math.hypot(aim.x - aim.x0, aim.y - aim.y0) >= 12) { aim.live = true; if (!s.hold) recallQ = true; }
   });
   play.addEventListener('pointerup', e => {
     if (!aim || e.pointerId !== aim.id) return;
     aim.x = e.clientX; aim.y = e.clientY;
-    const v = aimVel(aim); aim = null;
-    if (v && s.hold && !s.dead) throwQ = { vx: v.vx, vy: v.vy };
+    const v = aim.live ? aimVel(aim) : null; aim = null;
+    if (v && !s.rew) throwQ = { vx: v.vx, vy: v.vy };
   });
   play.addEventListener('pointercancel', e => { if (aim && e.pointerId === aim.id) aim = null; });
   play.addEventListener('contextmenu', e => e.preventDefault());
@@ -1107,7 +1285,7 @@ const M = (() => {
       b.classList.add('on');
       if (k === 'l' || k === 'r') keys[k] = true;
       if (k === 'jump') jumpQ = true;
-      if (k === 'down') downQ = true;
+      if (k === 'swap') { swapQ = true; aim = null; }
     };
     const off = () => { b.classList.remove('on'); if (k === 'l' || k === 'r') keys[k] = false; };
     b.addEventListener('pointerdown', on);
@@ -1124,7 +1302,7 @@ const M = (() => {
     if (c === 'ArrowLeft' || c === 'KeyA') keys.kl = true;
     else if (c === 'ArrowRight' || c === 'KeyD') keys.kr = true;
     else if ((c === 'ArrowUp' || c === 'KeyW' || c === 'Space') && !e.repeat) jumpQ = true;
-    else if ((c === 'ArrowDown' || c === 'KeyS' || c === 'KeyX') && !e.repeat) downQ = true;
+    else if ((c === 'ArrowDown' || c === 'KeyS' || c === 'KeyX' || c === 'ShiftLeft' || c === 'ShiftRight') && !e.repeat) { swapQ = true; aim = null; }
     else if (c === 'KeyR' && !e.repeat) startStage(li);
     else return;
     e.preventDefault();
@@ -1143,7 +1321,7 @@ const M = (() => {
   /* ---- タイトル（2回目以降） ---- */
   function showTitle() {
     const r = prog.run;
-    $('#titleSub').textContent = '旗を投げて、倒れて、進む。';
+    $('#titleSub').textContent = '旗を投げて、入れ替わる。';
     if (r) {
       $('#tContinue').textContent = `つづきから（${r.stage + 1}面）`;
       $('#tNew').hidden = false;
@@ -1193,7 +1371,7 @@ const M = (() => {
 
   // テスト用の窓口（ページ内の操作には使わない）
   window.__hata = { state: () => s, li: () => li, startStage, metrics: () => M.get(), prog: () => prog,
-    throwNow(vx, vy) { throwQ = { vx, vy }; }, forceClear() { if (!s.clear) { s = Object.assign({}, s, { clear: true, t: lv.author }); onClear(); } }, down() { downQ = true; }, setKeys(l, r) { keys.l = l; keys.r = r; }, jump() { jumpQ = true; } };
+    throwNow(vx, vy) { throwQ = { vx, vy }; }, forceClear() { if (!s.clear) { s = Object.assign({}, s, { clear: true, t: lv.author }); onClear(); } }, swap() { swapQ = true; }, setKeys(l, r) { keys.l = l; keys.r = r; }, jump() { jumpQ = true; } };
 })();
 </script>
 </body></html>
