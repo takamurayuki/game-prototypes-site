@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body{margin:0;font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
-</head><body><title>ハタナゲ</title>
+</head><body><title>ウツリギ</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
@@ -99,6 +99,7 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
 .logo{font-family:var(--dot);font-size:54px;line-height:1;color:var(--ink);letter-spacing:.04em;display:flex;align-items:flex-end;gap:10px}
 .logo svg{width:54px;height:66px;flex:none}
 .sub{font-size:14px;color:var(--ink2);line-height:1.6}
+.sub.tip{font-size:13px;color:var(--ink3);margin-top:-10px}
 .btns{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .ghost{height:48px;border-radius:8px;border:1px solid var(--btn-edge);background:var(--btn);font-size:15px;font-weight:700;color:var(--ink)}
 .ghost:active{background:var(--btn-hi)}
@@ -141,9 +142,10 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
     <div class="center">
       <div class="logo">
         <svg viewBox="0 0 54 66" aria-hidden="true"><line x1="10" y1="62" x2="10" y2="6" stroke="#f3efe2" stroke-width="4" stroke-linecap="round"/><path d="M12 7 L48 14 L12 28 Z" fill="#ffd23f"/><path d="M12 18 L36 18 L12 28 Z" fill="#ff9f1c"/></svg>
-        <span>ハタナゲ</span>
+        <span>ウツリギ</span>
       </div>
       <p class="sub" id="titleSub"></p>
+      <p class="sub tip" id="titleTip">落ちても、刺さった旗があれば自動で入れ替わる。</p>
       <div class="btns">
         <button type="button" class="primary" id="tContinue"></button>
         <button type="button" class="ghost" id="tNew">はじめから</button>
@@ -232,8 +234,11 @@ button:focus-visible{outline:3px solid var(--flag);outline-offset:2px}
  *      地形に刺さった旗 → 法線側に収まる位置へ。無料でチャージ回復、12ステップぶら下がる
  *  - 地上は加速・減速あり、空中は小さな加速だけ（慣性）。助走で旗の初速が伸びる
  *  - 穴・トゲ → 復帰点（地形の上に6フレーム以上立った地点）へ0.5秒で巻き戻し
+ *  - 自動入れ替え（三者確定 2026-11-07）：空中で致命判定が出たtickに、そのとき手動で入れ替えられる旗があれば
+ *      巻き戻しの代わりにその旗と入れ替える。判定は手動と同じ swapTarget()、処理も同じ doSwap()。
+ *      手動の入れ替えでできないことは何もさせない（結果は「次のtickに手動で押した場合」と一致する）
  * 処理順（固定）：入力 → 入れ替え → 投げの開放 → 自分の積分 → 旗の積分（細分ステップ）
- *               → 刺さり・浮遊判定 → 危険判定 → 接地・回復・復帰点の更新 → 助走値の更新
+ *               → 刺さり・浮遊判定 → 危険判定（→自動入れ替え）→ 接地・回復・復帰点の更新 → 助走値の更新
  */
 const L = (() => {
   const W = 16, H = 18, DT = 1 / 60;
@@ -248,6 +253,8 @@ const L = (() => {
   const VCAP = F.vmax * (1 + F.run);   // 22.95：速度ベクトルの上限（旗の最大初速）
   const HANG = 12, SWAP_HOLD = 3, REWIND = 30, CHECK = 6, SLIDE = 0.45, SLIDE_STEP = 0.05;
   const EPS = 1e-6;
+  // 切り替え（既定は有効）。記録の再生・テストで自動入れ替えを止めるときは L.OPT.autoSwap = false
+  const OPT = { autoSwap: true };
 
   /* ---- 面の読み込み ---- */
   // # 壁  | 鉄格子（旗だけ通る）  ^ トゲ  E 出口（このマスと上のマス）  S 開始位置  . 空
@@ -324,6 +331,9 @@ const L = (() => {
       // 手に戻ったら hold=true（f は最後の状態を残すだけ）
       f: { mode: 'stop', x, y, vx: 0, vy: 0, age: 0, kind: 'none', ang: -Math.PI / 2, nx: 0, ny: -1, sx: 0, sy: 0 },
       ev: [],
+      // 計測：自動入れ替えの回数／救済のあと接地しないまま巻き戻しになった回数。
+      // autoArmed＝救済してからまだ接地していない（巻き戻しになったら autoSwapThenFail に数える）
+      autoSwaps: 0, autoSwapThenFail: 0, autoArmed: false,
     };
   }
   function clone(s) { return { ...s, p: { ...s.p }, f: { ...s.f }, cp: { ...s.cp }, ev: [] }; }
@@ -434,6 +444,18 @@ const L = (() => {
   }
   function deadly(lv, p) { return p.y - P.h > H || pSpike(lv, p.x, p.y); }
   function returnFlag(s) { s.hold = true; s.f.mode = 'stop'; }
+  // 入れ替えの本体（手動＝処理順2、自動＝処理順7 の両方から呼ぶ）。tg は swapTarget() の ok な返り値。
+  // 自分が旗の位置・速度を受け取り、旗は手に戻る。チャージ精算：刺さった旗＝無料で1に回復／飛行中・浮いた旗＝cost を使う
+  function doSwap(s, s0, tg) {
+    const p = s.p, f = s.f, wasFly = f.mode === 'fly';
+    p.x = tg.x; p.y = tg.y; p.coyote = 0; p.buf = 0; p.ground = false;
+    if (wasFly) { p.vx = f.vx; p.vy = f.vy; capV(p); p.proj = true; p.hang = 0; }
+    else { p.vx = 0; p.vy = 0; p.proj = false; p.hang = f.kind === 'ground' ? HANG : 0; }
+    if (f.kind === 'ground') s.charge = 1; else s.charge -= tg.cost;
+    s.swaps++; if (wasFly) s.inFlightSwaps++; s.stand = 0;
+    s.swapFrom = { x: s0.p.x, y: s0.p.y, kind: wasFly ? 'fly' : f.kind };
+    returnFlag(s); s.swapBuf = 0; s.ev.push('swap');
+  }
 
   /* ---- 1 tick 進める ----
    * inp: { l, r, jump(押した瞬間), throw: {vx,vy}|null（引きの量。助走は中で足す）,
@@ -442,7 +464,7 @@ const L = (() => {
     const s = clone(s0); inp = inp || {};
     if (s.clear) return s;
     s.t++;
-    const p = s.p, f = s.f;
+    const p = s.p;
 
     // 巻き戻し中
     if (s.rew > 0) {
@@ -463,16 +485,8 @@ const L = (() => {
     // 2. 入れ替え（押してから3フレームは試し続ける）
     if (s.swapBuf > 0) {
       const tg = swapTarget(lv, s);
-      if (tg.ok) {
-        const wasFly = f.mode === 'fly';
-        p.x = tg.x; p.y = tg.y; p.coyote = 0; p.buf = 0; p.ground = false;
-        if (wasFly) { p.vx = f.vx; p.vy = f.vy; capV(p); p.proj = true; p.hang = 0; }
-        else { p.vx = 0; p.vy = 0; p.proj = false; p.hang = f.kind === 'ground' ? HANG : 0; }
-        if (f.kind === 'ground') s.charge = 1; else s.charge -= tg.cost;
-        s.swaps++; if (wasFly) s.inFlightSwaps++; s.stand = 0;
-        s.swapFrom = { x: s0.p.x, y: s0.p.y, kind: wasFly ? 'fly' : f.kind };
-        returnFlag(s); s.swapBuf = 0; s.ev.push('swap');
-      } else s.swapBuf--;
+      if (tg.ok) doSwap(s, s0, tg);
+      else s.swapBuf--;
     }
 
     // 3. 投げの開放（旗が出ていれば手に戻してから投げる）
@@ -536,6 +550,19 @@ const L = (() => {
 
     // 7. 危険判定
     if (deadly(lv, p)) {
+      // 自動入れ替え：tick開始時に空中にいて（地上でトゲに歩いて触れたのは対象外）、手動と同じ判定で入れ替えられ、
+      // 着地点が画面下の外でなければ、巻き戻しの代わりに入れ替える。旗は処理順5・6の後の状態（このtickに刺さった旗は無料）。
+      // 入れ替えたらこのtickはここで終える（8 接地・回復・復帰点、9 助走値は行わない）→ 次tickに手動で押した場合と同じ状態になる
+      if (OPT.autoSwap && s0.p.ground === false) {
+        const tg = swapTarget(lv, s);
+        if (tg.ok && !deadly(lv, tg)) {
+          doSwap(s, s0, tg);
+          s.a = 0; s.aHold = false; s.aimOn = false; // 照準状態も含めてこの tick を打ち切る（次に照準したときは照準開始として扱う）
+          s.autoSwaps++; s.autoArmed = true; s.ev.push('autoswap');
+          return s;
+        }
+      }
+      if (s.autoArmed) { s.autoSwapThenFail++; s.autoArmed = false; }
       s.rew = REWIND; s.fails++; s.rewFrom = { x: p.x, y: p.y };
       returnFlag(s); p.vx = p.vy = 0; s.ev.push('fail');
       return s;
@@ -545,7 +572,7 @@ const L = (() => {
     const onTile = p.vy >= 0 && pSolid(lv, p.x, p.y + 0.02);
     p.ground = onTile;
     if (p.ground) {
-      p.hang = 0; p.proj = false; s.charge = 1;
+      p.hang = 0; p.proj = false; s.charge = 1; s.autoArmed = false;
       s.stand++;
       if (s.stand >= CHECK) { s.cp.x = p.x; s.cp.y = p.y; }
     } else s.stand = 0;
@@ -683,8 +710,8 @@ const L = (() => {
   ];
 
   const LEVELS = () => LEVELS_DEF.map(parse);
-  return { W, H, DT, P, F, VCAP, HANG, SWAP_HOLD, REWIND, CHECK, SLIDE, parse, cell, init, step, predict, flagPath, throwVel, handPos,
-    swapTarget, canPick, flyTick, capV, subMove, pSolid, pSpike, expand, toLog, fromLog, run, replay, LEVELS_DEF, LEVELS };
+  return { W, H, DT, P, F, VCAP, HANG, SWAP_HOLD, REWIND, CHECK, SLIDE, OPT, parse, cell, init, step, predict, flagPath, throwVel, handPos,
+    swapTarget, deadly, canPick, flyTick, capV, subMove, pSolid, pSpike, expand, toLog, fromLog, run, replay, LEVELS_DEF, LEVELS };
 })();
 if (typeof module !== 'undefined') module.exports = L;
 </script>
@@ -791,7 +818,7 @@ const M = (() => {
   function startStage(i) {
     li = i; lv = LV[i]; s = L.init(lv); acc = 0; last = 0; paused = false;
     aim = null; throwQ = null; jumpQ = swapQ = recallQ = false;
-    fx = { dieAt: -9, dieX: 0, dieY: 0, respAt: -9, pickAt: -9, pingAt: -9, clearAt: -9, parts: [], swapAt: -9, swapFrom: null, swapTo: null, lostAt: -9, lostX: 0, lostY: 0 };
+    fx = { dieAt: -9, dieX: 0, dieY: 0, respAt: -9, pickAt: -9, pingAt: -9, clearAt: -9, parts: [], swapAt: -9, swapFrom: null, swapTo: null, autoAt: -9, lostAt: -9, lostX: 0, lostY: 0 };
     $('#clearCard').hidden = true; $('#stuckCard').hidden = true; $('#skip').hidden = true;
     $('#restart').classList.remove('pulse');
     $('#sno').textContent = i + 1;
@@ -871,6 +898,7 @@ const M = (() => {
       if (!reduced) for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .3; fx.parts.push({ x: s.p.x, y: s.p.y - .45, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3 - 2, t0: now }); }
       if (navigator.vibrate) try { navigator.vibrate(20); } catch (err) {}
     }
+    if (e === 'autoswap') fx.autoAt = now;
     if (e === 'rewound') fx.respAt = now;
     if (e === 'pick') fx.pickAt = now;
     if (e === 'throw') { if (!prog.threw) { prog.threw = true; saveProg(); } hintEl.classList.add('off'); }
@@ -1067,8 +1095,10 @@ const M = (() => {
       for (let i = 3; i < pr.pts.length; i += 3) { ctx.globalAlpha = .5 * (1 - i / pr.pts.length); ctx.beginPath(); ctx.arc(X(pr.pts[i][0]), Y(pr.pts[i][1] + L.P.h - L.F.hand), Math.max(1.4, cell * .06), 0, 7); ctx.fill(); }
       ctx.restore();
     }
+    // 空中で入れ替えられる間は、ゆっくり点滅（「落ちても、ここへ戻る」の合図。自動入れ替えの予告）
+    const warn = tg.ok && !s.p.ground && !L.deadly(lv, tg) && L.OPT.autoSwap && !reduced; // 救済の適格条件と同じ（画面下の外へ落ちる旗では点滅しない）
     ctx.save(); ctx.lineWidth = 2; ctx.setLineDash(tg.ok ? [] : [4, 3]);
-    ctx.strokeStyle = tg.ok ? C.exit : C.danger; ctx.globalAlpha = tg.ok ? .85 : .7;
+    ctx.strokeStyle = tg.ok ? C.exit : C.danger; ctx.globalAlpha = tg.ok ? (warn ? .55 + .3 * Math.cos(t * Math.PI * 2 / 1.2) : .85) : .7;
     rr(x, y, w, h - cell * .08, cell * .16); ctx.stroke();
     if (!tg.ok) { ctx.beginPath(); ctx.moveTo(x + w * .2, y + h * .25); ctx.lineTo(x + w * .8, y + h * .75); ctx.moveTo(x + w * .8, y + h * .25); ctx.lineTo(x + w * .2, y + h * .75); ctx.stroke(); }
     ctx.restore();
@@ -1146,6 +1176,12 @@ const M = (() => {
       if (k >= 0 && k < 1) { const x = Math.max(.3, Math.min(W - .3, fx.lostX)), y = Math.max(.3, fx.lostY), d = cell * .28;
         ctx.save(); ctx.globalAlpha = 1 - k; ctx.strokeStyle = C.danger; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(X(x) - d, Y(y) - d); ctx.lineTo(X(x) + d, Y(y) + d); ctx.moveTo(X(x) + d, Y(y) - d); ctx.lineTo(X(x) - d, Y(y) + d); ctx.stroke(); ctx.restore(); } }
+    // 自動入れ替え：着いた自分の周りに一瞬だけ輪（約8フレーム）
+    { const k = (now - fx.autoAt) / 135;
+      if (k >= 0 && k < 1) {
+        ctx.save(); ctx.strokeStyle = C.exit; ctx.globalAlpha = 1 - k * .7; ctx.lineWidth = Math.max(2, cell * .12);
+        ctx.beginPath(); ctx.arc(X(s.p.x), Y(s.p.y - .45), cell * (.55 + k * .5), 0, 7); ctx.stroke(); ctx.restore();
+      } }
     // 復帰した・拾った：輪
     for (const [t0, col, big] of [[fx.respAt, C.flag, 1.6], [fx.pickAt, C.flag, 1]]) {
       const k = (now - t0) / 450; if (k < 0 || k > 1) continue;
