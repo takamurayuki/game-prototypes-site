@@ -1,0 +1,672 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head><body><title>肉の持ち替え</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #2b2a2f; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; color: #f3ece4; }
+  #wrap { position: fixed; inset: 0; touch-action: none; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #bar { position: fixed; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 8px;
+    padding: calc(env(safe-area-inset-top) + 8px) 10px 8px; pointer-events: none; }
+  #bar .t { flex: 1; font-size: 16px; font-weight: bold; text-shadow: 0 1px 2px #0008; }
+  #bar .t small { font-weight: normal; opacity: .7; font-size: 12px; margin-left: 6px; }
+  button { pointer-events: auto; font: inherit; font-size: 14px; color: #3a2b2b; background: #f3ddd0; border: 0; border-radius: 18px;
+    padding: 7px 13px; box-shadow: 0 2px 0 #0004; touch-action: manipulation; }
+  button:active { transform: translateY(1px); box-shadow: none; }
+  #hint { position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 14px); text-align: center; font-size: 14px;
+    line-height: 1.5; pointer-events: none; text-shadow: 0 1px 2px #000a; opacity: .92; }
+  .ov { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: #1d1c21cc; z-index: 5; }
+  .ov.on { display: flex; }
+  .card { background: #3a383f; border-radius: 18px; padding: 20px 18px; width: min(320px, 86vw); text-align: center; box-shadow: 0 8px 30px #0008; }
+  .card h2 { margin: 0 0 10px; font-size: 22px; }
+  .card p { margin: 6px 0 14px; font-size: 14px; opacity: .85; line-height: 1.6; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid button { padding: 10px 6px; border-radius: 12px; text-align: left; }
+  .grid button.done { background: #cfe8c9; }
+  #toast { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); font-size: 18px; font-weight: bold; pointer-events: none;
+    opacity: 0; transition: opacity .3s; text-shadow: 0 2px 4px #000c; white-space: nowrap; }
+</style>
+<div id="wrap"><canvas id="cv"></canvas></div>
+<div id="bar">
+  <div class="t" id="title">1 まっすぐ</div>
+  <button id="bRetry">リトライ</button>
+  <button id="bSel">面</button>
+</div>
+<div id="hint"></div>
+<div id="toast"></div>
+<div class="ov" id="ovClear"><div class="card">
+  <h2>とどいた！</h2><p id="clearMsg"></p>
+  <div style="display:flex;gap:8px;justify-content:center"><button id="bAgain">もう一度</button><button id="bNext">次へ</button></div>
+</div></div>
+<div class="ov" id="ovSel"><div class="card">
+  <h2>面をえらぶ</h2>
+  <div class="grid" id="selGrid"></div>
+  <p style="margin:12px 0 0"><button id="bSelClose">とじる</button></p>
+</div></div>
+
+<script id="logic">
+/* ===== 肉の持ち替え：ルール（純粋関数。tests/logic.test.js が Node で検証する）=====
+   体は3点（0=頭 H・1=腹 B・2=尻 T）。物理は 1 フレーム固定ステップで、乱数も時間も使わない（同じ入力列なら同じ結果）。
+   - 支点（pin）になった点は絶対に動かない
+   - 頭だけがつかめる（GRAB H）。頭は支点からの「届く距離」と「持ち上げられる高さ」の範囲でだけ伸びる
+   - 頭を光る吸着点の近くで離すと吸着。ほかの支点はすべて外れ、体は地形に沿ってすべりながら頭へ縮み、
+     追いついた尻が地面（上向きの面）に乗っていれば尻が地面をつかむ ＝ 1歩進む
+     （縮みきる前に地形に阻まれて止まった場合は「追いついた」にならない＝ blocked。その状態ではクリアしない）
+   - 吸着のスナップで腹・尻が伸びきるなら頭のほうへ寄せて丸める。丸めても最大伸長・めり込みを守れなければ吸着しない
+   - 腹の輪をタップ（TAP B）すると、腹がそばの地形（床でも壁でも）に押し付けられて支点になる。もう一度で外れる
+     （押し付けた先で頭・尻との最大伸長が破れるなら支点にならない）
+   - 支点が1つもないと落ちる。下に落ちきったら（穴）ステージの最初からやり直し（deaths+1）
+   - 支点が1つもないまま頭を持っている間（吸着直後のつかみ直し）：腹・尻は落ち、頭は腹から MAX 以内、
+     持ち上げは腹・尻が乗っている地面から LIFT まで（どちらも浮いていれば、つかんだ高さまで）。頭が体を引きずって運ぶことはない
+   - クリア：頭がゴールに付き、尻が縮みきって追いつき、頭のそば（CATCH 以内）で地面をつかむ
+   - どの入力・どのフレームのあとも、隣り合う点の距離は MAX 以内
+*/
+const L = (() => {
+  const R = 10;          // 点の半径（当たり判定）
+  const MAX = 100;       // 隣り合う点の最大伸長
+  const REST = 20;       // 縮んだときの点の間隔
+  const LIFT = 60;       // 頭を持ち上げられる高さ（いちばん近い支点より上へ）
+  const SNAP = 28;       // 吸着点に吸い付く距離
+  const PRESS = 30;      // 腹を地形に押し付けられる距離（すき間）
+  const SPEED = 12;      // 頭が指を追う速さ（px/フレーム）
+  const CSPEED = 4;      // 縮む速さ（px/フレーム）
+  const DROP = 40;       // 追いつく尻が地面を探して垂れ下がれる距離
+  const CATCH = 2 * REST + DROP;   // クリアに必要な頭―尻の近さ（縮みきり 2×REST ＋地面を探して垂れた分）
+  const G = 0.6, VMAX = 14, KILL = 640;
+  const F = 300;         // 基本の床の高さ
+  const NAMES = ['H', 'B', 'T'];
+
+  const floor = (x0, x1, top = F) => ({ x: x0, y: top, w: x1 - x0, h: 400 });
+  const block = (x0, x1, top, bottom) => ({ x: x0, y: top, w: x1 - x0, h: bottom - top });
+  // foot: 吸着点 [x, y]。最後の1つがゴール。start: 尻の x（頭は +40、腹は +20、床の上）
+  const STAGES = [
+    { id: 1, name: 'まっすぐ', hint: '頭の下の輪を指でつかんで右へ引っぱり、光る点の上で指をはなそう',
+      solids: [floor(-300, 700)], foot: [[170, 290], [300, 290]], start: 40 },
+    { id: 2, name: 'ながく', hint: '頭をつけたら、尻が追いつくのを待ってから次へ',
+      solids: [floor(-300, 800)], foot: [[170, 290], [300, 290], [430, 290]], start: 40 },
+    { id: 3, name: 'だんさ', hint: '段の上の光る点まで、頭を持ち上げてのばそう',
+      solids: [floor(-300, 260), block(260, 800, 260, 700)], foot: [[140, 290], [230, 290], [330, 250], [450, 250]], start: 40 },
+    { id: 4, name: 'あな', hint: '穴の向こうの点に頭をつける。尻が穴の上に残ると落ちる',
+      solids: [floor(-300, 260), floor(340, 900)], foot: [[140, 290], [240, 290], [390, 290], [500, 290]], start: 40 },
+    { id: 5, name: 'たかいだんさ', hint: '尻からでは届かない。頭を持ったまま、もう1本の指で腹の輪をタップ（壁に腹をはりつける）',
+      solids: [floor(-300, 300), block(300, 900, 220, 700)], foot: [[150, 290], [290, 240], [380, 210], [490, 210]], start: 40 },
+    { id: 6, name: 'せまいあな', hint: '低い通路。頭から低く入れて、支点を替えながら抜けよう',
+      solids: [floor(-300, 900), block(220, 480, 120, 268)], foot: [[130, 290], [230, 290], [330, 290], [430, 290], [540, 290]], start: 40 },
+    { id: 7, name: 'くみあわせ', hint: '段を登って、穴をこえる',
+      solids: [floor(-300, 250), block(250, 420, 260, 700), floor(500, 1000, 260)],
+      foot: [[120, 290], [220, 290], [320, 250], [400, 250], [550, 250], [660, 250]], start: 40 },
+    { id: 8, name: 'さいご', hint: '段・穴・せまい通路。ここまでの全部',
+      solids: [floor(-300, 250), block(250, 500, 260, 700), floor(580, 1200, 260), block(680, 900, 100, 228)],
+      foot: [[120, 290], [220, 290], [320, 250], [480, 250], [625, 250], [720, 250], [820, 250], [950, 250]], start: 40 },
+  ];
+
+  const clone = s => JSON.parse(JSON.stringify(s));
+  const dist = (a, b) => Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+  const solidsOf = s => STAGES[s.st].solids;
+  const goalOf = s => STAGES[s.st].foot.length - 1;
+
+  function newGame(st, deaths = 0) {
+    const x = STAGES[st].start, y = F - R;
+    return {
+      st, p: [{ x: x + 40, y, vy: 0 }, { x: x + 20, y, vy: 0 }, { x, y, vy: 0 }],
+      pin: [false, false, true], at: -1,          // at: 頭が吸着している吸着点の番号
+      drag: null, follower: -1, fphase: 0, dropLeft: 0, still: 0, caught: false,   // caught: 尻が縮みきって追いついた
+      deaths, cleared: false, frame: 0, ev: [],
+    };
+  }
+
+  /* ---- 地形との当たり ---- */
+  function pushOut(p, solids) {
+    for (let it = 0; it < 3; it++) for (const r of solids) {
+      const cx = Math.max(r.x, Math.min(p.x, r.x + r.w)), cy = Math.max(r.y, Math.min(p.y, r.y + r.h));
+      const dx = p.x - cx, dy = p.y - cy, d = Math.sqrt(dx * dx + dy * dy);
+      if (d === 0) {          // 中心が中（または縁の上）：いちばん浅い面へ出す
+        const l = p.x - r.x, rr = r.x + r.w - p.x, t = p.y - r.y, b = r.y + r.h - p.y, m = Math.min(l, rr, t, b);
+        if (m === t) p.y = r.y - R; else if (m === l) p.x = r.x - R; else if (m === rr) p.x = r.x + r.w + R; else p.y = r.y + r.h + R;
+      } else if (d < R) { p.x = cx + dx / d * R; p.y = cy + dy / d * R; }
+    }
+  }
+  // 上向きの面に乗っている
+  const supported = (p, solids) => solids.some(r => p.x >= r.x - 2 && p.x <= r.x + r.w + 2 && Math.abs(p.y + R - r.y) <= 2.5);
+  // 地形の表面のうち、すき間 PRESS 以内でいちばん近いところに押し付けた位置（なければ null）
+  function pressTo(p, solids) {
+    let best = null, bg = Infinity;
+    for (const r of solids) {
+      const cx = Math.max(r.x, Math.min(p.x, r.x + r.w)), cy = Math.max(r.y, Math.min(p.y, r.y + r.h));
+      const dx = p.x - cx, dy = p.y - cy, d = Math.sqrt(dx * dx + dy * dy);
+      if (d === 0) continue;
+      const gap = d - R;
+      if (gap <= PRESS && gap < bg) { bg = gap; best = { x: cx + dx / d * R, y: cy + dy / d * R }; }
+    }
+    return best;
+  }
+
+  /* ---- 頭が届く範囲 ---- */
+  // 支点（腹・尻）からの距離と、いちばん近い支点からの高さで頭の位置をしばる
+  function clampHead(s, c) {
+    for (let it = 0; it < 3; it++) {
+      for (const j of [1, 2]) if (s.pin[j]) {
+        const A = s.p[j], dx = c.x - A.x, dy = c.y - A.y, d = Math.sqrt(dx * dx + dy * dy), lim = j * MAX;
+        if (d > lim) { c.x = A.x + dx / d * lim; c.y = A.y + dy / d * lim; }
+      }
+      const near = s.pin[1] ? 1 : s.pin[2] ? 2 : -1;
+      if (near >= 0) c.y = Math.max(c.y, s.p[near].y - LIFT);
+    }
+    return c;
+  }
+  // 地形にめり込んでいる
+  const inside = (p, solids) => solids.some(r => {
+    const cx = Math.max(r.x, Math.min(p.x, r.x + r.w)), cy = Math.max(r.y, Math.min(p.y, r.y + r.h));
+    return Math.sqrt((p.x - cx) * (p.x - cx) + (p.y - cy) * (p.y - cy)) < R - 0.01;
+  });
+  // 隣り合う点がすべて最大伸長以内
+  const linksOK = P => dist(P[0], P[1]) <= MAX + 0.01 && dist(P[1], P[2]) <= MAX + 0.01;
+  /* 腹も尻も支点でないとき（吸着直後に頭をつかみ直した等）の、頭を持ち上げられる上限の y。
+     腹・尻が地形に乗っていればその点から LIFT まで、どちらも浮いていれば「つかんだ時点の頭の高さ」まで（ぶら下がり）。
+     ぶら下がり中は頭が下がるたびに上限も下がる（指で引き上げ直せない） */
+  function freeCap(s) {
+    const sol = solidsOf(s);
+    for (const j of [1, 2]) if (supported(s.p[j], sol)) return s.p[j].y - LIFT;
+    return s.drag ? s.drag.cy : s.p[0].y;
+  }
+  const bodyPinned = s => s.pin[1] || s.pin[2];
+  function headCanBe(s, x, y) {
+    // 腹・尻が支点でない：頭は腹から MAX 以内、上限より下（腹を引きずって運ぶことはできない）
+    if (!bodyPinned(s)) return dist({ x, y }, s.p[1]) <= MAX + 0.5 && y >= freeCap(s) - 0.5;
+    for (const j of [1, 2]) if (s.pin[j] && dist({ x, y }, s.p[j]) > j * MAX + 0.5) return false;
+    const near = s.pin[1] ? 1 : s.pin[2] ? 2 : -1;
+    if (near >= 0 && y < s.p[near].y - LIFT - 0.5) return false;
+    return true;
+  }
+  // 今の支点のまま、頭がその吸着点に届くか（光らせる判定にも使う）
+  const reachable = (s, i) => { const f = STAGES[s.st].foot[i]; return headCanBe(s, f[0], f[1]); };
+  // 頭を離したとき吸い付く吸着点（なければ -1）
+  function snapTarget(s) {
+    const h = s.p[0]; let best = -1, bd = SNAP;
+    STAGES[s.st].foot.forEach((f, i) => {
+      const d = dist(h, { x: f[0], y: f[1] });
+      if (d <= bd && reachable(s, i)) { bd = d; best = i; }
+    });
+    return best;
+  }
+  /* 頭を吸着点 f へスナップする。腹・尻が伸びきってしまう分は頭のほうへ寄せて丸め（地形に沿って）、
+     それでも最大伸長・めり込みを守れなければ吸着させない（false）。成功時は s.p を書き換える */
+  function trySnap(s, f) {
+    const sol = solidsOf(s), ft = STAGES[s.st].foot[f];
+    const P = s.p.map(p => ({ x: p.x, y: p.y, vy: 0 }));
+    P[0].x = ft[0]; P[0].y = ft[1];
+    for (const j of [1, 2]) if (dist(P[j], P[j - 1]) > MAX) toward(P[j], P[j - 1], MAX, 1e9, sol);
+    if (!linksOK(P) || P.some(p => inside(p, sol))) return false;
+    s.p = P;
+    return true;
+  }
+
+  /* ---- 入力 ---- */
+  // a: {t:'grab', p:'H'} / {t:'move', x, y} / {t:'release'} / {t:'tap', p:'B'}
+  function input(s0, a) {
+    const s = clone(s0); s.ev = [];
+    if (s.cleared) return s;
+    if (a.t === 'grab') {
+      if (a.p !== 'H' || s.drag) return s;
+      if (s.pin[0]) { s.pin[0] = false; s.at = -1; }
+      s.drag = { tx: s.p[0].x, ty: s.p[0].y, cy: s.p[0].y };   // cy: ぶら下がり中の持ち上げ上限
+      s.ev.push({ type: 'grab' });
+    } else if (a.t === 'move') {
+      if (s.drag) { s.drag.tx = a.x; s.drag.ty = a.y; }
+    } else if (a.t === 'release') {
+      if (!s.drag) return s;
+      const f = snapTarget(s);                           // 上限の判定に drag を使うので、外す前に調べる
+      s.drag = null;
+      if (f >= 0 && trySnap(s, f)) {
+        s.pin = [true, false, false]; s.at = f;         // 支点を替える：ほかの支点は外れる
+        s.follower = 2; s.fphase = 0; s.dropLeft = DROP; s.caught = false;
+        s.ev.push({ type: 'anchor', foot: f });
+      } else s.ev.push({ type: 'miss' });
+    } else if (a.t === 'tap') {
+      if (a.p !== 'B') return s;
+      if (s.pin[1]) { s.pin[1] = false; s.ev.push({ type: 'unpinB' }); return s; }
+      const q = pressTo(s.p[1], solidsOf(s));
+      // 押し付けた先で頭・尻との最大伸長が破れるなら支点にしない
+      if (q && dist(q, s.p[0]) <= MAX + 0.01 && dist(q, s.p[2]) <= MAX + 0.01) {
+        s.p[1].x = q.x; s.p[1].y = q.y; s.p[1].vy = 0; s.pin[1] = true; s.ev.push({ type: 'pinB' });
+      } else s.ev.push({ type: 'tapFail' });
+    }
+    return s;
+  }
+
+  /* ---- 1 フレーム進める ---- */
+  function toward(p, q, keep, maxStep, solids) {   // p を q へ（距離 keep まで）すべりながら寄せる。動いた量を返す
+    const d = dist(p, q);
+    if (d <= keep + 1e-6) return 0;
+    const m = Math.min(maxStep, d - keep), x0 = p.x, y0 = p.y;
+    p.x += (q.x - p.x) / d * m; p.y += (q.y - p.y) / d * m;
+    pushOut(p, solids);
+    return Math.sqrt((p.x - x0) * (p.x - x0) + (p.y - y0) * (p.y - y0));
+  }
+  function step(s0) {
+    const s = clone(s0); s.ev = [];
+    if (s.cleared) return s;
+    s.frame++;
+    const P = s.p, sol = solidsOf(s), anyPin = s.pin.some(Boolean);
+    if (s.drag && !anyPin) return freeDrag(s);
+    const start = P.map(p => ({ x: p.x, y: p.y })), startOK = linksOK(P) && !P.some(p => inside(p, sol));
+    // 頭：指を追う（届く範囲・地形の外）
+    if (s.drag) {
+      const h = P[0], c = fingerStep(s);
+      clampHead(s, c); pushOut(c, sol); clampHead(s, c); pushOut(c, sol);
+      if (headCanBe(s, c.x, c.y)) { h.x = c.x; h.y = c.y; }
+      h.vy = 0;
+    }
+    if (!anyPin) {
+      // 落下（だれも持っていない）：重力＋体は縮もうとする＋最大伸長
+      let mv = 0;
+      const before = P.map(p => ({ x: p.x, y: p.y }));
+      for (let i = 0; i < 3; i++) { P[i].vy = Math.min(VMAX, P[i].vy + G); P[i].y += P[i].vy; }
+      for (let it = 0; it < 2; it++) for (const [a, b] of [[0, 1], [1, 2]]) {
+        const A = P[a], B = P[b], d = dist(A, B); if (d <= REST || d === 0) continue;
+        let cut = (d - REST) * 0.15; if (d - cut > MAX) cut = d - MAX;
+        const ux = (B.x - A.x) / d, uy = (B.y - A.y) / d;
+        A.x += ux * cut * 0.5; A.y += uy * cut * 0.5; B.x -= ux * cut * 0.5; B.y -= uy * cut * 0.5;
+      }
+      for (let i = 0; i < 3; i++) { const y0 = P[i].y; pushOut(P[i], sol); if (P[i].y < y0 - 1e-9) P[i].vy = 0; }
+      for (let it = 0; it < 3 && !linksOK(P); it++) for (const [a, b] of [[0, 1], [1, 2]]) {   // 押し出しで伸びきった分を戻す
+        const A = P[a], B = P[b], d = dist(A, B); if (d <= MAX) continue;
+        const k = (d - MAX) / d * 0.5, ex = (B.x - A.x) * k, ey = (B.y - A.y) * k;
+        A.x += ex; A.y += ey; B.x -= ex; B.y -= ey; pushOut(A, sol); pushOut(B, sol);
+      }
+      // 守り：それでも残るなら、このフレームの落下を取り消す（引っかかって止まる → 着地の判定へ）
+      if (startOK && (!linksOK(P) || P.some(p => inside(p, sol)))) P.forEach((p, i) => { p.x = start[i].x; p.y = start[i].y; p.vy = 0; });
+      for (let i = 0; i < 3; i++) mv += dist(P[i], before[i]);
+      if (P.some(p => p.y > KILL)) {
+        const n = newGame(s.st, s.deaths + 1); n.ev = [{ type: 'fall' }]; n.frame = s.frame; return n;
+      }
+      s.still = mv < 0.1 ? s.still + 1 : 0;
+      if (s.still >= 8) {     // 着地：地面に乗っている点が地面をつかむ（尻 → 頭 → 腹の順）
+        for (const i of [2, 0, 1]) if (supported(P[i], sol)) { s.pin[i] = true; P[i].vy = 0; s.ev.push({ type: 'land', p: NAMES[i] }); break; }
+        s.still = 0;
+      }
+      return s;
+    }
+    const moved = [0, 0, 0];
+    if (s.drag) {
+      // 伸ばしている間：体は形を保ち、伸びきったところだけ引っぱられる
+      if (!s.pin[1]) {
+        for (let it = 0; it < 8; it++) {
+          if (dist(P[1], P[0]) > MAX) toward(P[1], P[0], MAX, 1e9, sol);
+          if (dist(P[1], P[2]) > MAX && s.pin[2]) toward(P[1], P[2], MAX, 1e9, sol);
+        }
+      }
+      if (!s.pin[2] && dist(P[2], P[1]) > MAX) toward(P[2], P[1], MAX, 1e9, sol);
+      // 守り：伸びきり・めり込みを解消できない動きは、このフレームごと取り消す（頭はそこで止まる）
+      if (startOK && (!linksOK(P) || P.some(p => inside(p, sol)))) P.forEach((p, i) => { p.x = start[i].x; p.y = start[i].y; });
+    } else {
+      // 縮む：支点の側へ、地形に沿ってすべりながら寄る
+      const tgt = i => i !== 1 ? 1 : (s.pin[0] && !s.pin[2] ? 0 : s.pin[2] && !s.pin[0] ? 2 : -1);
+      for (const i of [1, 0, 2]) {
+        if (s.pin[i] || (i === s.follower && s.fphase === 1)) continue;
+        const j = tgt(i); if (j < 0) continue;
+        const x0 = P[i].x, y0 = P[i].y;
+        moved[i] = toward(P[i], P[j], REST, CSPEED, sol);
+        // 守り：この点が寄ったせいで反対側の隣と伸びきる／めり込むなら、今フレームは動かない
+        if (startOK && (!linksOK(P) || inside(P[i], sol))) { P[i].x = x0; P[i].y = y0; moved[i] = 0; }
+      }
+    }
+    // 追いつく尻：縮み終わったら地面を探して少し垂れ、地面に乗ればつかむ
+    if (s.follower >= 0) {
+      const f = s.follower, Q = P[f];
+      if (s.pin[f]) s.follower = -1;
+      else if (!s.drag) {
+        if (s.fphase === 0 && s.pin[1]) { /* 腹が支点の間は、尻は腹まで寄って待つ（腹を外すと頭へ縮み直す） */ }
+        else if (s.fphase === 0) {
+          if (caughtUp(s)) { s.fphase = 1; s.caught = true; }             // 縮みきった＝追いついた
+          else if (moved[f] < 0.05 && moved[1] < 0.05) {                   // 縮みきる前に止まった＝地形に阻まれた
+            s.fphase = 1; s.ev.push({ type: 'blocked', p: NAMES[f] });
+          }
+        }
+        if (s.fphase === 1) {
+          if (supported(Q, sol)) { s.pin[f] = true; s.follower = -1; s.ev.push({ type: 'grip', p: NAMES[f], caught: s.caught }); }
+          else if (s.dropLeft > 0) { const y0 = Q.y; Q.y += 2; pushOut(Q, sol); s.dropLeft -= 2; if (Q.y <= y0 + 1e-9) s.dropLeft = 0; }
+          else { s.follower = -1; s.ev.push({ type: 'dangle', p: NAMES[f] }); }
+        }
+      }
+    }
+    // クリア：頭がゴールの吸着点に付き、尻が（地形に阻まれずに）縮みきって追いつき、頭のそば（CATCH 以内）で地面をつかんだ
+    if (s.pin[0] && s.at === goalOf(s) && s.pin[2] && s.caught && closeTail(s)) { s.cleared = true; s.ev.push({ type: 'clear' }); }
+    return s;
+  }
+  // 縮みきった（隣どうしが REST まで寄った）
+  const caughtUp = s => dist(s.p[0], s.p[1]) <= REST + 0.5 && dist(s.p[1], s.p[2]) <= REST + 0.5;
+  // 尻が頭のそばにいる
+  const closeTail = s => dist(s.p[0], s.p[2]) <= CATCH;
+  // 頭が指へ向かって SPEED だけ進んだ候補位置
+  function fingerStep(s) {
+    const h = s.p[0], dx = s.drag.tx - h.x, dy = s.drag.ty - h.y, d = Math.sqrt(dx * dx + dy * dy);
+    const c = { x: h.x, y: h.y };
+    if (d > 0) { const m = Math.min(SPEED, d); c.x += dx / d * m; c.y += dy / d * m; }
+    return c;
+  }
+  /* 支点が1つもないまま頭を持っている（吸着直後のつかみ直しなど）：
+     腹・尻は重力で落ち、頭は腹から MAX 以内・持ち上げ上限より下にしか動けない。
+     頭が体を引きずることはなく、逆に落ちる腹に頭が引きずり降ろされる */
+  function freeDrag(s) {
+    const P = s.p, sol = solidsOf(s);
+    const start = P.map(p => ({ x: p.x, y: p.y })), startOK = linksOK(P) && !P.some(p => inside(p, sol));
+    for (const i of [1, 2]) { P[i].vy = Math.min(VMAX, P[i].vy + G); P[i].y += P[i].vy; }
+    for (let it = 0; it < 2; it++) {       // 腹―尻：縮もうとする＋最大伸長（2点で分け合う）
+      const A = P[1], B = P[2], d = dist(A, B); if (d <= REST || d === 0) continue;
+      let cut = (d - REST) * 0.15; if (d - cut > MAX) cut = d - MAX;
+      const ux = (B.x - A.x) / d, uy = (B.y - A.y) / d;
+      A.x += ux * cut * 0.5; A.y += uy * cut * 0.5; B.x -= ux * cut * 0.5; B.y -= uy * cut * 0.5;
+    }
+    for (const i of [1, 2]) { const y0 = P[i].y; pushOut(P[i], sol); if (P[i].y < y0 - 1e-9) P[i].vy = 0; }
+    // 頭
+    const h = P[0], cap = freeCap(s), c = fingerStep(s);
+    const fit = q => {                       // 腹から MAX 以内・上限より下・地形の外へ
+      const d = dist(q, P[1]);
+      if (d > MAX) { q.x = P[1].x + (q.x - P[1].x) / d * MAX; q.y = P[1].y + (q.y - P[1].y) / d * MAX; }
+      q.y = Math.max(q.y, cap); pushOut(q, sol);
+    };
+    const good = q => dist(q, P[1]) <= MAX + 0.01 && q.y >= cap - 0.01 && !inside(q, sol);
+    fit(c);
+    if (!good(c)) {                          // 指の方へは行けない：今の位置から腹へ引かれるだけ
+      c.x = h.x; c.y = Math.max(h.y, cap); pushOut(c, sol);
+      if (dist(c, P[1]) > MAX) toward(c, P[1], MAX, 1e9, sol);
+    }
+    if (dist(c, P[1]) > MAX + 0.01 || inside(c, sol)) {
+      // 頭が地形に阻まれて腹へ寄れない（段の上に頭が乗っている等）：頭はその場で、腹・尻がそこからぶら下がる
+      c.x = h.x; c.y = h.y;
+      for (let it = 0; it < 2; it++) {
+        if (dist(P[1], c) > MAX) toward(P[1], c, MAX, 1e9, sol);
+        if (dist(P[2], P[1]) > MAX) toward(P[2], P[1], MAX, 1e9, sol);
+      }
+    }
+    h.x = c.x; h.y = c.y; h.vy = 0;
+    // 守り：それでも伸びきり・めり込みが残るなら、このフレームの動きを取り消す
+    if (startOK && (!linksOK(P) || P.some(p => inside(p, sol)))) P.forEach((p, i) => { p.x = start[i].x; p.y = start[i].y; p.vy = 0; });
+    if (!supported(P[1], sol) && !supported(P[2], sol)) s.drag.cy = Math.max(s.drag.cy, h.y);
+    s.still = 0;
+    if (P.some(p => p.y > KILL)) {
+      const n = newGame(s.st, s.deaths + 1); n.ev = [{ type: 'fall' }]; n.frame = s.frame; return n;
+    }
+    return s;
+  }
+
+  /* ---- 入力列の再生（テストと手本用）----
+     ['G','H'] つかむ / ['M',x,y,frames] 指を (x,y) へ frames フレームかけて動かす（各フレーム1ステップ）
+     ['R'] 離す / ['T','B'] 腹の輪をタップ / ['W',n] n フレーム待つ */
+  function play(s, seq) {
+    const ev = [];
+    const add = r => { ev.push(...r.ev.map(e => Object.assign({ f: r.frame }, e))); return r; };
+    for (const a of seq) {
+      const [t, ...v] = a;
+      if (t === 'G') s = add(input(s, { t: 'grab', p: v[0] }));
+      else if (t === 'R') s = add(input(s, { t: 'release' }));
+      else if (t === 'T') s = add(input(s, { t: 'tap', p: v[0] }));
+      else if (t === 'W') for (let k = 0; k < v[0]; k++) s = add(step(s));
+      else if (t === 'M') {
+        const sx = s.drag ? s.drag.tx : s.p[0].x, sy = s.drag ? s.drag.ty : s.p[0].y;
+        const n = v[2] || Math.max(1, Math.ceil(Math.sqrt((v[0] - sx) ** 2 + (v[1] - sy) ** 2) / 8));
+        for (let k = 1; k <= n; k++) {
+          s = add(input(s, { t: 'move', x: sx + (v[0] - sx) * k / n, y: sy + (v[1] - sy) * k / n }));
+          s = add(step(s));
+        }
+      } else throw new Error('unknown input ' + t);
+    }
+    return { s, ev };
+  }
+
+  return { R, MAX, REST, LIFT, SNAP, PRESS, SPEED, CSPEED, DROP, CATCH, F, KILL, NAMES, STAGES,
+    newGame, input, step, play, reachable, snapTarget, supported, pressTo, headCanBe, freeCap, inside, dist };
+})();
+if (typeof module !== 'undefined') module.exports = L;
+</script>
+
+<script>
+/* ===== 画面（描画と入力。ルールは上の L だけが決める）===== */
+(() => {
+  const cv = document.getElementById('cv'), cx = cv.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const RING_DY = 46, RING_DX = [22, 0, -22], RING_R = 20, HIT_R = 30;   // 輪は点の下（頭は右・尻は左へ少しずらす）
+  let W = 0, H = 0, DPR = 1, SC = 1;
+  let st = 0, s = L.newGame(0), camX = 0, camTX = 0, viewW = 390, viewH = 600, camY = 0;
+  const stats = JSON.parse(localStorage.getItem('mochikae') || '{}');
+  stats.cleared = stats.cleared || []; stats.deaths = stats.deaths || 0; stats.plays = (stats.plays || 0) + 1;
+  const save = () => { try { localStorage.setItem('mochikae', JSON.stringify(stats)); } catch (e) {} };
+  save();
+
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = innerWidth; H = innerHeight;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    SC = Math.min(W / 330, H / 560);
+    viewW = W / SC; viewH = H / SC;
+    camY = L.F - viewH * 0.64;
+  }
+  addEventListener('resize', resize); resize();
+  // ページが動かないように
+  ['touchmove', 'gesturestart', 'dblclick', 'contextmenu'].forEach(e => document.addEventListener(e, ev => ev.preventDefault(), { passive: false }));
+
+  /* ---- 音（小さなポップ）---- */
+  let ac = null;
+  function pop(f = 520, d = 0.08, v = 0.12) {
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 0.55, t + d);
+      g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + 0.02);
+    } catch (e) {}
+  }
+
+  /* ---- ステージ ---- */
+  function stageBounds() {
+    const S = L.STAGES[st]; const xs = S.foot.map(f => f[0]);
+    return { min: Math.min(0, ...xs) - 40, max: Math.max(...xs) + 80 };
+  }
+  function load(i) {
+    st = i; s = L.newGame(i); $('title').innerHTML = `${i + 1} ${L.STAGES[i].name}<small>おちた ${s.deaths}</small>`;
+    $('hint').textContent = L.STAGES[i].hint; drags.clear();
+    camX = camTX = clampCam(bodyX() - viewW * 0.4);
+    $('ovClear').classList.remove('on'); clearShown = false;
+  }
+  const bodyX = () => (s.p[0].x + s.p[1].x + s.p[2].x) / 3;
+  function clampCam(x) { const b = stageBounds(); return Math.max(b.min, Math.min(x, Math.max(b.min, b.max - viewW))); }
+
+  /* ---- 入力（Pointer Events・マルチタッチ）---- */
+  /* 役割は pointerId ごと：頭を持っている指は drags に1本だけ登録する。腹・尻の輪のタップは登録しないので、
+     その指を離しても頭のドラッグは続く。pointerup / pointercancel / lostpointercapture は頭の指のときだけ解放する */
+  const drags = new Map();      // pointerId -> {px, py, ox, oy}（ox, oy：つかんだ点と頭のずれ。指へ跳ねないように保つ）
+  const toWorld = (px, py) => ({ x: px / SC + camX, y: py / SC + camY });
+  const ringPos = i => ({ x: s.p[i].x + RING_DX[i], y: s.p[i].y + RING_DY });
+  /* 判定の優先順位：頭を持っていないとき → 頭・腹・尻のうちいちばん近い輪（判定円 HIT_R 以内）。
+     頭を持っているとき → 頭の輪は候補から外す（2本目の指は、頭の輪と重なっていても腹のタップになる） */
+  function pick(w) {
+    let best = -1, bd = HIT_R;
+    for (const i of [0, 1, 2]) {
+      if (i === 0 && (s.drag || drags.size)) continue;
+      const r = ringPos(i), d = Math.hypot(r.x - w.x, r.y - w.y); if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+  function apply(a) { const r = L.input(s, a); s = r; react(r.ev); }
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    const w = toWorld(e.clientX, e.clientY), i = pick(w);
+    if (i === 0) {
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+      drags.set(e.pointerId, { px: e.clientX, py: e.clientY, ox: s.p[0].x - w.x, oy: s.p[0].y - w.y });
+      apply({ t: 'grab', p: 'H' }); setTarget(drags.get(e.pointerId));
+    } else if (i === 1) apply({ t: 'tap', p: 'B' });
+    else if (i === 2) wiggle = 12;
+  }, { passive: false });
+  function setTarget(d) { const w = toWorld(d.px, d.py); apply({ t: 'move', x: w.x + d.ox, y: w.y + d.oy }); }
+  cv.addEventListener('pointermove', e => {
+    const d = drags.get(e.pointerId); if (!d) return;
+    e.preventDefault(); d.px = e.clientX; d.py = e.clientY; setTarget(d);
+  }, { passive: false });
+  const up = e => { if (!drags.has(e.pointerId)) return; drags.delete(e.pointerId); apply({ t: 'release' }); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('lostpointercapture', up);
+
+  $('bRetry').onclick = () => { stats.deaths += 0; load(st); };
+  $('bSel').onclick = () => { buildSel(); $('ovSel').classList.add('on'); };
+  $('bSelClose').onclick = () => $('ovSel').classList.remove('on');
+  $('bAgain').onclick = () => load(st);
+  $('bNext').onclick = () => load((st + 1) % L.STAGES.length);
+  function buildSel() {
+    const g = $('selGrid'); g.innerHTML = '';
+    L.STAGES.forEach((S, i) => {
+      const b = document.createElement('button'); b.textContent = `${i + 1} ${S.name}`;
+      if (stats.cleared.includes(i)) b.className = 'done';
+      b.onclick = () => { $('ovSel').classList.remove('on'); load(i); }; g.appendChild(b);
+    });
+  }
+
+  /* ---- 出来事への反応 ---- */
+  let toastT = 0, wiggle = 0, clearShown = false, squish = [0, 0, 0];
+  function toast(t) { const el = $('toast'); el.textContent = t; el.style.opacity = 1; toastT = 70; }
+  function react(evs) {
+    for (const e of evs) {
+      if (e.type === 'anchor') { pop(660); squish[0] = 1; }
+      else if (e.type === 'grip') { pop(440, 0.07, 0.1); squish[2] = 1; }
+      else if (e.type === 'pinB') { pop(560, 0.06, 0.1); squish[1] = 1; }
+      else if (e.type === 'unpinB') pop(380, 0.05, 0.06);
+      else if (e.type === 'tapFail') { pop(240, 0.05, 0.05); toast('腹のそばに地形がない'); }
+      else if (e.type === 'grab') pop(800, 0.04, 0.05);
+      else if (e.type === 'fall') {
+        pop(200, 0.3, 0.12); toast('おちた…… もう一回'); stats.deaths++; save(); drags.clear();
+        $('title').innerHTML = `${st + 1} ${L.STAGES[st].name}<small>おちた ${s.deaths}</small>`;
+      } else if (e.type === 'dangle') toast('尻がとどかない…');
+      else if (e.type === 'blocked') toast('尻がつかえて追いつけない');
+      else if (e.type === 'miss' && !s.pin.some(Boolean)) toast('支点がない！');
+      else if (e.type === 'clear') {
+        pop(880, 0.15, 0.12); setTimeout(() => pop(1175, 0.2, 0.12), 120);
+        if (!stats.cleared.includes(st)) stats.cleared.push(st); save();
+      }
+    }
+  }
+
+  /* ---- ループ（固定ステップ 60Hz）---- */
+  let last = performance.now(), acc = 0;
+  function frame(now) {
+    acc += Math.min(100, now - last); last = now;
+    while (acc >= 1000 / 60) {
+      acc -= 1000 / 60;
+      // カメラが動いても指の下を狙い続ける
+      for (const d of drags.values()) setTarget(d);
+      s = L.step(s); react(s.ev);
+      if (wiggle > 0) wiggle--;
+      squish = squish.map(v => Math.max(0, v - 0.06));
+      camTX = clampCam(bodyX() - viewW * 0.4);
+      if (!s.drag) camX += (camTX - camX) * 0.06;
+      if (toastT > 0 && --toastT === 0) $('toast').style.opacity = 0;
+    }
+    if (s.cleared && !clearShown) {
+      clearShown = true;
+      setTimeout(() => {
+        $('clearMsg').textContent = `${st + 1}「${L.STAGES[st].name}」 おちた回数 ${s.deaths}`;
+        $('bNext').textContent = st + 1 < L.STAGES.length ? '次へ' : '1面へ';
+        $('ovClear').classList.add('on');
+      }, 600);
+    }
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+
+  /* ---- 描画 ---- */
+  const COL = { bg1: '#3b3a40', bg2: '#2c2b31', ground: '#5b5650', groundTop: '#7a7268', body: '#f2b5a7', bodyDark: '#d98d80',
+    pin: '#7fd3b8', ring: '#f3ece4' };
+  function draw(now) {
+    cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const gr = cx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, COL.bg1); gr.addColorStop(1, COL.bg2);
+    cx.fillStyle = gr; cx.fillRect(0, 0, W, H);
+    cx.setTransform(DPR * SC, 0, 0, DPR * SC, -camX * DPR * SC, -camY * DPR * SC);
+    const S = L.STAGES[st];
+    // 地形
+    for (const r of S.solids) {
+      cx.fillStyle = COL.ground; cx.fillRect(r.x, r.y, r.w, r.h);
+      cx.fillStyle = COL.groundTop; cx.fillRect(r.x, r.y, r.w, 4);
+    }
+    // 吸着点（届くものは光る）
+    const t = now / 1000, snap = s.drag ? L.snapTarget(s) : -1;
+    S.foot.forEach((f, i) => {
+      const goal = i === S.foot.length - 1, can = L.reachable(s, i) && !(s.pin[0] && s.at === i);
+      const glow = can ? (0.55 + 0.45 * Math.sin(t * 5 + i)) : 0;
+      if (can) {
+        const rg = cx.createRadialGradient(f[0], f[1], 2, f[0], f[1], i === snap ? 34 : 24);
+        rg.addColorStop(0, `rgba(255,236,150,${0.55 * glow + (i === snap ? 0.4 : 0)})`); rg.addColorStop(1, 'rgba(255,236,150,0)');
+        cx.fillStyle = rg; cx.beginPath(); cx.arc(f[0], f[1], i === snap ? 34 : 24, 0, 7); cx.fill();
+      }
+      cx.fillStyle = can ? '#ffe98f' : '#8d8578'; cx.beginPath(); cx.arc(f[0], f[1], 5, 0, 7); cx.fill();
+      if (goal) {   // ゴールの小さな旗
+        cx.strokeStyle = '#d9d0c4'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(f[0] + 8, f[1] + 8); cx.lineTo(f[0] + 8, f[1] - 26); cx.stroke();
+        cx.fillStyle = '#9fd38f'; cx.beginPath(); cx.moveTo(f[0] + 9, f[1] - 26); cx.lineTo(f[0] + 26, f[1] - 20); cx.lineTo(f[0] + 9, f[1] - 14); cx.fill();
+      }
+    });
+    drawBody(t);
+    drawRings();
+  }
+  function bodyPath() {    // 3点を通る柔らかい曲線の上の点（太さつき）
+    const P = s.p.map(p => ({ x: p.x, y: p.y }));
+    if (wiggle) { P[2].x += Math.sin(wiggle) * 2; }
+    const len = L.dist(P[0], P[1]) + L.dist(P[1], P[2]);
+    const fat = Math.max(0.55, Math.min(1.15, (L.REST * 2.4) / Math.max(1, len)));
+    const pts = [], N = 26;
+    // 中点を通る2次ベジェで H→B→T をなめらかに
+    const C = { x: 2 * P[1].x - (P[0].x + P[2].x) / 2, y: 2 * P[1].y - (P[0].y + P[2].y) / 2 };
+    for (let k = 0; k <= N; k++) {
+      const u = k / N, a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u;
+      const x = a * P[0].x + b * C.x + c * P[2].x, y = a * P[0].y + b * C.y + c * P[2].y;
+      const bulge = Math.sin(Math.PI * Math.min(1, u * 1.15)) * 0.35 + 0.75;
+      const sq = squish[0] * (1 - u) + squish[2] * u + squish[1] * (1 - Math.abs(u - 0.5) * 2);
+      pts.push({ x, y, r: (L.R + 3) * bulge * fat * (1 + 0.18 * sq) * (u > 0.9 ? 1 - (u - 0.9) * 2.2 : 1) });
+    }
+    return pts;
+  }
+  function drawBody(t) {
+    const pts = bodyPath();
+    cx.fillStyle = COL.bodyDark; for (const q of pts) { cx.beginPath(); cx.arc(q.x, q.y + 1.5, q.r + 1.5, 0, 7); cx.fill(); }
+    cx.fillStyle = COL.body; for (const q of pts) { cx.beginPath(); cx.arc(q.x, q.y, q.r, 0, 7); cx.fill(); }
+    // 背中のつや
+    cx.fillStyle = 'rgba(255,240,235,0.35)';
+    for (let k = 3; k < pts.length - 3; k += 3) { const q = pts[k]; cx.beginPath(); cx.arc(q.x - q.r * 0.25, q.y - q.r * 0.45, q.r * 0.28, 0, 7); cx.fill(); }
+    // 支点マーク
+    s.pin.forEach((on, i) => {
+      if (!on) return; const p = s.p[i];
+      cx.fillStyle = COL.pin; cx.beginPath(); cx.arc(p.x, p.y, 5.5, 0, 7); cx.fill();
+    });
+    // 目（頭だけ）
+    const h = s.p[0], b = s.p[1], dx = h.x - b.x, dy = h.y - b.y, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+    const blink = (Math.sin(t * 1.3) > 0.985) ? 0.15 : 1;
+    for (const side of [-1, 1]) {
+      const ex = h.x + ux * 4 + -uy * side * 5, ey = h.y + uy * 4 + ux * side * 5 - 3;
+      cx.fillStyle = '#fff'; cx.beginPath(); cx.ellipse(ex, ey, 3.6, 3.6 * blink, 0, 0, 7); cx.fill();
+      cx.fillStyle = '#2b2226'; cx.beginPath(); cx.ellipse(ex + ux * 1.2, ey + uy * 1.2, 1.9, 1.9 * blink, 0, 0, 7); cx.fill();
+    }
+  }
+  function drawRings() {
+    const labels = ['頭', '腹', '尻'];
+    for (const i of [2, 1, 0]) {
+      const p = s.p[i], r = ringPos(i), active = i === 0 || i === 1;
+      cx.globalAlpha = active ? 0.9 : 0.35;
+      cx.strokeStyle = COL.ring; cx.lineWidth = 1.2; cx.setLineDash([3, 3]);
+      cx.beginPath(); cx.moveTo(p.x, p.y + 6); cx.lineTo(r.x, r.y - RING_R); cx.stroke(); cx.setLineDash([]);
+      cx.lineWidth = i === 0 && s.drag ? 4 : 2.5;
+      cx.strokeStyle = s.pin[i] ? COL.pin : COL.ring;
+      cx.beginPath(); cx.arc(r.x, r.y, i === 0 ? RING_R : i === 1 ? RING_R - 3 : RING_R - 7, 0, 7); cx.stroke();
+      cx.fillStyle = s.pin[i] ? COL.pin : COL.ring; cx.font = '11px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      cx.fillText(labels[i], r.x, r.y);
+      cx.globalAlpha = 1;
+    }
+  }
+
+  // 確認用（自動プレイのテストから状態と座標変換を読む）
+  window.MOCHI = { state: () => s, load, toScreen: (x, y) => ({ x: (x - camX) * SC, y: (y - camY) * SC }), ringDY: RING_DY, ringDX: RING_DX };
+
+  load(0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body></html>

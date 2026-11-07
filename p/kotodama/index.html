@@ -325,6 +325,20 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 .pips b.f{background:var(--glow);border-color:var(--glow);box-shadow:0 0 4px var(--glow)}
 .pips.drowsy b.f{background:#9a8ff0;border-color:#9a8ff0;box-shadow:0 0 4px #9a8ff0}
 #finalBar .sp{flex:1}
+/* 第2章：関所の問い（並べた言葉と、問う／言う） */
+#trialBar{display:none;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2);padding:4px 0}
+#trialBar.on{display:flex}
+#trialBar .tr1{display:flex;gap:14px}
+#trialBar .tr2{display:flex;align-items:center;gap:5px}
+#qLine{flex:1;min-height:40px;display:flex;align-items:flex-end;gap:3px;padding:2px 6px;border-radius:8px;border:1px dashed var(--line);overflow-x:auto}
+#qLine .ln{flex-wrap:nowrap}
+#qLine .ph{color:var(--ink3);font-size:11px;align-self:center}
+.ln .w.gap .gbx{display:block;width:20px;height:26px;border:1.5px dashed rgba(255,233,184,.5);border-radius:4px}
+#introTx .dreamG{display:inline-flex;gap:14px;align-items:flex-end}
+#introTx .dreamG>span{display:flex;flex-direction:column;align-items:center;font-style:normal}
+#introTx .dreamG i{font-style:normal;font-size:12px;letter-spacing:.1em}
+#introTx .dreamG .gap{width:30px;height:40px;border:1.5px dashed rgba(220,230,255,.7);border-radius:6px}
+.fc.nm{display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#3a2c50;background:#e9dcc8}
 .mini{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--line);color:var(--ink);background:rgba(255,255,255,.05)}
 .mini.gold{border-color:var(--gold);color:var(--gold)}
 .mini[disabled]{opacity:.4}
@@ -578,6 +592,11 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
         <button class="mini gold" id="showBtn" type="button">札を見せる</button>
         <button class="mini" id="waitBtn" type="button">様子を見る</button>
       </div>
+      <!-- 第2章：関所の問い。カードをタップして並べ、問う（疑問の印を付ける）か、そのまま言う -->
+      <div id="trialBar">
+        <div class="tr1"><span>役人 <span class="pips" id="ocP"></span></span><span>子どもの手 <span class="pips drowsy" id="plP"></span></span></div>
+        <div class="tr2"><div id="qLine"></div><button class="mini" id="qOf" type="button">の</button><button class="mini" id="qDel" type="button" aria-label="ひとつ消す">←</button><button class="mini" id="qSay" type="button">言う</button><button class="mini gold" id="qAsk" type="button">問う</button></div>
+      </div>
       <div id="spell">
         <button id="slot" type="button" aria-label="前に置く語"></button>
         <span id="slotTxt" style="flex:1">カードをタップ → 前に置く語</span>
@@ -618,9 +637,10 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 
   <section id="end" class="screen">
     <div id="endBox" aria-hidden="true"><svg id="endArt" viewBox="0 0 360 200"></svg><img id="endHero" alt="" draggable="false"></div>
-    <h2>森へ、逃げきった</h2>
+    <h2 id="endTtl">森へ、逃げきった</h2>
     <div class="stats" id="stats"></div>
     <div class="truths" id="truthList"></div>
+    <button class="big" id="nextBtn" type="button">第2章「印の町」へ</button>
     <p class="q">この仕掛けで、もっと遊びたいですか？</p>
     <div id="opts"></div>
     <div id="thanks"></div>
@@ -666,8 +686,30 @@ const L = (() => {
     { id: 'pl', role: 'time', ro: 'li', name: '時の印', gl: { ja: 'に', en: '[at]' }, d: ['M6.5 15 L17.5 15', 'M9 21.5 L15 21.5'] },
     { id: 'ph', role: 'wish', ro: 'ha', name: '願いの印', gl: { ja: 'よ', en: '[wish]' }, d: ['M12 10.5 C12.8 16 13.6 17 19 18.2 C13.6 19.4 12.8 20.4 12 26 C11.2 20.4 10.4 19.4 5 18.2 C10.4 17 11.2 16 12 10.5Z'] },
   ];
-  const PART = {}; PARTS.forEach(p => { PART[p.id] = p; });
+  /* ---- 第2章「印の町」（2026-11-07〜）。第1章の 16 語・小辞 4 つとは別の表に置く（第1章の規則とテストの前提は変えない）。
+     語彙 10 語：暮らしの言葉。字は第1章と同じ「枠の形1つ＋中の形0〜2つ」で、中の形の役割も同じ（例：印＝光＋隔て、子ども＝強さ＋打ち消し）。
+     門は足さない：第1章の「扉」の正解の候補に「門 / gate」が入っていて、入力の判定がぶつかるため（関所の門は「扉」の字のまま） ---- */
+  const WORDS2 = [
+    { id: 'machi', pos: 'n', jp: '町', cls: '物', el: ['内', '隔'], ro: 'vesa' },
+    { id: 'kodomo', pos: 'n', jp: '子ども', being: true, cls: '生', el: ['強', '否'], ro: 'mipo' },
+    { id: 'yakunin', pos: 'n', jp: '役人', being: true, cls: '生', el: ['隔'], ro: 'hokun' },
+    { id: 'shirushi', pos: 'n', jp: '印', cls: '物', el: ['光', '隔'], ro: 'sevan' },
+    { id: 'hikari', pos: 'n', jp: '光', cls: '物', el: ['光'], ro: 'hela' },
+    { id: 'pan', pos: 'n', jp: 'パン', cls: '物', el: ['熱', '内'], ro: 'mopa' },
+    { id: 'watasu', pos: 'v', jp: '渡す', neg: '渡さない', tr: true, cls: '作', el: ['外', '流'], ro: 'savo' },
+    { id: 'motsu', pos: 'v', jp: '持つ', neg: '持たない', tr: true, cls: '作', el: ['内'], ro: 'kemi' },
+    { id: 'tariru', pos: 'v', jp: '足りる', neg: '足りない', tr: false, cls: '作', el: ['内', '静'], ro: 'unta' },
+    { id: 'miru', pos: 'v', jp: '見る', neg: '見ない', tr: true, cls: '作', el: ['光', '内'], ro: 'pemo' },
+  ];
+  /* 新しい文法の要素は2つ：疑問の印（文末。願いの印と同じ位置）と所有の印（持ち主の名詞の前に置く前置詞。「光 トゥ 子ども」＝子どもの光） */
+  const PARTS2 = [
+    { id: 'pq', role: 'ask', ro: 'vo', name: '疑問の印', gl: { ja: 'か', en: '[q]' }, d: ['M7.5 13.5 C7.5 9.5 16.5 9.5 16.5 13.5 C16.5 16.5 12 16.5 12 20', '.M12 24.2 L12.01 24.2'] },
+    { id: 'pp', role: 'of', ro: 'tu', name: '所有の印', gl: { ja: 'の', en: '[of]' }, d: ['M6 12.5 C6 22.5 18 22.5 18 12.5', 'M12 12 L12 19'] },
+  ];
+  const PART = {}; PARTS.concat(PARTS2).forEach(p => { PART[p.id] = p; });
   const CASE = { pe: 'subj', pk: 'obj', pl: 'time' };
+  // 文末に置く印：願い（ph）と問い（pq）。どちらか1つだけ
+  const FINAL = { ph: 'wish', pq: 'ask' };
 
   /* ---- 音：母音 a e i o u ／子音 p t k m n s h v l（9）。音節は (子音)母音(n)。n は次が母音でないときだけ音節の終わりに付く。
      強さは最初の音節。カタカナは規則で決まる（ti=ティ, tu=トゥ, si=スィ, va=ヴァ, l の行はラ行） ---- */
@@ -683,7 +725,7 @@ const L = (() => {
     return at === ro.length ? out : null;
   }
   function kanaOf(ro) { const sy = syllables(ro); return sy ? sy.map(x => KANA[x.c]['aiueo'.indexOf(x.v)] + (x.n ? 'ン' : '')).join('') : ''; }
-  const W = {}; WORDS.concat(MADE).forEach(w => { W[w.id] = w; });
+  const W = {}; WORDS.concat(MADE, WORDS2).forEach(w => { W[w.id] = w; });
   const roOf = id => (W[id] || PART[id] || {}).ro || null;
   const isPart = id => !!PART[id];
   // 形（枠は 24x28 そのもの、中の形は 16x18 の小枠に描き、1つなら中央、2つなら左右に縮めて置く）。memo は手帳の余白に書く主人公のメモ
@@ -725,7 +767,7 @@ const L = (() => {
   // 形の組み合わせから言葉を探す（中の形の順は問わない）
   function wordFromParts(cls, el) {
     const key = [...el].sort().join('');
-    return WORDS.concat(MADE).find(w => w.cls === cls && [...w.el].sort().join('') === key) || null;
+    return WORDS.concat(MADE, WORDS2).find(w => w.cls === cls && [...w.el].sort().join('') === key) || null;
   }
 
   /* ---- 文法（README の「文法書」）。語順は 主語―目的語―動詞（SOV）。
@@ -740,19 +782,29 @@ const L = (() => {
     const nps = []; let vp = null, i = 0, end = toks ? toks.length : 0, mood = 'decl';
     const bad = why => ({ ok: false, why });
     if (!toks || !toks.length) return bad('empty');
-    if (toks[end - 1] === 'ph') { mood = 'wish'; end--; if (!end) return bad('ph-alone'); }
-    if (toks.slice(0, end).includes('ph')) return bad('ph-pos');
+    const fin = toks[end - 1];
+    if (FINAL[fin]) { mood = FINAL[fin]; end--; if (!end) return bad(fin + '-alone'); }
+    const stray = toks.slice(0, end).find(t => FINAL[t]); if (stray) return bad(stray + '-pos');
     while (i < end) {
       let mark = null;
       if (CASE[toks[i]]) { mark = CASE[toks[i]]; i++; if (i >= end) return bad('mark-end'); if (PART[toks[i]]) return bad('mark-twice'); }
       let big = false;
       if (toks[i] === 'oo') { big = true; i++; if (i >= end) return bad('oo-end'); }
-      const w = W[toks[i]]; if (!w) return bad(PART[toks[i]] ? 'mark-pos' : 'unknown');
+      const w = W[toks[i]]; if (!w) return bad(toks[i] === 'pp' ? 'pp-pos' : PART[toks[i]] ? 'mark-pos' : 'unknown');
       if (w.pos === 'm') return bad(toks[i] === 'nai' ? 'nai-pos' : 'oo-pos');
       i++;
       if (w.pos === 'n') {
-        if (toks[i] === 'nai') { if (mark || i + 1 !== end || nps.length) return bad('nai-pos'); nps.push({ w: w.id, big, neg: true, mark: null }); i++; continue; }
-        nps.push({ w: w.id, big, neg: false, mark }); continue;
+        // 所有の印：名詞 pp (大きい)? 名詞 ＝「（うしろの名詞）の（前の名詞）」。持ち主は名詞だけ（入れ子にはしない）
+        let of = null;
+        if (toks[i] === 'pp') {
+          i++; if (i >= end) return bad('pp-end');
+          let ob = false; if (toks[i] === 'oo') { ob = true; i++; if (i >= end) return bad('oo-end'); }
+          const o = W[toks[i]]; if (!o || o.pos !== 'n') return bad('pp-pos');
+          of = { w: o.id, big: ob }; i++;
+        }
+        const np = { w: w.id, big, neg: false, mark }; if (of) np.of = of;
+        if (toks[i] === 'nai') { if (mark || i + 1 !== end || nps.length) return bad('nai-pos'); np.neg = true; np.mark = null; nps.push(np); i++; continue; }
+        nps.push(np); continue;
       }
       if (mark) return bad('mark-verb');
       let neg = false; if (toks[i] === 'nai') { neg = true; i++; }
@@ -793,38 +845,61 @@ const L = (() => {
         // 動詞：[平叙, 平叙の否定, 願い（命令）, 願いの否定（禁止）]
         hira: ['開く', '開かない', '開け', '開くな'], nemu: ['眠る', '眠らない', '眠れ', '眠るな'], uru: ['売る', '売らない', '売れ', '売るな'],
         kome: ['守る', '守らない', '守れ', '守るな'], kome2: ['閉じ込める', '閉じ込めない', '閉じ込めろ', '閉じ込めるな'],
-        shin: ['信じる', '信じない', '信じろ', '信じるな'], same: ['目覚める', '目覚めない', '目覚めよ', '目覚めるな'], toku: ['解く', '解かない', '解け', '解くな'] },
-      order: { decl: ['time', 'subj', 'obj', 'verb'], wish: ['time', 'subj', 'obj', 'verb'] },
-      np(n) { return (n.big ? '大きな' : '') + this.lex[n.w]; },
+        shin: ['信じる', '信じない', '信じろ', '信じるな'], same: ['目覚める', '目覚めない', '目覚めよ', '目覚めるな'], toku: ['解く', '解かない', '解け', '解くな'],
+        // 第2章
+        machi: '町', kodomo: '子ども', yakunin: '役人', shirushi: '印', hikari: '光', pan: 'パン',
+        watasu: ['渡す', '渡さない', '渡せ', '渡すな'], motsu: ['持つ', '持たない', '持て', '持つな'], tariru: ['足りる', '足りない', '足りよ', '足りるな'], miru: ['見る', '見ない', '見よ', '見るな'] },
+      order: { decl: ['time', 'subj', 'obj', 'verb'], wish: ['time', 'subj', 'obj', 'verb'], ask: ['time', 'subj', 'obj', 'verb'] },
+      // 所有：「持ち主の 名詞」（光 トゥ 子ども → 子どもの光）
+      np(n) { return (n.of ? this.np(n.of) + 'の' : '') + (n.big ? '大きな' : '') + this.lex[n.w]; },
       mark: { time: x => x + 'に', subj: x => x + 'は', obj: x => x + 'を' },
       verb(vp, c) { const f = this.lex[vp.w === 'kome' && c.revealed ? 'kome2' : vp.w]; return (vp.big ? '大きく ' : '') + f[(c.mood === 'wish' ? 2 : 0) + (vp.neg ? 1 : 0)]; },
       bare(nps, c) {
-        const x = nps.map(n => this.np(n));
-        if (nps.length === 1 && nps[0].neg) return c.mood === 'wish' ? x[0] + 'よ、消えよ' : x[0] + 'は ない';
-        return x.join(' ') + (c.mood === 'wish' ? 'よ' : '');
+        const x = nps.map(n => this.np(n)), q = c.mood === 'ask' ? '？' : '';
+        if (nps.length === 1 && nps[0].neg) return c.mood === 'wish' ? x[0] + 'よ、消えよ' : x[0] + 'は ない' + (q ? 'か' + q : '');
+        return x.join(' ') + (c.mood === 'wish' ? 'よ' : q);
       },
-      finish: parts => parts.join(' '),
+      // 問いは平叙の形に「か？」を足す
+      finish: (parts, c) => parts.join(' ') + (c && c.mood === 'ask' ? 'か？' : ''),
       gloss(id, c) { return id === 'oo' ? '大きい' : id === 'nai' ? 'ない' : W[id] ? wordJp(id, c.revealed) : ''; },
     },
     en: {
       name: 'English',
       // 名詞：[語, 冠詞]。代名詞：pron（人称）と目的格
       lex: { ka: ['fire', ''], mi: ['water', ''], to: ['door', 'the'], yo: ['night', ''], hito: ['person', 'the'], uso: ['lie', 'a'], maho: ['magic', ''], yu: ['hot water', ''],
-        na: { pron: 2, n: 'you', obj: 'you' }, wa: { pron: 1, n: 'I', obj: 'me' },
+        na: { pron: 2, n: 'you', obj: 'you', pos: 'your' }, wa: { pron: 1, n: 'I', obj: 'me', pos: 'my' },
         // 動詞：[原形, 三人称単数, 目的語の前の前置詞]
         hira: ['open', 'opens'], nemu: ['sleep', 'sleeps'], uru: ['sell', 'sells'], kome: ['protect', 'protects'], kome2: ['imprison', 'imprisons'],
-        shin: ['believe', 'believes', 'in'], same: ['wake', 'wakes'], toku: ['unbind', 'unbinds'] },
+        shin: ['believe', 'believes', 'in'], same: ['wake', 'wakes'], toku: ['unbind', 'unbinds'],
+        // 第2章
+        machi: ['town', 'the'], kodomo: ['child', 'the'], yakunin: ['official', 'the'], shirushi: ['seal', 'the'], hikari: ['light', ''], pan: ['bread', ''],
+        watasu: ['give', 'gives'], motsu: ['have', 'has'], tariru: ['suffice', 'suffices'], miru: ['see', 'sees'] },
       adv: { nemu: 'deeply' },
       order: { decl: ['subj', 'verb', 'obj', 'adv', 'time'], wish: ['subj', 'verb', 'obj', 'adv', 'time'] },
+      // 所有：持ち主が代名詞なら my / your、生きものなら "the child's light"、ものなら "the person of the seal"
       np(n, role) {
         const e = this.lex[n.w];
         if (e.pron) return role === 'subj' ? e.n : e.obj;
+        const head = (n.big ? 'great ' : '') + e[0];
+        if (n.of) {
+          const o = this.lex[n.of.w];
+          if (o.pron) return o.pos + ' ' + head;
+          if (W[n.of.w].being) return this.np(n.of, 'obj') + "'s " + head;
+          return (e[1] || 'the') + ' ' + head + ' of ' + this.np(n.of, 'obj');
+        }
         const art = n.big && e[1] === 'a' ? 'a' : e[1];
-        return (art ? art + ' ' : '') + (n.big ? 'great ' : '') + e[0];
+        return (art ? art + ' ' : '') + head;
       },
       mark: { time: x => 'at ' + x, subj: (x, c) => c.mood === 'wish' ? x + ',' : x, obj: x => x },
-      // 主語のない平叙文：話し手が主語（(I) を補う）。話し手のいない札や碑文は (one)
-      dropSubj: c => c.mood === 'wish' ? '' : c.speaker ? '(I)' : '(one)',
+      // 主語のない平叙文：話し手が主語（(I) を補う）。話し手のいない札や碑文は (one)。主語のない問いは、聞き手が主語（(you)）
+      dropSubj: c => c.mood === 'wish' ? '' : c.mood === 'ask' ? (c.speaker ? '(you)' : '(one)') : c.speaker ? '(I)' : '(one)',
+      // 問い：do / does を前に出す（否定は don't / doesn't）。"Does the child have the seal?"
+      ask(p, c, slot) {
+        const e = this.lex[p.vp.w === 'kome' && c.revealed ? 'kome2' : p.vp.w];
+        const third = p.subj ? !this.lex[p.subj.w].pron : !c.speaker;
+        const aux = (third ? 'does' : 'do') + (p.vp.neg ? "n't" : '');
+        return this.finish([aux, slot.subj, e[0] + (p.obj && e[2] ? ' ' + e[2] : ''), slot.obj, slot.adv, slot.time].filter(Boolean), c);
+      },
       verb(vp, c, p) {
         const e = this.lex[vp.w === 'kome' && c.revealed ? 'kome2' : vp.w];
         const third = p.subj ? !this.lex[p.subj.w].pron : !c.speaker;
@@ -833,10 +908,10 @@ const L = (() => {
       },
       advOf(vp) { return vp.big ? this.adv[vp.w] || 'greatly' : ''; },
       bare(nps, c) {
-        if (nps.length === 1 && nps[0].neg) return this.finish([(c.mood === 'wish' ? 'let there be no ' : 'there is no ') + this.np(Object.assign({}, nps[0], { neg: false }), 'obj')], c);
+        if (nps.length === 1 && nps[0].neg) return this.finish([(c.mood === 'wish' ? 'let there be no ' : c.mood === 'ask' ? 'is there no ' : 'there is no ') + this.np(Object.assign({}, nps[0], { neg: false }), 'obj').replace(/^(the|a) /, '')], c);
         return this.finish([nps.map(n => this.np(n, 'obj')).join(', ')], c);
       },
-      finish(parts, c) { const x = parts.join(' ').replace(/[A-Za-z]/, ch => ch.toUpperCase()); return x + (c.mood === 'wish' ? '!' : '.'); },
+      finish(parts, c) { const x = parts.join(' ').replace(/[A-Za-z]/, ch => ch.toUpperCase()); return x + (c.mood === 'wish' ? '!' : c.mood === 'ask' ? '?' : '.'); },
       gloss(id, c) { if (id === 'oo') return 'big'; if (id === 'nai') return 'not'; const e = this.lex[id === 'kome' && c.revealed ? 'kome2' : id]; return !e ? '' : e.pron ? e.n : e[0]; },
     },
   };
@@ -848,7 +923,9 @@ const L = (() => {
       obj: p.obj ? G.mark.obj(G.np(p.obj, 'obj'), c) : '',
       verb: G.verb(p.vp, c, p), adv: G.advOf ? G.advOf(p.vp) : '',
     };
-    return G.finish(G.order[c.mood].map(k => slot[k]).filter(Boolean), c);
+    // 問いの語順を持つ言語（英語の do 疑問文）は ask で組み立てる。ない言語は平叙の並び＋finish
+    if (c.mood === 'ask' && G.ask) return G.ask(p, c, slot);
+    return G.finish((G.order[c.mood] || G.order.decl).map(k => slot[k]).filter(Boolean), c);
   }
   // 文（小辞を含む並び）を目標言語へ。opts: { revealed, speaker }
   function translate(toks, lang, opts) {
@@ -875,7 +952,16 @@ const L = (() => {
     return { words, literal, natural };
   }
   // 読み：ローマ字の文（「E ami ko enu mavi.」）
-  function romaji(toks) { const p = parse(toks); const x = toks.map(t => roOf(t) || '?').join(' '); return x.charAt(0).toUpperCase() + x.slice(1) + (p.ok && p.mood === 'wish' ? '!' : '.'); }
+  function romaji(toks) { const p = parse(toks); const x = toks.map(t => roOf(t) || '?').join(' '); return x.charAt(0).toUpperCase() + x.slice(1) + (p.ok && p.mood === 'wish' ? '!' : p.ok && p.mood === 'ask' ? '?' : '.'); }
+  /* 夢の声（第2章の記憶のかけら）：字と音だけが戻る。真ん中の語（'_'）は抜け落ちていて、文にならない。
+     分かった字の訳だけを並べる（逐語訳まで。自然な訳は出ない） */
+  function dreamView(toks, known, lang) {
+    const k = new Set(known), G = LANGS[lang || 'ja'];
+    const g = t => t === '_' ? '……' : PART[t] ? PART[t].gl[lang || 'ja'] || PART[t].gl.ja : G.gloss(t, {});
+    const words = toks.map(t => t === '_' ? '……' : k.has(t) ? g(t) : null);
+    const literal = toks.every(t => t === '_' || k.has(t)) ? toks.map(g).join(' ') : null;
+    return { words, literal, natural: null };
+  }
 
   /* ---- 世界で聞く言葉。s＝話した文（小辞を含む）。t＝中身の語だけ（s から作る。魔法・確信・真実の判定はこちら）。
      wish:true は願いのこもった（光る）言葉＝魔法。願いの言葉は文末に願いの小辞 ph が付く。fx はその効果 ---- */
@@ -921,6 +1007,56 @@ const L = (() => {
   Object.values(LABELS).forEach(l => { l.lines = l.s.map(contentOf); });
   const BELIEF_LINE = ['maho', 'nai'];
   const N_WORDS = WORDS.length;
+
+  /* ---- 第2章「印の町」のセリフと書かれた文字（第1章の LINES / LABELS とは別の表。画面とロジックは LN / LB で両方を引く） ----
+     who：official＝関所の役人、traveler＝旅人、clerk＝配給所の人、child＝子ども。
+     問いは文末に疑問の印 pq（話し言葉なので格の印も付ける）。光る言葉（wish）は ph で終わる */
+  const LINES2 = {
+    // 関所：役人が旅人の印をあらためる → 印を見せた旅人だけが、人前で光を灯す（決まりは説明せず、場面で見せる）
+    k1: { who: 'official', s: ['pk', 'shirushi', 'motsu', 'pq'], cap: '前の旅人に手を差し出し、眉を上げる' },
+    k2: { who: 'traveler', s: ['pe', 'wa', 'pk', 'shirushi', 'motsu'], cap: '封蝋の印が押された札を見せる' },
+    k3: { who: 'traveler', s: ['hikari', 'ph'], wish: true, cap: 'ランタンに手をかざす——灯りがともった', fx: { lantern: 'lit' } },
+    k4: { who: 'official', s: ['pe', 'na', 'pk', 'shirushi', 'motsu', 'pq'], cap: 'こちらに手を差し出し、眉を上げる' },
+    k5: { who: 'official', s: ['pe', 'na', 'pk', 'maho', 'hira', 'nai', 'ph'], wish: true, cap: '札を指さしてから、門を通す' },
+    // 配給所
+    r1: { who: 'clerk', s: ['pe', 'na', 'pk', 'shirushi', 'motsu', 'pq'], cap: '列の子どもに' },
+    r2: { who: 'clerk', s: ['pe', 'pan', 'pp', 'kodomo', 'tariru', 'nai'], cap: '空のかごを見せて、小さなパンの端をひとつ渡す' },
+    c1: { who: 'child', s: ['pk', 'pan', 'watasu'], cap: 'ちぎったパンの半分を、こちらに差し出す' },
+    // 町並みの暗い路地
+    c2: { who: 'child', s: ['pe', 'pan', 'tariru'], cap: '路地でパンをかじって、少し笑う' },
+    c3: { who: 'child', s: ['pe', 'wa', 'pk', 'hikari', 'motsu', 'nai'], cap: '暗い路地を見回して、自分の手を見る' },
+    // 主人公の灯した光を見て、子どもが真似をする（使えないのではなく、使えると思っていなかった）
+    c4: { who: 'child', s: ['hikari', 'ph'], wish: true, cap: '灯りを見上げて、小さな手のひらで真似をする——手元に、光が灯った', fx: { childLight: 'lit' } },
+    c5: { who: 'child', s: ['pe', 'wa', 'pk', 'hikari', 'miru'], cap: '手のひらの光を、信じられないように見つめる' },
+    c6: { who: 'child', s: ['pe', 'wa', 'pk', 'maho', 'hira', 'pq'], cap: 'こちらを見上げて' },
+    // 役人が駆けつける（ミラの「私 あなた 守る」と同じ形の言葉）
+    y0: { who: 'official', s: ['pe', 'wa', 'pk', 'kodomo', 'kome'], cap: '駆けつけて、子どもの腕をつかむ' },
+    // 関所の問い：役人の答え（L.trialStep が選ぶ）
+    a1: { who: 'official', s: ['pe', 'kodomo', 'pk', 'maho', 'hira'], cap: '子どもの腕をつかんだまま、うなずく' },
+    a2: { who: 'official', s: ['pe', 'wa', 'pk', 'hikari', 'pp', 'kodomo', 'miru'], cap: '低い声で' },
+    a3: { who: 'official', s: ['pe', 'kodomo', 'pk', 'shirushi', 'motsu', 'nai'], cap: '子どもの手のひらを裏返して見せる' },
+    a4: { who: 'official', s: ['pe', 'hito', 'pp', 'shirushi', 'pk', 'maho', 'hira'], cap: '胸の封蝋の印に手を当てる' },
+    a5: { who: 'official', s: ['uso'], cap: '目をそらして' },
+    a6: { who: 'official', s: ['shirushi', 'nai'], cap: '言いかけて、口をつぐむ。子どもの腕から、手がゆるむ' },
+    // 役人自身の主張（札の「印の人は 魔法を 開く」の語を入れ替えた形）。問われると胸を張って答える
+    a7: { who: 'official', s: ['pe', 'hito', 'pp', 'maho', 'pk', 'shirushi', 'motsu'], cap: '胸を張って' },
+    // 突き合わされて、同じ主張を繰り返そうとする（このあと所作のカット → a6「Sevan nen.」）
+    a8: { who: 'official', s: ['pe', 'hito', 'pp', 'maho', 'pk', 'shirushi', 'motsu'], cap: '同じ言葉を、繰り返そうとする' },
+    // 別れ
+    c7: { who: 'child', s: ['pk', 'hikari', 'motsu'], cap: '手のひらの光を胸に抱いて、手を振る' },
+  };
+  Object.values(LINES2).forEach(l => { l.t = contentOf(l.s); });
+  const LABELS2 = {
+    // 関所の札：表は「印の人は 魔法を 開く」と町の役人の名。裏（町を出るときに見る）は「魔法を 開くな」。どちらにも同じ封蝋の印
+    plaqueK: { s: [['hito', 'pp', 'shirushi', 'maho', 'hira'], ['yakunin', 'pp', 'machi']], seal: true, cap: '関所の札（右下に、封蝋の印）' },
+    townSign: { s: [['machi', 'pp', 'shirushi']], cap: '町の門の看板' },
+    ration: { s: [['pan', 'watasu'], ['hito', 'pp', 'shirushi']], cap: '配給所の看板' },
+    plaqueB: { s: [['pk', 'maho', 'hira', 'nai', 'ph']], flicker: 0, seal: true, cap: '関所の札の裏（同じ封蝋の印）' },
+  };
+  Object.values(LABELS2).forEach(l => { l.lines = l.s.map(contentOf); });
+  // 画面とロジックがセリフ・札を引く表（第1章＋第2章）
+  const LN = Object.assign({}, LINES, LINES2), LB = Object.assign({}, LABELS, LABELS2);
+  const N_WORDS2 = WORDS2.length;
 
   /* ---- 解読：意味を日本語か英語で入力し、1語ずつ判定する（2026-11-06〜。絵の選択と3つ単位の判定は廃止）
      正解の候補（README の「正解の候補」）。空白区切り。書き方：
@@ -982,6 +1118,32 @@ const L = (() => {
       near: '眠らない ねむらない 眠る:5 寝る:1 開く:5 立つ:5 たつ:5 生きる:1 いきる:1 朝 あさ sleep:v:slept open:v stand:v:stood morning alive' },
     toku: { yomi: 'とく', ja: '解く:5 とく:5 ほどく:5 解除 かいじょ 解放 かいほう 外す:5 はずす:5 解き放つ:5 ときはなつ:5 解錠 かいじょう', en: 'unbind:v:unbound untie:v:untied:untying release:v unseal:v unlock:v free:v undo:v:undid:undone loosen:v unleash:v',
       near: '開く:5 ひらく:5 開ける:1 あける:1 壊す:5 こわす:5 切る:5 きる:5 消す:5 けす:5 守らない 守るな 逃げる:1 にげる:1 open:v break:v:broke:broken cut:v escape:v' },
+    // 第2章（印の町）。ほかの語の正解とぶつからないように選んだ（例：「門」は扉の正解なので、印・町には入れない）
+    machi: { yomi: 'まち', ja: '町 まち 街 市 都市 とし 城下町 じょうかまち タウン 町並み まちなみ', en: 'town city',
+      near: '村 むら 家 いえ 国 くに 門 壁 かべ 道 みち 広場 ひろば 関所 せきしょ village country wall street square road' },
+    kodomo: { yomi: 'こども', ja: '子ども 子供 こども 子 こ 少年 しょうねん 少女 しょうじょ 幼子 おさなご 坊や ぼうや 児童 じどう キッズ ガキ', en: 'child children kid kids boy girl youngster',
+      near: '人 ひと 大人 おとな 赤ちゃん あかちゃん 赤ん坊 弟 おとうと 妹 いもうと 小さい ちいさい 弱い よわい person adult baby small weak' },
+    yakunin: { yomi: 'やくにん', ja: '役人 やくにん お役人 門番 もんばん 番人 ばんにん 衛兵 えいへい 兵士 へいし 兵 へい 守衛 しゅえい 番兵 ばんぺい 官吏 かんり 警備 けいび', en: 'official officer guard gatekeeper sentry soldier warden',
+      near: '人 ひと 王 おう 商人 しょうにん 偉い人 えらいひと 大人 おとな 警察 けいさつ 主人 しゅじん 役所 やくしょ person king merchant police boss' },
+    shirushi: { yomi: 'しるし', ja: '印 しるし いん 封蝋 ふうろう 紋章 もんしょう 印章 いんしょう 判 はん はんこ 判子 シール 刻印 こくいん 証 あかし 証明 しょうめい 許可証 きょかしょう 通行証 つうこうしょう マーク 紋', en: 'seal mark stamp crest sigil emblem badge token signet permit license',
+      near: '札 ふだ 手紙 てがみ 名前 なまえ 文字 もじ 字 じ 許し ゆるし 許可 きょか 禁止 きんし 鍵 かぎ 指輪 ゆびわ お金 おかね paper letter name sign symbol key ring permission ban' },
+    hikari: { yomi: 'ひかり', ja: '光 ひかり 明かり あかり 灯り 灯 ともしび 光線 こうせん ライト 輝き かがやき 光る:5 ひかる:5', en: 'light lights glow shine:v:shone gleam radiance',
+      near: '火 ひ 炎 ほのお 太陽 たいよう 月 つき 星 ほし 昼 ひる 朝 あさ 白 しろ 魔法 まほう 明るい あかるい 灯す:5 ともす:5 fire flame sun moon star lamp lantern torch day bright magic' },
+    pan: { yomi: 'ぱん', ja: 'パン 食べ物 たべもの 食料 しょくりょう 食糧 ごはん ご飯 めし 飯 糧 かて 配給 はいきゅう 食事 しょくじ', en: 'bread food loaf meal ration rations',
+      near: '肉 にく 果物 くだもの りんご 麦 むぎ 小麦 こむぎ 水 みず 銅貨 どうか お金 おかね 食べる:1 たべる:1 meat fruit apple wheat water coin money eat:v:ate:eaten' },
+    watasu: { yomi: 'わたす', ja: '渡す:5 わたす:5 あげる:1 与える:1 あたえる:1 くれる:1 差し出す:5 さしだす:5 分ける:1 わける:1 配る:5 くばる:5 譲る:5 ゆずる:5 手渡す:5 てわたす:5', en: 'give:v:gave:given hand:v offer:v share:v hand_over',
+      near: '売る:5 うる:5 買う:5 かう:5 払う:5 はらう:5 持つ:5 もつ:5 取る:5 とる:5 送る:5 おくる:5 sell:v:sold buy:v:bought pay:v:paid take:v:took:taken send:v:sent hold:v:held pass:v' },
+    motsu: { yomi: 'もつ', ja: '持つ:5 もつ:5 所持 しょじ 所有 しょゆう 持っている 保つ:5 たもつ:5 携える:1 たずさえる:1', en: 'have:v:had:having has hold:v:held own:v possess:v carry:v keep:v:kept',
+      near: '取る:5 とる:5 渡す:5 わたす:5 握る:5 にぎる:5 抱く:5 だく:5 守る:5 まもる:5 欲しい ほしい ある 有る take:v:took:taken give:v:gave:given grab:v want:v' },
+    tariru: { yomi: 'たりる', ja: '足りる:1 たりる:1 足る 十分 じゅうぶん 充分 満ちる:1 みちる:1 間に合う:5 まにあう:5 満足 まんぞく 足りている', en: 'enough suffice:v sufficient plenty be_enough',
+      near: '多い おおい たくさん 少ない すくない 満腹 まんぷく いっぱい 大きい おおきい 余る:5 あまる:5 欠ける:1 かける:1 減る:5 へる:5 many much more full less lack:v' },
+    miru: { yomi: 'みる', ja: '見る:1 みる:1 見える:1 みえる:1 眺める:1 ながめる:1 見つめる:1 みつめる:1 目撃 もくげき 視る:1 観る:1', en: 'see:v:saw:seen look:v watch:v view:v notice:v witness:v sight',
+      near: '目 め 光 ひかり 知る:5 しる:5 分かる:5 わかる:5 信じる:1 しんじる:1 探す:5 さがす:5 読む:5 よむ:5 見つける:1 eye light know:v:knew:known hear:v:heard believe:v find:v:found read:v' },
+    // 第2章の小辞：疑問の印（文末）・所有の印（持ち主の前）
+    pq: { yomi: 'か', ja: 'か かい 問い とい 疑問 ぎもん 質問 しつもん 問う:5 とう:5 尋ねる:1 たずねる:1 聞く:5 きく:5 疑問文 ですか ますか', en: 'question ask:v query interrogative',
+      near: 'よ ね な ぞ さ 願い ねがい 命令 めいれい 答え こたえ 返事 へんじ answer command wish' },
+    pp: { yomi: 'の', ja: 'の 所有 しょゆう 所有格 しょゆうかく 持ち主 もちぬし 属格 ぞっかく', en: 'of possessive genitive owner whose s',
+      near: 'は が を に へ と で 主語 目的語 持つ:5 もつ:5 and with have:v' },
   };
   /* 正規化：前後の空白・全角半角（NFKC）・大文字小文字・カタカナ→ひらがな・語尾の「。」「！」・かぎかっこ・「〜」を吸収。
      日本語は「です」「だ」「の印」などの添え言葉、英語は冠詞（a / an / the / to）を外す */
@@ -1073,7 +1235,7 @@ const L = (() => {
     return out;
   }
   // 語の表記（カード・手帳）。言語は当てたときの言語。mavi は真実に気づくと「閉じ込める」に変わる
-  const PART_EN = { pe: 'subject', pk: 'object', pl: 'when', ph: 'wish' };
+  const PART_EN = { pe: 'subject', pk: 'object', pl: 'when', ph: 'wish', pq: 'question', pp: 'of' };
   function labelOf(w, lang, revealed) {
     if (PART[w]) return lang === 'en' ? PART_EN[w] : PART[w].gl.ja;
     return LANGS[lang === 'en' ? 'en' : 'ja'].gloss(w, { revealed });
@@ -1130,14 +1292,28 @@ const L = (() => {
 
   /* ---- 場所と物 ---- */
   function isDark(s) { return s.place === 'house' && s.obj.torch === 'out' && s.mira !== 'house'; }
+  // 章ごとの場所（地図のボタン）
+  const PLACES = { 1: ['house', 'square', 'gate'], 2: ['kansho', 'haikyu', 'machi'] };
+  const PLACE_NAME = { house: '家', square: '広場', gate: '森の門', kansho: '関所', haikyu: '配給所', machi: '町並み' };
+  // 第2章：関所（札・役人・旅人）／配給所（配給所の人・看板）／町並み（町の看板・路地の灯り）。子どもは物語に合わせて居場所が変わる
+  function objectsAt2(s) {
+    const c = s.c2 || {};
+    const a = ({ kansho: ['plaqueK', 'official', 'traveler', 'self'], haikyu: ['clerk', 'ration', 'self'], machi: ['townSign', 'lamp', 'self'] }[s.place] || ['self']).slice();
+    if (s.place === 'kansho' && c.left) a.push('plaqueB');
+    if (c.childAt === s.place) a.push('child');
+    return a;
+  }
   function objectsAt(s) {
-    const a = { house: ['bed', 'torch', 'book', 'door', 'self'], square: ['statue', 'merchant', 'jarL', 'cage', 'tag', 'trough', 'dog', 'self'], gate: ['thorns', 'gate', 'self'] }[s.place].slice();
+    if (s.ch === 2) return objectsAt2(s);
+    const a ={ house: ['bed', 'torch', 'book', 'door', 'self'], square: ['statue', 'merchant', 'jarL', 'cage', 'tag', 'trough', 'dog', 'self'], gate: ['thorns', 'gate', 'self'] }[s.place].slice();
     if (s.place === 'square' && s.tag) a.splice(a.indexOf('tag'), 1);
     if (s.mira === s.place) a.push('mira');
     return a;
   }
   function canMove(s, to) {
     if (s.phase !== 'play' || to === s.place) return false;
+    if (!PLACES[s.ch || 1].includes(to)) return false;
+    if (s.ch === 2) return s.c2 && s.c2.passed ? true : 'official';
     if (s.place === 'house' && s.obj.door !== 'open') return 'door';
     if (to === 'gate' && s.obj.dog === 'awake') return 'dog';
     return true;
@@ -1157,6 +1333,7 @@ const L = (() => {
     if (rf === 'wake') {
       if ((tgt === 'dog' || tgt === 'merchant') && o[tgt] === 'asleep') return ok({ [tgt]: tgt === 'dog' ? 'awake' : 'idle' }, '目を覚ました');
       if (tgt === 'self') return s.phase === 'final' ? ok({}, '眠りの言葉が外へほどけた', { counter: true }) : no('頭がすっきりした');
+      if (tgt === 'official' || tgt === 'traveler') return no('封蝋の印が光り、言葉がはじかれた');
       return no('眠ってはいない');
     }
     if (rf === 'unseal') {
@@ -1216,6 +1393,19 @@ const L = (() => {
       case 'mira':
         if (s.phase === 'final' && ((w === 'nemu' && !neg) || (w === 'kome' && !neg))) return ok({}, w === 'nemu' ? 'ミラが崩れるように眠った' : 'ミラを光の檻に閉じ込めた', { bind: true, kome: w === 'kome' });
         if (s.phase !== 'final' && ((w === 'nemu' && !neg) || (w === 'kome' && !neg))) return ok({}, '', { bind: true });
+        break;
+      // 第2章：路地の灯り（芯のない、光の灯り）。「光」で灯る
+      case 'lamp':
+        if (w === 'hikari' && !neg) return o.lamp === 'out' ? ok({ lamp: 'lit' }, '路地の灯りがともった') : no('もう灯っている');
+        if (w === 'hikari' && neg) return o.lamp === 'lit' ? ok({ lamp: 'out' }, '灯りが消えた') : no('もう消えている');
+        if (w === 'ka' && !neg) return no('芯のない灯りだ。火では灯らない');
+        break;
+      // 印を持つ人への魔法は、胸の封蝋の印にはじかれる
+      case 'official': case 'traveler':
+        return no('封蝋の印が光り、言葉がはじかれた');
+      case 'child': case 'clerk':
+        if (w === 'hikari' && !neg) return no('手元が、ほんの一瞬明るくなった');
+        if (W[w].pos === 'v') return no('人に向ける言葉ではない気がする');
         break;
     }
     if (W[w].pos === 'n' && w !== 'ka' && w !== 'mi') return no('名前を呼んだだけ…');
@@ -1281,6 +1471,62 @@ const L = (() => {
       canAccuseKome: s.revealed && ['na', 'kome'].every(w => s.confirmed.includes(w)) };
   }
 
+  /* ---- 第2章の頭脳戦：関所の問い（ターン制）。第1章の最後の夜と同じ系譜で、目的は「確信を崩す順番」。
+     役人の確信 oc（3から）。子どもを引く手 pull（3 で連れて行かれる＝負け）。
+     問い（疑問の印で終わる文）だけに役人は答える。答えた事実は役人の言葉として残る（facts）：
+       claim ＝「魔法の人は 印を 持つ」（役人自身の主張：印を持たない者は魔法を開かない）
+       open／see ＝子どもが魔法を開いた（自分の目で見た）   have ＝子どもは印を持たない
+     主張は、事実を2つとも認める前でなければ口にしない（2つ認めたあとに問うと、罠に気づいて答えない＝refuse）。
+     主張と事実2つが役人の言葉としてそろってから、もう一度「魔法の人は 印を 持つか？」と突き合わせると、
+     言いかけて崩れる（crack＝勝ち）。札の「印の人は 魔法を 開くか？」（rule）は肯定でしかないので崩れない。
+     rule を問うと役人は身構える（guard）。身構えたあとの「子どもは魔法を開くか？」には「嘘」と言い逃れる。
+     ただし「あなたは 子どもの光を 見るか？」（自分の目のこと）には言い逃れできない。
+     認めた事実の言い換え（open⇔see）は、別の問いとして一度だけ答え直す（reconfirm。手は進まない）。
+     答えに気を取られた手番だけ、子どもを引く手が止まる。問いでない言葉・同じ問い・意味の通らない問い・魔法は、手が進む ---- */
+  // 問いの中身（主語〈持ち主｜目的語〈持ち主｜動詞）→ 問いの種類。格の印を省いても、否定にしても同じ問い
+  const TRIAL_Q = { 'kodomo|maho|hira': 'open', 'na|hikari<kodomo|miru': 'see', '|hikari<kodomo|miru': 'see', 'kodomo|shirushi|motsu': 'have', 'hito<shirushi|maho|hira': 'rule', 'hito<maho|shirushi|motsu': 'claim' };
+  const TRIAL_FACT = { open: 'magic', see: 'magic', have: 'noseal' };
+  const TRIAL_LINE = { open: ['a1'], see: ['a2'], have: ['a3'], rule: ['a4'], lie: ['a5'], claim: ['a7'], crack: ['a8', 'a6'] };
+  const npKey = n => n ? n.w + (n.of ? '<' + n.of.w : '') : '';
+  // 問いの文 → 問いの種類（open / see / have / rule）。文として通らなければ null、通るが関係のない問いは 'other'
+  function questionOf(toks) {
+    const p = parse(toks); if (!p.ok || p.mood !== 'ask' || !p.vp) return null;
+    return TRIAL_Q[[npKey(p.subj), npKey(p.obj), p.vp.w].join('|')] || 'other';
+  }
+  // asked＝答えた問い（同じ問いの繰り返しと、同じ事実の言い換えを分ける）
+  function trialInit() { return { oc: 3, pull: 0, guard: false, facts: [], asked: [], round: 0, done: null }; }
+  function trialStep(g0, a) {
+    const g = JSON.parse(JSON.stringify(g0)), out = { r: 'wait', lines: [], held: false };
+    if (g.done) return { g, out };
+    if (a.k === 'ask') {
+      const q = a.q, both = g.facts.includes('magic') && g.facts.includes('noseal');
+      if (!q) out.r = 'muddle';
+      else if (q === 'other') out.r = 'shrug';
+      else if (q === 'claim') {
+        if (g.facts.includes('claim')) {
+          // 自分の主張を、自分で認めた事実2つと突き合わせられる
+          if (both) { g.oc = 0; out.r = 'crack'; out.lines = TRIAL_LINE.crack; out.held = true; }
+          else out.r = 'again';
+        } else if (both) out.r = 'refuse';   // 事実を2つ認めたあとでは、罠に気づいて主張を口にしない
+        else { g.facts.push('claim'); g.asked.push(q); out.r = 'commit'; out.lines = TRIAL_LINE.claim; out.held = true; }
+      } else if (q === 'rule') {
+        if (g.guard) out.r = 'again';
+        else { g.guard = true; out.r = 'guard'; out.lines = TRIAL_LINE.rule; }
+      } else if (g.facts.includes(TRIAL_FACT[q])) {
+        // 認めた事実の言い換え（子どもは開いたか⇔あなたは見たか）は、別の問いとして一度だけ答え直す
+        if (g.asked.includes(q)) out.r = 'again';
+        else { g.asked.push(q); out.r = 'reconfirm'; out.lines = TRIAL_LINE[q]; out.held = true; }
+      }
+      else if (q === 'open' && g.guard) { out.r = 'lie'; out.lines = TRIAL_LINE.lie; }
+      else { g.facts.push(TRIAL_FACT[q]); g.asked.push(q); g.oc -= 1; out.r = 'answer'; out.lines = TRIAL_LINE[q]; out.held = true; }
+    } else if (a.k === 'say') out.r = 'dismiss';
+    else if (a.k === 'wish') { g.guard = true; out.r = 'deflect'; }
+    g.round++;
+    if (g.oc <= 0) { g.done = 'win'; return { g, out }; }
+    if (!out.held) { g.pull++; if (g.pull >= 3) g.done = 'lose'; }
+    return { g, out };
+  }
+
   /* ---- ゲームの状態と1手 ---- */
   function newGame() {
     return { day: 1, phase: 'play', place: 'house', night: false, mira: 'house', miraStep: 0, merchStep: 0, miraLook: true,
@@ -1289,7 +1535,13 @@ const L = (() => {
       heard: [], seen: [], uses: {}, pconf: [], labels: [], confirmed: [], revealed: false, cageSeen: false, komeCast: false,
       lang: {}, tries: {}, guesses: 0,
       witnessed: [], succeeded: [], wordsDone: [], belief: false, twistAt: null, twistLine: null, truths: [],
-      wary: false, tag: false, combos: [], fin: null, won: false, sleeps: 0, selfCast: false, asked: [] };
+      wary: false, tag: false, combos: [], fin: null, won: false, sleeps: 0, selfCast: false, asked: [],
+      ch: 1, c2: null };   // ch＝いまの章。c2＝第2章の進み具合（第1章をクリアして chapter2 で始まる）
+  }
+  // 第2章の進み具合。解読した語・小辞・手帳（用例）・カードの確信・会話ログは第1章から引き継ぐ
+  function newChapter2() {
+    return { kStep: 0, rStep: 0, cStep: 0, passed: false, childAt: 'haikyu', childLit: false, dreamt: false,
+      trial: null, asks: 0, retries: 0, twist2At: null, twist2Round: null, left: false };
   }
   const clone = o => JSON.parse(JSON.stringify(o));
   const SQUARE_WORDS = ['uru', 'oo', 'hito', 'maho', 'shin'];
@@ -1300,9 +1552,11 @@ const L = (() => {
     // 回収できる文：聞いたセリフ（L:id）か、いまこの場にある書かれた文字（B:物:行）。暗いと松明の文字しか読めない
     function srcToks(src) {
       const m = /^L:(\w+)$/.exec(src || '');
-      if (m) return LINES[m[1]] && s.heard.some(h => h.id === m[1]) ? LINES[m[1]].s : null;
+      if (m) return LN[m[1]] && s.heard.some(h => h.id === m[1]) ? LN[m[1]].s : null;
+      // 夢の声（第2章の記憶のかけら）：見たあとなら、抜け落ちた語のほかの字を書きとめられる
+      if (src === 'D:dream') return s.c2 && s.c2.dreamt ? STORY2.dream.toks.filter(t => t !== '_') : null;
       const b = /^B:(\w+):(\d+)$/.exec(src || ''); if (!b) return null;
-      const lb = LABELS[b[1]]; if (!lb || !lb.s[+b[2]]) return null;
+      const lb = LB[b[1]]; if (!lb || !lb.s[+b[2]]) return null;
       if (!(objectsAt(s).includes(b[1]) || (b[1] === 'tag' && s.tag))) return null;
       if (isDark(s) && b[1] !== 'torch') return null;
       return lb.s[+b[2]];
@@ -1313,7 +1567,7 @@ const L = (() => {
     }
     function checkTwist() {
       s.heard.forEach(h => {
-        const ln = LINES[h.id]; if (!ln.truth || s.truths.includes(h.id) || !truthful(ln.t)) return;
+        const ln = LN[h.id]; if (!ln.truth || s.truths.includes(h.id) || !truthful(ln.t)) return;
         s.truths.push(h.id);
         if (s.twistAt == null) { s.twistAt = s.confirmed.length; s.twistLine = h.id; E('twist', { id: h.id }); }
         else E('truth', { id: h.id });
@@ -1323,8 +1577,8 @@ const L = (() => {
       if (!s.revealed && s.confirmed.includes('kome') && (s.cageSeen || s.komeCast)) { s.revealed = true; E('reveal'); checkTwist(); }
     }
     function say(id) {
-      const ln = LINES[id];
-      if (!s.heard.some(h => h.id === id && h.day === s.day)) s.heard.push({ id, day: s.day });
+      const ln = LN[id];
+      if (!s.heard.some(h => h.id === id && h.day === s.day)) s.heard.push(s.ch === 2 ? { id, day: s.day, ch: 2 } : { id, day: s.day });
       if (ln.wish) { const k = witnessKey(ln.t); if (k && !s.witnessed.includes(k)) s.witnessed.push(k); }
       if (ln.wish && ln.fx) { Object.keys(ln.fx).forEach(k => { if (k in s.obj) s.obj[k] = ln.fx[k]; }); }
       E('say', { id });
@@ -1362,9 +1616,82 @@ const L = (() => {
     function watched() { return s.mira === s.place && s.phase === 'play' && s.miraLook; }
     function afterAction() { if (s.place === 'square' && s.mira === 'square' && s.phase === 'play') s.miraLook = !s.miraLook; }
 
+    /* ---- 第2章：物に触れる。人に触れるたびに場面が1つ進む（第1章の家のミラと同じ作法） ---- */
+    function tap2(o) {
+      const c = s.c2;
+      if (s.phase === 'trial') { if (o === 'self' && c.dreamt) E('dreamShow'); return; }
+      if (s.phase !== 'play' || !objectsAt(s).includes(o)) return;
+      if (o === 'official') {
+        if (c.kStep === 0) { say('k1'); say('k2'); c.kStep = 1; return; }
+        if (c.kStep === 1) { say('k3'); c.kStep = 2; return; }
+        if (c.kStep === 2) { say('k4'); E('gesture', { text: '首を振った。何も持っていない' }); say('k5'); c.kStep = 3; c.passed = true; E('pass'); return; }
+        E('msg', { text: '役人は、次の旅人の札をあらためている' }); return;
+      }
+      if (o === 'traveler') { E('msg', { text: s.obj.lantern === 'lit' ? 'ランタンの灯りが、ゆれている' : '旅人が、札を手に順番を待っている' }); return; }
+      if (o === 'clerk') {
+        if (c.rStep === 0) { say('r1'); E('gesture', { text: '子どもは、首を振った' }); c.rStep = 1; return; }
+        if (c.rStep === 1) { say('r2'); c.rStep = 2; return; }
+        if (c.rStep === 2) { say('c1'); c.rStep = 3; c.childAt = 'machi'; E('childGo'); return; }
+        E('msg', { text: '配給所の人は、かごの底を見せて首を振った' }); return;
+      }
+      if (o === 'child') {
+        if (s.place !== 'machi') { E('msg', { text: '子どもが、列のうしろで待っている' }); return; }
+        if (c.cStep === 0) { say('c2'); c.cStep = 1; return; }
+        if (c.cStep === 1) { say('c3'); c.cStep = 2; checkChild(); return; }
+        E('msg', { text: '子どもが、暗い路地の灯りを見上げている' }); return;
+      }
+      if (o === 'lamp') { E('msg', { text: s.obj.lamp === 'lit' ? 'やわらかい光が、路地を照らしている' : '芯のない灯り。光が消えている' }); return; }
+      if (o === 'self') { if (c.dreamt) E('dreamShow'); else E('msg', { text: '胸に手を当てた。自分の鼓動が聞こえる' }); return; }
+      if (LB[o]) label(o);
+    }
+    // 路地の灯りがともり、子どもがそれを見ている → 子どもが真似をして光を灯す → 記憶のかけら → 役人が子どもを連れていく → 関所の問い
+    function checkChild() {
+      const c = s.c2;
+      if (c.childLit || s.place !== 'machi' || c.childAt !== 'machi' || c.cStep < 2 || s.obj.lamp !== 'lit') return;
+      c.childLit = true;
+      say('c4'); E('childLight'); say('c5'); say('c6');
+      c.dreamt = true; (STORY2.at.childLight || []).forEach(id => E('dream', { id }));
+      s.place = 'kansho'; c.childAt = 'kansho'; E('arrest'); say('y0');
+      s.phase = 'trial'; c.trial = trialInit(); E('trial');
+    }
+    function trialAction(x) {
+      const c = s.c2, r = trialStep(c.trial, x); c.trial = r.g;
+      // 崩れる手番：主張を言いかけ → 所作のカット → 「Sevan nen.」
+      r.out.lines.forEach((id, i) => { if (r.out.r === 'crack' && i === r.out.lines.length - 1) E('cut', { id: 'crack' }); say(id); });
+      E('tturn', { out: r.out, trial: r.g });
+      if (r.g.done === 'win') {
+        // この章の頭脳戦で気づいた時点（第1章の twistAt と同じ系統：その時点で解読していた第2章の語数）
+        c.twist2At = WORDS2.filter(w => s.confirmed.includes(w.id)).length; c.twist2Round = r.g.round;
+        E('twist2'); c.childAt = 'free'; E('release'); say('c7');
+        s.phase = 'won'; c.left = true; label('plaqueB'); E('leave'); return;
+      }
+      if (r.g.done === 'lose') { s.phase = 'lost2'; E('lost2'); }
+    }
+
     switch (a.t) {
+      case 'chapter2': {
+        // 第1章をクリアしたあとだけ。場所・物・頭脳戦は新しく、解読・手帳・確信・ログは引き継ぐ
+        if (s.ch !== 1 || s.phase !== 'won') break;
+        Object.assign(s, { ch: 2, day: 1, phase: 'play', place: 'kansho', night: false, mira: null, miraLook: false, fin: null, wary: false, c2: newChapter2() });
+        Object.assign(s.obj, { lantern: 'out', lamp: 'out', childLight: 'none' });
+        E('chapter2'); break;
+      }
+      case 'ask': {
+        // 関所の問い：並べた言葉を、問い（疑問の印で終わる）か、ただの言葉として口にする
+        if (s.ch !== 2 || s.phase !== 'trial') break;
+        const mode = a.mode === 'say' ? 'say' : 'ask';
+        let toks = (a.toks || []).filter(t => t !== 'pq');
+        if (!toks.length) break;
+        if (toks.some(t => PART[t] ? !s.pconf.includes(t) : !knows(s, t))) { E('fizzle', { why: 'まだ意味のわからない言葉' }); break; }
+        if (mode === 'ask') { if (!s.pconf.includes('pq')) { E('fizzle', { why: '問いの形が、まだ分からない' }); break; } toks = toks.concat('pq'); }
+        s.c2.asks++;
+        E('askQ', { toks, mode });
+        trialAction(mode === 'ask' ? { k: 'ask', q: questionOf(toks) } : { k: 'say' });
+        break;
+      }
       case 'tap': {
         const o = a.obj;
+        if (s.ch === 2) { tap2(o); break; }
         if (s.phase === 'final') { if (o === 'self') finalAction('feign'); break; }
         if (s.phase !== 'play') break;
         if (!objectsAt(s).includes(o)) break;
@@ -1409,7 +1736,7 @@ const L = (() => {
       }
       case 'move': {
         const r = canMove(s, a.to);
-        if (r !== true) { if (r) E('msg', { text: r === 'door' ? '扉が閉まっている' : '犬が路地をふさいでいる' }); break; }
+        if (r !== true) { if (r) E('msg', { text: r === 'door' ? '扉が閉まっている' : r === 'official' ? '役人が門の前に立っている' : '犬が路地をふさいでいる' }); break; }
         s.place = a.to; if (a.to === 'square') s.miraLook = false; E('move'); break;
       }
       case 'wake': if (!s.heard.length) say('h0'); break;
@@ -1472,6 +1799,14 @@ const L = (() => {
           if (tgt === 'mira') { finalAction('wish', { key: sp.key }); break; }
           E('fizzle', { why: '何も起きない' }); finalAction('wait'); break;
         }
+        // 関所の問いのあいだ：役人に話すだけの言葉は聞き流され、魔法は封蝋の印にはじかれる（どちらも子どもを引く手が進む）
+        if (s.phase === 'trial') {
+          if (!a.wish) { E('speak', { words, target: tgt }); if (tgt === 'official') trialAction({ k: 'say' }); else E('msg', { text: 'ただの言葉' }); break; }
+          const sp = spellOf(words);
+          if (!sp.ok) { E(sp.misfire ? 'misfire' : 'fizzle', { why: sp.why, words }); break; }
+          if (tgt === 'official') { E('fizzle', { why: '封蝋の印が光り、言葉がはじかれた', target: tgt }); trialAction({ k: 'wish' }); break; }
+          E('fizzle', { why: '今は、それどころではない' }); break;
+        }
         if (s.phase !== 'play' || !objectsAt(s).includes(tgt)) break;
         if (!a.wish) {
           E('speak', { words, target: tgt });
@@ -1495,9 +1830,13 @@ const L = (() => {
         if (watched()) { s.wary = true; E('wary'); }
         if (r.kome) { s.komeCast = true; checkReveal(); }
         if (r.then === 'final') { startFinal(); break; }
+        if (s.ch === 2) checkChild();
         afterAction(); break;
       }
-      case 'retry': if (s.phase === 'lost') { s.phase = 'final'; s.fin = finalInit(s.wary); E('retry'); say(INTENT_LINE[s.fin.intent]); } break;
+      case 'retry':
+        if (s.phase === 'lost') { s.phase = 'final'; s.fin = finalInit(s.wary); E('retry'); say(INTENT_LINE[s.fin.intent]); }
+        else if (s.phase === 'lost2') { s.phase = 'trial'; s.c2.trial = trialInit(); s.c2.retries++; E('retry'); }
+        break;
       case 'giveup': if (s.phase === 'lost') { s.sleeps++; E('sleep'); morning(); } break;
       case 'show': if (s.phase === 'final' && s.tag) finalAction('show'); break;
       case 'wait': if (s.phase === 'final') finalAction('wait'); break;
@@ -1506,11 +1845,20 @@ const L = (() => {
   }
 
   /* ---- 物語の進行（データ）。画面はこの順に演出する。
-     before：プロローグの前に差し込む「前日譚」（なぜこの世界に来たか）。今は空＝理由は語らない。
+     before：プロローグの前に差し込む「前日譚」（なぜこの世界に来たか）。前日譚は断片のみ。理由は語らない。
      prologue：冒頭。memories：途中に挟む「記憶のかけら」（前世の断片）。at：どの出来事のあとに、どのかけらを挟むか。
      手順の種類：black（暗転）/ lids（まぶたが開く。open=0〜1）/ text（一文だけ）/ pan（天井から部屋へ）/ say（セリフ）/ inner（主人公の心の声）/ memory（記憶のかけら） ---- */
   const STORY = {
-    before: [],
+    before: [
+      { k: 'black', ms: 900 },
+      { k: 'text', text: '読めない文字の写しと、拓本の山。', ms: 2400 },
+      { k: 'text', text: '机に突っ伏して、眠っていたらしい。', ms: 2400 },
+      { k: 'black', ms: 700 },
+      { k: 'memory', text: '夢の中で、声がする。知らない言語だ。', ms: 2800 },
+      { k: 'memory', text: '何度も見る夢。ただ、どこか懐かしい。', ms: 2800 },
+      { k: 'black', ms: 700 },
+      { k: 'text', text: '白い光。', ms: 1500 },
+    ],
     prologue: [
       { k: 'black', ms: 900 },
       { k: 'lids', open: .28, ms: 1300 },
@@ -1550,6 +1898,36 @@ const L = (() => {
     /* 終わりの予感：逃げきったあと、終了画面の前に一瞬だけ。広場の像の碑文の、途切れ途切れの光が強く灯る（文字は出さない） */
     omen: [{ k: 'omen', place: 'square', ms: 2600 }],
   };
+  /* ---- 第2章「印の町」の物語の進行（データ）。手順の種類は STORY と同じ（black / text / inner / memory）に、dream（夢の声の字と音）を足した。
+     arrive：第1章の逃避行の先で町に着く。memories / at：第2章の記憶のかけら（子どもが光を灯した直後）。
+     dream：記憶のかけらで戻る「声の字」。真ん中の語は抜け落ちている（'_'）。字は手帳に書きとめられる（D:dream）。
+     outro：町を出る（第3章への引き）。決まりや仕組みは説明しない ---- */
+  const STORY2 = {
+    arrive: [
+      { k: 'black', ms: 900 },
+      { k: 'text', text: '森を抜けて、街道を歩いた。', ms: 2400 },
+      { k: 'text', text: '壁に囲まれた町が、見えてきた。', ms: 2400 },
+    ],
+    memories: {
+      m2: [{ k: 'black', ms: 700 }, { k: 'memory', text: '白い光。あの声が、近い。', ms: 2600 }, { k: 'dream', ms: 3400 }],
+    },
+    at: { childLight: ['m2'] },
+    // 所作のカット（台詞は変えずに、何について言いかけてやめたかを見せる）。crack：「魔法の人は 印を 持つ」と言いかけたあと、「Sevan nen.」の前
+    cuts: {
+      crack: [
+        { k: 'gesture', text: '役人の目が、子どもの光る手のひらに落ちる', ms: 1400 },
+        { k: 'gesture', text: '胸の封蝋の印に触れかけた手が、止まる', ms: 1600 },
+        { k: 'gesture', text: '役人は、外套の襟を寄せて印を隠した', ms: 1600 },
+      ],
+    },
+    dream: { toks: ['pk', '_', 'shin', 'ph'], cap: '夢の声（白い光の中で）' },
+    outro: [
+      { k: 'inner', text: '封蝋の印。……あの檻の札の字に、どこか似ている。', ms: 2400 },
+      { k: 'black', ms: 800 },
+      { k: 'text', text: '町を出た。', ms: 2200 },
+      { k: 'text', text: '街道は、まだ先へ続いている。', ms: 2600 },
+    ],
+  };
   const CAMS = { fp: { hero: false }, wide: { hero: true } };
   // いまのカメラ：引きの場面の手順の最中ならその cam、ふだんは場所の既定（一人称）
   const camOf = (s, step) => step && step.k === 'shot' && CAMS[step.cam] ? step.cam : STORY.camera[s && s.place] || 'fp';
@@ -1570,7 +1948,9 @@ const L = (() => {
 
   return { WORDS, MADE, W, PARTS, PART, CASE, ANSWERS, norm, jaForms, enForms, ansOf, guessOf, hintsOf, HINT_AT, labelOf, KANA, syllables, kanaOf, roOf, isPart, contentOf, LANGS, translate, view, romaji, STORY, CLS, EL, MEMO, glyphInner, glyphOf, partsOf, radicalsKnown, wordFromParts, parse, sentenceJp, gloss, wordJp, LINES, LABELS, BELIEF_LINE, N_WORDS,
     spellOf, knows, RADFX, radFx, witnessKey, conf, needOf, RESIST, isDark, objectsAt, canMove, effect,
-    strengthOf, finalInit, finalStep, finalCtx, INTENT_LINE, newGame, act, SQUARE_WORDS, CAMS, camOf, cutsOf, sightOf, selfCall };
+    strengthOf, finalInit, finalStep, finalCtx, INTENT_LINE, newGame, act, SQUARE_WORDS, CAMS, camOf, cutsOf, sightOf, selfCall,
+    // 第2章
+    WORDS2, PARTS2, FINAL, LINES2, LABELS2, LN, LB, N_WORDS2, STORY2, PLACES, PLACE_NAME, dreamView, questionOf, TRIAL_Q, TRIAL_FACT, trialInit, trialStep, newChapter2 };
 })();
 if (typeof module !== 'undefined') module.exports = L;
 </script>
@@ -1581,7 +1961,9 @@ const M = (() => {
   const KEY = 'kotodama.metrics.v1';
   // wantMore は終了画面のアンケート（priceAnswer の代わり。priceAnswer は null のまま）
   const DEF = () => ({ firstPlayAt: null, updatedAt: null, sessions: 0, runsStarted: 0, runsCompleted: 0, firstRunCleared: false, replayed: false, priceAnswer: null, bestScore: 0, tutorialStuck: false,
-    wordsConfirmed: 0, combosTried: 0, twistAt: null, wantMore: null, guessAttempts: 0 });
+    wordsConfirmed: 0, combosTried: 0, twistAt: null, wantMore: null, guessAttempts: 0,
+    // 第2章：twist2At＝関所の問いで役人の確信を崩した時点（その時点で解読していた第2章の語数。twistAt と同じ系統）、ch2Cleared＝第2章を終えた
+    twist2At: null, ch2Cleared: false });
   let m = DEF();
   try { const raw = localStorage.getItem(KEY); if (raw) m = Object.assign(DEF(), JSON.parse(raw)); } catch (e) {}
   const ops = []; let ref = null, ready = false, inflight = false, again = false, timer = 0;
@@ -1636,7 +2018,8 @@ const M = (() => {
     let ctx = null, master = null, noise = null, muted = false;
     try { muted = localStorage.getItem('kotodama.mute') === '1'; } catch (e) {}
     // f＝基本の高さ、type＝波形、cut＝こもり具合
-    const VOICE = { mira: { f: 300, type: 'triangle', cut: 2400 }, merchant: { f: 138, type: 'sawtooth', cut: 1300 }, woman: { f: 250, type: 'triangle', cut: 1700 } };
+    const VOICE = { mira: { f: 300, type: 'triangle', cut: 2400 }, merchant: { f: 138, type: 'sawtooth', cut: 1300 }, woman: { f: 250, type: 'triangle', cut: 1700 },
+      official: { f: 118, type: 'sawtooth', cut: 1000 }, traveler: { f: 170, type: 'triangle', cut: 1500 }, clerk: { f: 230, type: 'triangle', cut: 1600 }, child: { f: 380, type: 'triangle', cut: 2600 } };
     const VF = { a: 1, e: 1.12, i: 1.24, o: .93, u: .85 };
     function ensure() {
       if (ctx) return ctx;
@@ -1698,9 +2081,11 @@ const M = (() => {
   const Ln = (d, col, w, x) => `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${x || ''}/>`;
   const U = 1024 / 360;
   const A = n => `assets/${n}.webp`;
-  const BG = { house: 'bg_house_day', houseN: 'bg_house_night', square: 'bg_square', gate: 'bg_gate' };
+  const BG = { house: 'bg_house_day', houseN: 'bg_house_night', square: 'bg_square', gate: 'bg_gate',
+    // 第2章：専用の背景はまだ無いので、手元の背景の画像で代用する（関所＝石の門、配給所＝棚のある部屋、町並み＝像のある通り）。本番では差し替える
+    kansho: 'bg_gate', haikyu: 'bg_house_day', machi: 'bg_square' };
   // 場面ごとに必ず見せたい縦の範囲（画像の y）。会話ウィンドウの上にこの範囲が入るよう、舞台を縦にずらす
-  const FOCUS = { house: [300, 1060], square: [300, 1010], gate: [370, 1100] };
+  const FOCUS = { house: [300, 1060], square: [300, 1010], gate: [370, 1100], kansho: [370, 1100], haikyu: [300, 1060], machi: [300, 1010] };
 
   /* ---- 人物の画像。ax, ay＝頭の中心（画像の画素）、hh＝頭の高さ（髪や帽子の上〜あご）、crop＝見せる高さ、fl/fr/fb＝左右と下のぼかし、fc＝顔の切り抜き [中心x, 中心y, 一辺] ---- */
   // 立ち絵は画像の下端（胸）まで使い、下はぼかさない：目の前の人物は画面の枠で、離れた人物は屋台の台・窓枠で切る（宙に浮かせない）
@@ -1710,12 +2095,17 @@ const M = (() => {
     child: { name: '子ども', faces: { base: 'villager_child' }, ax: 547, ay: 360, hh: 640, crop: 1536, small: true },
     woman: { name: '窓の人', faces: { base: 'villager_woman' }, ax: 600, ay: 350, hh: 620, crop: 1536, small: true, fc: [592, 372, 620] },
     hero: { name: '自分', faces: { base: 'hero_back' }, ax: 512, ay: 450, hh: 620, crop: 1536, fl: 3, fr: 3 },
+    // 第2章の人物（立ち絵の画像はまだ無い。読めないときは名札だけの影になる。本番で assets/ に足す）
+    official: { name: '役人', faces: { base: 'official' }, ax: 512, ay: 380, hh: 640, crop: 1536 },
+    traveler: { name: '旅人', faces: { base: 'traveler' }, ax: 512, ay: 380, hh: 640, crop: 1536, small: true },
+    clerk: { name: '配給所の人', faces: { base: 'clerk' }, ax: 512, ay: 380, hh: 640, crop: 1536 },
   };
   // 場面の光：立ち絵の明るさ・彩度・色味と、縁の光の色・向き（光の来る側へ px）
   const LIGHT = {
     house: { br: .97, sa: .96, se: .1, rim: 'rgba(255,214,150,.62)', dx: -2 },
     square: { br: 1, sa: 1, se: .04, rim: 'rgba(255,232,180,.6)', dx: -2 },
     gate: { br: .86, sa: .9, se: .16, rim: 'rgba(255,170,120,.55)', dx: 2 },
+    kansho: { br: .9, sa: .92, se: .12, rim: 'rgba(255,186,130,.55)', dx: 2 }, haikyu: { br: .97, sa: .96, se: .1, rim: 'rgba(255,214,150,.62)', dx: -2 }, machi: { br: .94, sa: .95, se: .08, rim: 'rgba(255,220,170,.55)', dx: -2 },
   };
   // 会話ウィンドウのために場面の下に空けておく高さ（px）。舞台の位置と、目の前の人物の大きさはこれを基準に決める
   const WIN_RESERVE = 124;
@@ -1849,7 +2239,7 @@ const M = (() => {
   function noteChanges(st) {
     if (prevView && prevView.place === st.place && !FAST) {
       const a = prevView.obj, b = st.obj, now = performance.now();
-      ['torch', 'door', 'thorns', 'gate', 'trough', 'jar', 'dog', 'merchant'].forEach(k => { if (a[k] !== b[k]) fxT[k] = now; });
+      ['torch', 'door', 'thorns', 'gate', 'trough', 'jar', 'dog', 'merchant', 'lantern', 'lamp', 'childLight'].forEach(k => { if (a[k] !== b[k]) fxT[k] = now; });
     }
     prevView = { place: st.place, obj: Object.assign({}, st.obj) };
   }
@@ -1931,7 +2321,7 @@ const M = (() => {
 
   function miraOpts(st, line) {
     const cold = st.twistAt != null || st.wary;
-    const ln = line && L.LINES[line] && L.LINES[line].who === 'mira' ? L.LINES[line] : null;
+    const ln = line && L.LN[line] && L.LN[line].who === 'mira' ? L.LN[line] : null;
     const o = { talk: !!ln };
     if (st.phase === 'won') { if (escapeHow === 'kome') { o.face = 'neutral'; o.shade = true; o.caged = true; } else o.face = 'sleep'; return o; }
     if (st.phase === 'final' || st.phase === 'lost') {
@@ -1945,7 +2335,7 @@ const M = (() => {
     return o;
   }
   function merchantOpts(st, line) {
-    const o = { talk: !!(line && L.LINES[line] && L.LINES[line].who === 'merchant') };
+    const o = { talk: !!(line && L.LN[line] && L.LN[line].who === 'merchant') };
     if (st.obj.merchant === 'asleep') o.face = 'sleep';
     else o.face = line === 's2' || line === 's1' || st.twistAt != null ? 'smirk' : 'normal';
     if (st.obj.merchant === 'caged') o.caged = true;
@@ -1989,7 +2379,7 @@ const M = (() => {
     // ミラ：目の前（一人称なので、こちらに向かって中ほど。棚の本・松明・扉は避ける）。胸から下は画面の枠で切れる
     if (st.mira === 'house') {
       g += miraG(st, line, groundAt('mira', 410, 'house'));
-      if (line && L.LINES[line].wish && L.LINES[line].who === 'mira') g += castAt(FIG_AT.mira, L.LINES[line].s, 1);
+      if (line && L.LN[line].wish && L.LN[line].who === 'mira') g += castAt(FIG_AT.mira, L.LN[line].s, 1);
     }
     // 主人公は映さない（一人称）。「自分」への当たり判定は画面の下の縁（#selfT）
     g += heroG(st);
@@ -2009,7 +2399,7 @@ const M = (() => {
     let g = '';
     // 右の家の2階の窓の女の人（窓の中だけ見せる。下は窓辺の花で隠れる）
     // 話すときは揺れ、言いよどむ一言（v2）では目をそらすように少しうつむく
-    const wl = line && L.LINES[line] && L.LINES[line].who === 'woman';
+    const wl = line && L.LN[line] && L.LN[line].who === 'woman';
     g += figG('woman', { talk: wl, avert: line === 'v2' }, { x: 862, y: 344, H: 66, clip: [833, 314, 888, 392] });
     // 像の足もとの銘板（x 405〜607・y 735〜840）に碑文を重ねる。行ごとに中央そろえ。最後の一文だけ途切れ途切れに光り、涙の跡が添えてある
     const rows = L.LABELS.statue.s, sc0 = 0.3, wOf = (n, sc) => (n * 27 - 3) * sc;
@@ -2040,7 +2430,7 @@ const M = (() => {
     g += obj('cage', place(Ln('M-22 0 V-124 Q0 -154 22 -124 V0', OL, 5) + Ln('M-22 0 V-124 Q0 -154 22 -124 V0', N ? '#8a88b0' : '#8a8296', 3) + Ln('M-28 0 H28 M-11 0 V-138 M0 0 V-142 M11 0 V-138', N ? '#8a88b0' : '#8a8296', 2.4)
       + Ln('M-30 2 H30', '#6a4a30', 4) + `<circle cx="-20" cy="8" r="6" fill="#7a5a3a" stroke="${OL}" stroke-width="1.2"/><circle cx="20" cy="8" r="6" fill="#7a5a3a" stroke="${OL}" stroke-width="1.2"/>`
       + `<rect x="-20" y="-68" width="40" height="18" rx="2" fill="#fbf1dc" stroke="${OL}" stroke-width="1.1"/>` + labelG(L.LABELS.cage.s[0], -18, -66, 0.27, 'ink'), 352, 968, U * .6), hit(300, 700, 110, 290), [400, 712]);
-    if (line && L.LINES[line].wish && L.LINES[line].who === 'merchant') g += castFx(L.LINES[line].s, 260, 560);
+    if (line && L.LN[line].wish && L.LN[line].who === 'merchant') g += castFx(L.LN[line].s, 260, 560);
     // 水桶と犬（像の前。犬が森へ抜ける路地をふさいでいる）
     let tr = `<path d="M-26 -16 L26 -16 L22 0 L-22 0Z" fill="${N ? '#4a4a7c' : '#a8683e'}" stroke="${OL}" stroke-width="1.2"/><path d="M-26 -16 H26" stroke="${OL}" stroke-width="2"/>`;
     if (o.trough === 'full') tr += `<g${fxA('trough', 'fxIn')}><path d="M-24 -15 L24 -15 L23 -11 L-23 -11Z" fill="url(#gWater)"/></g>`;
@@ -2050,7 +2440,7 @@ const M = (() => {
     if (st.mira === 'square') {
       const at = groundAt('mira', 872, 'square');
       g += miraG(st, line, at);
-      if (line && L.LINES[line].wish && L.LINES[line].who === 'mira') g += castAt(at, L.LINES[line].s, -1);
+      if (line && L.LN[line].wish && L.LN[line].who === 'mira') g += castAt(at, L.LN[line].s, -1);
       const ty = Math.max(at.vis.top + 26, at.y - at.H * .66);
       if (st.confirmed.includes('nemu')) g += pipsG(at.x - 20, ty + 24, L.RESIST.mira, 4);
       if (st.miraLook && st.phase === 'play') g += place('<ellipse rx="10" ry="6" fill="#fff" stroke="#c0304a" stroke-width="1.6"/><circle r="3.4" fill="#c0304a"/><circle cx="-1" cy="-1" r="1" fill="#fff"/>', at.x - 20, ty - 8, U);
@@ -2103,6 +2493,73 @@ const M = (() => {
     return g;
   }
 
+  /* ---- 第2章の場面（専用の背景と人物の絵はまだ無い。手元の背景に、札・灯り・カウンターなどの小物を重ねる） ---- */
+  const CREST = (x, y) => `<g transform="translate(${x} ${y})"><circle r="2.6" fill="#7a2a34" stroke="#4a1a20" stroke-width=".4"/><path d="M0 -1.6 V1.6 M-1.3 -.4 L0 -1.6 L1.3 -.4" fill="none" stroke="#e8c27a" stroke-width=".45" stroke-linecap="round"/></g>`;
+  // 札・看板（行ごとに小さな字。封蝋の印つき）。flick＝途切れ途切れに光る行（関所の札の裏）
+  function boardArt(lb, flick) {
+    const rows = lb.s;
+    let g = `<rect x="-26" y="-18" width="52" height="${10 + rows.length * 11}" rx="3" fill="#e9d9b8" stroke="${OL}" stroke-width="1.1"/>`;
+    rows.forEach((r, i) => { const sc = .24, w = (r.length * 27 - 3) * sc, lg = labelG(r, -w / 2, -14 + i * 11, sc, flick ? 'lit' : 'ink', true); g += flick ? `<g class="flick">${lg}</g>` : lg; });
+    return g + (lb.seal ? CREST(21, -12 + rows.length * 11) : '');
+  }
+  const lanternArt = lit => `<path d="M0 -40 V-30" stroke="#5a4a3a" stroke-width="1.4"/><rect x="-7" y="-30" width="14" height="20" rx="3" fill="${lit ? '#ffe7a0' : '#4a4058'}" stroke="${OL}" stroke-width="1.1"/>` + (lit ? '<circle cx="0" cy="-20" r="26" fill="url(#gHalo)"/>' : '');
+  const lampArt = lit => `<path d="M0 0 V-168" stroke="#3a3040" stroke-width="4"/><path d="M-10 -168 H10 L6 -184 H-6Z" fill="${lit ? '#fff1b8' : '#3e3a52'}" stroke="${OL}" stroke-width="1.2"/>`
+    + (lit ? '<circle cx="0" cy="-176" r="60" fill="url(#gHalo)"/><circle cx="0" cy="-60" r="110" fill="url(#gHalo)" opacity=".35"/>' : '');
+  const basketArt = `<path d="M-30 0 L-24 -22 H24 L30 0Z" fill="#b8874e" stroke="${OL}" stroke-width="1.2"/><path d="M-20 -22 Q0 -40 20 -22" fill="none" stroke="${OL}" stroke-width="1.6"/><ellipse cx="6" cy="-22" rx="7" ry="3" fill="#d9a35a"/>`;
+  const whoOf = line => line && L.LN[line] ? L.LN[line].who : null;
+  const wishOf = (line, who) => !!(line && L.LN[line] && L.LN[line].wish && L.LN[line].who === who);
+  /* 関所：石の門。役人が目の前に立ち、旅人の札をあらためる。左の柱に札（印の人は 魔法を 開く）。町を出るときは裏の札も */
+  function kanshoSVG(st, line) {
+    const o = st.obj, c = st.c2 || {}, who = whoOf(line);
+    let g = '';
+    // 遮り棒：通るまでは門の前に下りている
+    g += c.passed ? Ln('M300 1000 L330 560', '#c8a060', 12) + Ln('M300 1000 L330 560', '#8a2a2a', 12, ' stroke-dasharray="40 40"')
+      : Ln('M260 900 H800', '#c8a060', 14) + Ln('M260 900 H800', '#8a2a2a', 14, ' stroke-dasharray="44 44"');
+    g += obj('plaqueK', place(boardArt(L.LB.plaqueK), 190, 640, U), hit(110, 580, 170, 140), [270, 590]);
+    if (c.left) g += obj('plaqueB', place(boardArt(L.LB.plaqueB, true), 860, 640, U), hit(780, 580, 170, 120), [940, 590]);
+    g += figG('traveler', { talk: who === 'traveler' }, { x: 560, y: 760, H: 70 });
+    g += obj('traveler', place(lanternArt(o.lantern === 'lit'), 610, 860, U * .8), hit(500, 680, 160, 220), [650, 700]);
+    if (wishOf(line, 'traveler')) g += castFx(L.LN[line].s, 560, 600);
+    if (c.childAt === 'kansho') { g += figG('child', { talk: who === 'child' }, { x: 420, y: 800, H: 120 }); g += obj('child', '', hit(340, 700, 160, 260)); }
+    const at = groundAt('official', 740, 'kansho');
+    g += figG('official', { talk: who === 'official', cast: wishOf(line, 'official') }, at);
+    g += obj('official', '', figHit(FIG_AT.official), [at.x + at.H * .42, at.y - at.H * .42]);
+    if (wishOf(line, 'official')) g += castAt(FIG_AT.official, L.LN[line].s, -1);
+    g += heroG(st);
+    return g;
+  }
+  /* 配給所：カウンターの向こうに配給所の人。壁に看板（パンを 渡す／印の人）。列に子ども */
+  function haikyuSVG(st, line) {
+    const c = st.c2 || {}, who = whoOf(line);
+    let g = '';
+    g += obj('ration', place(boardArt(L.LB.ration), 300, 470, U), hit(220, 410, 170, 140), [380, 420]);
+    if (c.childAt === 'haikyu') { g += figG('child', { talk: who === 'child' }, { x: 200, y: 830, H: 100 }); g += obj('child', '', hit(130, 730, 150, 240)); }
+    const at = groundAt('clerk', 600, 'haikyu');
+    g += figG('clerk', { talk: who === 'clerk' }, at);
+    g += obj('clerk', '', figHit(FIG_AT.clerk), [at.x + at.H * .42, at.y - at.H * .42]);
+    g += `<rect x="0" y="1030" width="1024" height="80" fill="#7a4a2c" stroke="${OL}" stroke-width="3"/>` + place(basketArt, 780, 1032, U);
+    g += heroG(st);
+    return g;
+  }
+  /* 町並み：像のある通り。町の看板（印の町）。右手前の路地は、灯りが消えていて暗い。子どもはそこに座っている */
+  function machiSVG(st, line) {
+    const o = st.obj, c = st.c2 || {}, who = whoOf(line);
+    let g = '';
+    g += obj('townSign', place(boardArt(L.LB.townSign), 190, 430, U), hit(110, 370, 170, 110), [270, 380]);
+    if (o.lamp !== 'lit') g += '<rect x="620" y="250" width="404" height="1000" fill="#0a0c20" opacity=".55"/>';
+    g += obj('lamp', place(lampArt(o.lamp === 'lit'), 800, 980, U), hit(740, 440, 130, 560), [860, 470]);
+    if (c.childAt === 'machi') {
+      const at = groundAt('child', 380, 'machi', { chin: .12, kmax: .55 });
+      g += figG('child', { talk: who === 'child', cast: wishOf(line, 'child') }, at);
+      const glow = o.childLight === 'lit' ? `<circle cx="${at.x + at.H * .45}" cy="${at.y + at.H * .95}" r="${at.H * .35}" fill="url(#gHalo)"/>` : '';
+      g += obj('child', glow, figHit(FIG_AT.child), [at.x + at.H * .42, at.y - at.H * .42]);
+      if (wishOf(line, 'child')) g += castAt(FIG_AT.child, L.LN[line].s, 1);
+    }
+    g += heroG(st);
+    return g;
+  }
+  const SCENES = { house: houseSVG, square: squareSVG, gate: gateSVG, kansho: kanshoSVG, haikyu: haikyuSVG, machi: machiSVG };
+
   /* ---- 状態 ---- */
   let S = L.newGame(), bar = null, sel = null, busy = false, runNo = 0, runCounted = false, escapeHow = null;
   const openedAt = Date.now();
@@ -2116,7 +2573,7 @@ const M = (() => {
     st = st || S;
     FIG_AT = {};
     noteChanges(st);
-    const html = st.place === 'house' ? houseSVG(st, line) : st.place === 'square' ? squareSVG(st, line) : gateSVG(st, line);
+    const html = (SCENES[st.place] || gateSVG)(st, line);
     // 目印 <!--F:id--> で SVG の層を分け、そのあいだに人物の画像を挟む（描いた順に重ねる）
     const parts = html.split(/<!--F:(\w+)-->/);
     let z = 3, si = 0;
@@ -2155,10 +2612,13 @@ const M = (() => {
     clearTimeout(wakeFx.t); wakeFx.t = setTimeout(() => { box.classList.remove('wake'); si.classList.remove('wake'); }, 1700);
   }
   function render() {
-    renderScene(); renderTop(); renderHand(); renderWin(); renderHint(); renderFinal();
+    renderScene(); renderTop(); renderHand(); renderWin(); renderHint(); renderFinal(); renderTrial();
   }
   function renderTop() {
-    $('#day').textContent = S.phase === 'final' || S.phase === 'lost' ? '最後の夜' : `${S.day}日目 ${S.night ? '夜' : '昼'}`;
+    $('#day').textContent = S.ch === 2 ? (S.phase === 'trial' || S.phase === 'lost2' ? '関所の問い' : '印の町') : S.phase === 'final' || S.phase === 'lost' ? '最後の夜' : `${S.day}日目 ${S.night ? '夜' : '昼'}`;
+    // 地図のボタンは章ごとの場所（第1章：家・広場・森の門／第2章：関所・配給所・町並み）
+    const mp = $('#map'), chK = String(S.ch || 1);
+    if (mp.dataset.ch !== chK) { mp.dataset.ch = chK; mp.innerHTML = L.PLACES[S.ch || 1].map(p => `<button type="button" data-to="${p}">${L.PLACE_NAME[p]}</button>`).join(''); }
     document.querySelectorAll('#map button').forEach(b => {
       const to = b.dataset.to; b.classList.toggle('here', to === S.place); b.classList.toggle('can', L.canMove(S, to) === true);
     });
@@ -2170,6 +2630,8 @@ const M = (() => {
   // 顔の切り抜き（ログ・演出カード用）
   function faceCrop(who, o) {
     o = o || {};
+    // 顔の切り抜きの無い人物（第2章の子ども・役人など）は、名前の頭文字の札
+    if (who !== 'mira' && !(FIG[who] && FIG[who].fc)) return `<span class="fc nm">${(WHO[who] || (FIG[who] && FIG[who].name) || '？').charAt(0)}</span>`;
     const id = FIG[who] && FIG[who].fc ? who : 'mira', F = FIG[id], [cx, cy, sd] = F.fc;
     const bgOf = f => id === 'merchant' ? '#d9c7e6' : id === 'woman' ? '#e9dcc8' : f === 'true' ? '#4a4580' : '#f6d6b4';
     const im = f => `<img alt="" draggable="false" src="${A(F.faces[f])}" style="width:${102400 / sd}%;left:${-(cx - sd / 2) / sd * 100}%;top:${-(cy - sd / 2) / sd * 100}%">`;
@@ -2184,9 +2646,11 @@ const M = (() => {
   const knownOf = st => (st || S).confirmed.concat((st || S).pconf || []);
   const kanaW = t => L.kanaOf(L.roOf(t));
   // 1文：架空文字＋読み（カタカナ）＋分かった語の訳。src を渡すと、字をタップして手帳に書きとめられる。hl＝強調する字
+  const viewOf = (toks, speaker) => toks.includes('_') ? L.dreamView(toks, knownOf(), LANG) : L.view(toks, knownOf(), { lang: LANG, revealed: S.revealed, speaker });
   function lineHtml(toks, wish, h, flick, src, hl) {
-    const v = L.view(toks, knownOf(), { lang: LANG, revealed: S.revealed });
+    const v = viewOf(toks);
     const ln = `<span class="ln${wish ? ' wish' : ''}${flick ? ' flick' : ''}">${toks.map((t, i) => {
+      if (t === '_') return `<span class="w gap"><span class="gbx"></span><i class="kn"></i><i>${v.words[i] || ''}</i></span>`;
       // got＝この文から書きとめ済み。more＝ほかの文で書きとめた字（タップすると用例が増える）
       const pt = L.isPart(t), got = src && (S.uses[t] || []).includes(src), more = !got && S.seen.includes(t);
       const cls = 'w' + (pt ? ' pt' : '') + (src ? ' cw' + (got ? ' got' : more ? ' more' : '') : '') + (hl === t ? ' hl' : '');
@@ -2199,7 +2663,7 @@ const M = (() => {
   }
   // 訳：中身の語が全部分かると逐語訳、小辞も分かると自然な訳（日本語／英語）
   function transHtml(toks, speaker, truth, tag) {
-    const v = L.view(toks, knownOf(), { lang: LANG, revealed: S.revealed, speaker });
+    const v = viewOf(toks, speaker);
     tag = tag || 'div';
     if (v.natural) return `<${tag} class="full${truth ? ' truth' : ''}">「${v.natural}」</${tag}>`;
     if (v.literal) return `<${tag} class="lit"><b>逐語</b>${v.literal}</${tag}>`;
@@ -2207,6 +2671,12 @@ const M = (() => {
   }
   const isTruthShown = id => S.truths.includes(id);
   function narration() {
+    if (S.ch === 2) {
+      if (S.phase === 'trial' || S.phase === 'lost2') return '役人が、子どもの腕をつかんでいる。問えば、答えるだろうか。';
+      if (S.place === 'kansho') return S.c2 && S.c2.passed ? '……関所。旅人の札を、役人があらためている。' : '……石の門。旅人が並び、役人が札をあらためている。';
+      if (S.place === 'haikyu') return '……配給所。かごの前に、人が並んでいる。';
+      if (S.place === 'machi') return '……町並み。家々に灯りがともっている。右の路地だけが、暗い。';
+    }
     if (S.phase === 'final') return '月が出ている。ミラが、ゆっくり近づいてくる。';
     if (S.day === 1 && S.place === 'house' && S.miraStep === 0) return '……知らない部屋。知らない言葉。<br>目の前の人が、やさしく笑っている。';
     if (S.place === 'square') return '……にぎやかな広場。知らない言葉が、あちこちから聞こえる。';
@@ -2215,34 +2685,57 @@ const M = (() => {
   }
   let innerTx = [];
   // 話し手の名札（ミラ・商人・窓の人）
-  const WHO = { mira: 'ミラ', merchant: '商人', woman: '窓の人' };
+  const WHO = { mira: 'ミラ', merchant: '商人', woman: '窓の人', official: '役人', traveler: '旅人', clerk: '配給所の人', child: '子ども' };
   const whoName = w => WHO[w] || FIG[w] && FIG[w].name || '';
   function renderWin() {
     const b = $('#win');
     const inner = innerTx.map(t => `<div class="inner">${t}</div>`).join('');
     if (!lastSay || lastSay.nar) { b.innerHTML = `<div class="nar">${lastSay ? lastSay.nar : narration()}</div>` + inner; return; }
+    // 夢の声（第2章の記憶のかけら）：字をタップして手帳に書きとめられる。抜け落ちた語は空欄
+    if (lastSay.dream) {
+      const d = L.STORY2.dream;
+      b.innerHTML = `<span class="np lab">${d.cap}</span><div class="row">${lineHtml(d.toks, false, 26, false, 'D:dream')}</div>` + transHtml(d.toks) + inner;
+      return;
+    }
     if (lastSay.label) {
-      const lb = L.LABELS[lastSay.label], h = lb.s.length > 1 ? 18 : 24;
+      const lb = L.LB[lastSay.label], h = lb.s.length > 1 ? 18 : 24;
       b.innerHTML = `<span class="np lab">${lb.cap}</span><div class="lbls">` + lb.s.map((ln, i) => {
         const fl = lb.flicker === i;
         return `<div class="row">${lineHtml(ln, fl, h, fl, `B:${lastSay.label}:${i}`)}${fl && lb.tear ? '<span class="tear">涙の跡</span>' : ''}${transHtml(ln, null, false, 'span')}</div>`;
       }).join('') + '</div>' + inner;
       return;
     }
-    const ln = L.LINES[lastSay.id];
+    const ln = L.LN[lastSay.id];
     const isM = ln.who === 'mira', np = isM ? `<span class="np${cold(S) ? ' cold' : ''}">ミラ</span>` : `<span class="np ${ln.who === 'merchant' ? 'mer' : 'vil'}">${whoName(ln.who)}</span>`;
     // 離れた所にいる商人・窓の人は、会話ウィンドウに顔を出す
     const face = isM ? '' : `<span class="wf">${faceCrop(ln.who, ln.who === 'merchant' ? { face: merchantOpts(S, lastSay.id).face } : {})}</span>`;
     // 続けて話された直前のセリフも、小さく残す（字を書きとめられるように）
-    const pv = lastSay.prev && L.LINES[lastSay.prev], prev = pv ? `<div class="prev"><span class="pn">${whoName(pv.who)}</span>${lineHtml(pv.s, pv.wish, 18, false, 'L:' + lastSay.prev)}${transHtml(pv.s, pv.who, isTruthShown(lastSay.prev), 'span')}</div>` : '';
+    const pv = lastSay.prev && L.LN[lastSay.prev], prev = pv ? `<div class="prev"><span class="pn">${whoName(pv.who)}</span>${lineHtml(pv.s, pv.wish, 18, false, 'L:' + lastSay.prev)}${transHtml(pv.s, pv.who, isTruthShown(lastSay.prev), 'span')}</div>` : '';
     b.innerHTML = np + face + prev + `<div class="row">${lineHtml(ln.s, ln.wish, 26, false, 'L:' + lastSay.id)}</div>`
       + `<div class="ro">「${L.romaji(ln.s)}」<span class="cp">（${ln.cap}）${ln.wish ? '✦光っている' : ''}</span></div>`
       + transHtml(ln.s, ln.who, isTruthShown(lastSay.id)) + inner;
   }
+  // 第2章のヒント（どこへ行けばよいか・何をすればよいか。決まりや仕組みは書かない）
+  function hint2(s) {
+    const c = s.c2 || {}, has = w => s.confirmed.includes(w);
+    if (s.phase === 'trial') return !s.pconf.includes('pq') ? '問いの形の字（文の終わりの小さな字）を、手帳で読み解く' : qToks.length ? '並べた言葉を「問う」。役人は、問いにだけ答える' : 'カードをタップして並べ、役人に「問う」（手帳で言葉を確かめながら）';
+    if (s.phase === 'lost2') return '';
+    if (!c.passed) return c.kStep === 0 ? '役人に触れる' : 'もう一度役人に触れる（字はタップで書きとめる）';
+    const fresh = L.WORDS2.concat(L.PARTS2).some(w => s.seen.includes(w.id) && !s.confirmed.includes(w.id) && !s.pconf.includes(w.id));
+    if (c.childAt === 'haikyu') return s.place !== 'haikyu' ? (fresh ? '手帳で、新しい字の意味を書いてみる／配給所へ行ってみる' : '配給所へ行ってみる') : c.rStep < 3 ? '配給所の人に触れる' : '';
+    if (c.childAt === 'machi') {
+      if (s.place !== 'machi') return '子どもが駆けていった町並みへ';
+      if (c.cStep < 2) return '路地の子どもに触れる';
+      if (!has('hikari')) return '手帳で「光」の字（ランタンの言葉）の意味を書いてみる';
+      return 'カードを路地の灯りへ運び、離さずに願う';
+    }
+    return '';
+  }
   function renderHint() {
     let h = '';
     const s = S;
-    if (s.phase === 'final') h = L.selfCall(s) ? 'カードを画面の下の光（自分）へ運び、離さずに願う' : '一手ずつ。ミラの言葉を読み、確信を崩す';
+    if (s.ch === 2) h = hint2(s);
+    else if (s.phase === 'final') h = L.selfCall(s) ? 'カードを画面の下の光（自分）へ運び、離さずに願う' : '一手ずつ。ミラの言葉を読み、確信を崩す';
     else if (s.phase === 'lost') h = '';
     else if (!s.seen.length && lastSay) h = '聞こえた言葉の字をタップして、手帳に書きとめる';
     else if (s.day === 1 && s.place === 'house' && s.mira === 'house') h = s.miraStep === 0 ? 'ミラに触れる' : s.miraStep < 8 ? 'もう一度ミラに触れる（字はタップで書きとめる）' : '';
@@ -2254,6 +2747,27 @@ const M = (() => {
     else if (s.made.some(w => !s.named.includes(w))) h = '書いた字に、手帳で名前（意味）をつける';
     $('#hint').textContent = h;
   }
+  /* 第2章：関所の問い。役人の確信（崩すと勝ち）と、子どもを引く手（3つで連れて行かれる）。並べた言葉（qToks）を問う／言う */
+  let qToks = [];
+  function renderTrial() {
+    const on = S.ch === 2 && S.phase === 'trial';
+    $('#trialBar').classList.toggle('on', on);
+    $('#spell').style.display = on ? 'none' : '';
+    if (!on) return;
+    const g = S.c2.trial;
+    $('#ocP').innerHTML = [0, 1, 2].map(i => `<b class="${i < g.oc ? 'f' : ''}"></b>`).join('');
+    $('#plP').innerHTML = [0, 1, 2].map(i => `<b class="${i < g.pull ? 'f' : ''}"></b>`).join('');
+    const lab = t => t === 'pp' ? 'の' : cardLabel(t, true);
+    $('#qLine').innerHTML = qToks.length ? `<span class="ln">${qToks.map(t => `<span class="w${L.isPart(t) ? ' pt' : ''}">${glyph(t, 22)}<i>${lab(t)}</i></span>`).join('')}${S.pconf.includes('pq') ? `<span class="w pt" style="opacity:.55">${glyph('pq', 22)}<i>か</i></span>` : ''}</span>` : '<span class="ph">カードをタップして、言葉を並べる</span>';
+    $('#qOf').style.display = S.pconf.includes('pp') ? '' : 'none';
+    $('#qAsk').disabled = !qToks.length || !S.pconf.includes('pq');
+    $('#qSay').disabled = !qToks.length; $('#qDel').disabled = !qToks.length;
+  }
+  function sendQ(mode) { if (busy || !qToks.length) return; const toks = qToks.slice(); qToks = []; renderTrial(); dispatch({ t: 'ask', toks, mode }); }
+  $('#qAsk').addEventListener('click', () => sendQ('ask'));
+  $('#qSay').addEventListener('click', () => sendQ('say'));
+  $('#qDel').addEventListener('click', () => { qToks.pop(); renderTrial(); renderHint(); });
+  $('#qOf').addEventListener('click', () => { if (qToks.length < 8) qToks.push('pp'); renderTrial(); renderHint(); });
   function renderFinal() {
     const on = S.phase === 'final';
     $('#finalBar').classList.toggle('on', on);
@@ -2268,7 +2782,8 @@ const M = (() => {
   const cardLabel = (w, plain) => L.labelOf(w, S.lang[w] || LANG, S.revealed) + (!plain && L.W[w] && L.W[w].made && !S.wordsDone.includes(w) ? '？' : '');
   function renderHand() {
     const h = $('#hand');
-    const words = L.WORDS.map(w => w.id).filter(w => S.confirmed.includes(w)).concat(S.named);
+    const ids = S.ch === 2 ? L.WORDS2.concat(L.WORDS) : L.WORDS.concat(L.WORDS2);
+    const words = ids.map(w => w.id).filter(w => S.confirmed.includes(w)).concat(S.named);
     if (!words.length) { h.innerHTML = '<div class="empty">意味の分かった言葉が、ここでカードになる</div>'; }
     else h.innerHTML = words.map(w => {
       const c = L.conf(S, bar ? [bar, w] : [w]);
@@ -2338,7 +2853,7 @@ const M = (() => {
     busy = true; chain = [];
     for (const e of ev) {
       switch (e.type) {
-        case 'say': { const ln = L.LINES[e.id]; lastSay = { id: e.id, prev: chain.length ? chain[chain.length - 1] : null }; chain.push(e.id); innerTx = []; renderScene(e.snap, e.id); renderWin(); talkMark(ln.who); newLog++; renderTop(); const vd = VO.speak(ln.s, ln.who, ln.wish); await wait(Math.max(ln.wish ? 1400 : 1000, vd + 200)); break; }
+        case 'say': { const ln = L.LN[e.id]; lastSay = { id: e.id, prev: chain.length ? chain[chain.length - 1] : null }; chain.push(e.id); innerTx = []; renderScene(e.snap, e.id); renderWin(); talkMark(ln.who); newLog++; renderTop(); const vd = VO.speak(ln.s, ln.who, ln.wish); await wait(Math.max(ln.wish ? 1400 : 1000, vd + 200)); break; }
         case 'label': if (e.quiet) break; lastSay = { label: e.id }; innerTx = []; renderWin(); renderTop(); await wait(600); break;
         // 問いかけ（L.STORY.ask）：身ぶりと心の声 → 村人の答え（say）→ 余韻の心の声
         case 'ask': { const a = L.STORY.ask[e.id]; lastSay = { nar: a.nar }; innerTx = []; renderScene(e.snap); renderWin(); await runStory(a.before); break; }
@@ -2378,7 +2893,7 @@ const M = (() => {
         }
         case 'belief': await modal(`<h3>碑文の最後の一行</h3>${lineHtml(L.BELIEF_LINE, true, 36, true)}<div class="full">「魔法は ない」</div><div class="cap">涙の跡。……なのに、途切れ途切れに光っている</div><div class="boost">胸の奥で、何かがほどけた</div>`); renderHand(); break;
         case 'twist': case 'truth': {
-          const ln = L.LINES[e.id], g = L.gloss(ln.t, e.snap.confirmed, e.snap.revealed);
+          const ln = L.LN[e.id], g = L.gloss(ln.t, e.snap.confirmed, e.snap.revealed);
           newLog++; renderTop();
           if (e.type === 'truth') { toast('ログの訳が変わった'); break; }
           M.apply(m => { if (m.twistAt == null) m.twistAt = e.snap.twistAt; });
@@ -2387,6 +2902,32 @@ const M = (() => {
           renderHand(); break;
         }
         case 'fturn': await finalTurn(e); break;
+        /* ---- 第2章 ---- */
+        case 'chapter2': await runStory(L.STORY2.arrive); lastSay = null; innerTx = []; renderScene(e.snap); renderWin(); renderTop(); toast('第2章　印の町'); await wait(600); break;
+        case 'gesture': toast(e.text); await wait(900); break;
+        case 'pass': toast('手で、通っていいと示された'); renderScene(e.snap); renderTop(); break;
+        case 'childGo': toast('子どもが、町並みの方へ駆けていった'); renderScene(e.snap); await wait(600); break;
+        case 'childLight': flashAt('child'); toast('子どもの手元に、小さな光が灯った'); await wait(1000); break;
+        // 記憶のかけら（音と字）：白い光の中で、声の字が見える。そのあと会話ウィンドウに残すので、字をタップして書きとめられる
+        case 'dream': await runStory(L.STORY2.memories[e.id]); lastSay = { dream: true }; innerTx = ['……あの声の字だ。書きとめておこう。']; renderWin(); await wait(2600); break;
+        case 'dreamShow': lastSay = { dream: true }; innerTx = ['胸の奥に、あの声が残っている。']; renderWin(); break;
+        case 'arrest': await veil(1, 400); renderScene(e.snap); await veil(0, 400); toast('役人が駆けつけてきた'); break;
+        case 'trial': qToks = []; toast('役人は、問いにだけ答えるようだ'); break;
+        case 'askQ': toast('「' + e.toks.filter(t => t !== 'pq').map(t => t === 'pp' ? 'の' : cardLabel(t, true)).join(' ') + (e.mode === 'ask' ? '？' : '') + '」と' + (e.mode === 'ask' ? '問うた' : '言った')); break;
+        case 'tturn': await trialTurn(e); break;
+        case 'cut': await runStory(L.STORY2.cuts[e.id]); break;
+        case 'lost2': renderScene(e.snap); await lostPanel2(); break;
+        case 'twist2': {
+          M.apply(m => { if (m.twist2At == null) m.twist2At = e.snap.c2.twist2At; });
+          const said = id => { const l = L.LN[id]; return `<div>${lineHtml(l.s, false, 20)}${transHtml(l.s, l.who)}</div>`; };
+          const seen = ['a7', e.snap.heard.some(h => h.id === 'a2') ? 'a2' : 'a1', 'a3'];
+          await modal(`<h3>役人の言葉どうしが、ぶつかった</h3>${seen.map(said).join('')}<div class="cap">（${L.LN.a6.cap}）</div>${lineHtml(L.LN.a6.s, false, 30)}${transHtml(L.LN.a6.s, 'official', true)}`);
+          break;
+        }
+        case 'release': toast('子どもの腕から、役人の手がはなれた'); renderScene(e.snap); await wait(900); break;
+        case 'leave':
+          bar = null; qToks = []; renderHand(); renderHint(); renderTrial();
+          await wait(1200); await runStory(L.STORY2.outro); finishRun2(); busy = false; return;
         case 'retry': toast('もう一度'); break;
         case 'lost': renderScene(e.snap); await lostPanel(); break;
         case 'escape': escapeHow = e.how; renderScene(e.snap); flashAt('mira'); toast(e.how === 'crumble' ? 'ミラの確信が崩れ、眠りの言葉が消えた' : 'ミラの魔法が止まった'); await wait(1600);
@@ -2416,6 +2957,26 @@ const M = (() => {
     await wait(900);
     // 眠りがしみこむ：まぶたが一度深く落ちてから、少しだけ持ち上がる
     if (o.hit) { toast('眠りの言葉がしみこむ…'); await lidsTo(.05, 380); await wait(220); lidsFree(); await wait(500); }
+  }
+  async function trialTurn(e) {
+    const o = e.out, msg = { answer: '役人が答えた。確信が揺らいでいる', crack: '', guard: '役人の目つきが険しくなった', lie: '役人は、目をそらした',
+      again: '同じことを聞いても、もう答えない', commit: '役人は、胸を張って答えた', reconfirm: '役人は、苛立ったように同じことを認めた',
+      refuse: '役人は答えなかった。もう、その問いには乗らない', muddle: '役人は眉をひそめた（並べ方…？）', shrug: '役人は肩をすくめた', dismiss: '役人は聞き流した',
+      deflect: '役人は、こちらをにらんだ', wait: '様子を見た' }[o.r];
+    if (msg) toast(msg);
+    renderScene(e.snap);
+    $('#ocP').innerHTML = [0, 1, 2].map(i => `<b class="${i < e.trial.oc ? 'f' : ''}"></b>`).join('');
+    $('#plP').innerHTML = [0, 1, 2].map(i => `<b class="${i < e.trial.pull ? 'f' : ''}"></b>`).join('');
+    if (!o.held && !e.trial.done) { toast('子どもが、一歩引きずられた'); $('#scene').classList.add('shake'); await wait(500); $('#scene').classList.remove('shake'); }
+    await wait(700);
+  }
+  function lostPanel2() {
+    return new Promise(r => {
+      $('#mcard').innerHTML = `<h3>子どもが、連れて行かれた</h3><div class="cap">問う順番を、もう一度</div><button class="big" id="lRetry" type="button">その場でやり直す</button>`;
+      $('#modal').classList.add('on');
+      $('#lRetry').addEventListener('click', () => { $('#modal').classList.remove('on'); r(); setTimeout(() => dispatch({ t: 'retry' }), 0); });
+      if (FAST) { $('#modal').classList.remove('on'); r(); }
+    });
   }
   function renderFinalSnap(st) { const keep = S; S = Object.assign({}, S, { fin: st.fin, confirmed: st.confirmed }); renderFinal(); S = keep; }
   function lostPanel() {
@@ -2488,9 +3049,10 @@ const M = (() => {
   }
   function ctxHtml(src, sel) {
     const m = /^L:(\w+)$/.exec(src);
-    if (m) { const ln = L.LINES[m[1]]; return `<div class="ctx">${whoName(ln.who)}（${ln.cap}）${ln.wish ? ' ✦光った' : ''}<br>${lineHtml(ln.s, false, 20, false, null, sel)}<div class="ro" style="color:var(--inkP2)">「${L.romaji(ln.s)}」</div></div>`; }
+    if (m) { const ln = L.LN[m[1]]; return `<div class="ctx">${whoName(ln.who)}（${ln.cap}）${ln.wish ? ' ✦光った' : ''}<br>${lineHtml(ln.s, false, 20, false, null, sel)}<div class="ro" style="color:var(--inkP2)">「${L.romaji(ln.s)}」</div></div>`; }
+    if (src === 'D:dream') { const d = L.STORY2.dream; return `<div class="ctx">${d.cap}<br>${lineHtml(d.toks, false, 20, false, null, sel)}</div>`; }
     const b = /^B:(\w+):(\d+)$/.exec(src); if (!b) return '';
-    const lb = L.LABELS[b[1]], i = +b[2];
+    const lb = L.LB[b[1]], i = +b[2];
     return `<div class="ctx">${lb.cap}<br>${lineHtml(lb.s[i], false, 20, lb.flicker === i, null, sel)}<div class="ro" style="color:var(--inkP2)">「${L.romaji(lb.s[i])}」</div></div>`;
   }
   function renderNote() {
@@ -2634,8 +3196,9 @@ const M = (() => {
   function renderLog() {
     let html = '', day = 0;
     S.heard.forEach(h => {
-      if (h.day !== day) { day = h.day; html += `<div class="dsep">${day}日目</div>`; }
-      const ln = L.LINES[h.id], v = L.view(ln.s, knownOf(), { lang: LANG, revealed: S.revealed, speaker: ln.who }), tr = S.truths.includes(h.id);
+      const dk = (h.ch || 1) + ':' + h.day;
+      if (dk !== day) { day = dk; html += `<div class="dsep">${h.ch === 2 ? '第2章 印の町' : h.day + '日目'}</div>`; }
+      const ln = L.LN[h.id], v = L.view(ln.s, knownOf(), { lang: LANG, revealed: S.revealed, speaker: ln.who }), tr = S.truths.includes(h.id);
       const old = ln.t.includes('kome') && S.revealed && v.natural ? `<span class="old">${L.translate(ln.s, LANG, { speaker: ln.who })}</span>` : '';
       const fc = ln.who === 'merchant' ? faceCrop('merchant', { face: tr ? 'smirk' : 'normal' }) : ln.who === 'mira' ? faceCrop('mira', { face: tr ? 'true' : 'smile' }) : faceCrop(ln.who);
       const tx = v.natural ? `<div class="full">${old}「${v.natural}」</div>` : v.literal ? `<div class="lit"><b>逐語</b>${v.literal}</div>` : '';
@@ -2745,7 +3308,12 @@ const M = (() => {
   }
   addEventListener('pointerup', e => {
     if (!drag || e.pointerId !== drag.id) return;
-    if (!drag.moved) { const w = drag.w; endDrag(); if (busy) return; bar = bar === w ? null : w; renderHand(); idleGlow(); return; }
+    if (!drag.moved) {
+      const w = drag.w; endDrag(); if (busy) return;
+      // 関所の問いのあいだは、タップしたカードを問いの言葉として並べる
+      if (S.phase === 'trial') { if (qToks.length < 8) qToks.push(w); renderTrial(); renderHint(); return; }
+      bar = bar === w ? null : w; renderHand(); idleGlow(); return;
+    }
     const t = drag.tgt, ws = words(), filling = drag.fill && !drag.fill.done;
     endDrag();
     if (!t) return;
@@ -2808,6 +3376,12 @@ const M = (() => {
         case 'gesture': toast(st.text); await wait(st.ms || 900); break;
         case 'shot': await playShot(st); break;
         case 'omen': await playOmen(st); break;
+        case 'dream': {
+          // 夢の声：字と、その音（カタカナ）。抜け落ちた語は空欄
+          const d = L.STORY2.dream;
+          introTx.innerHTML = `<span class="dreamG">${d.toks.map(t => t === '_' ? '<span class="gap"></span>' : `<span>${glyph(t, 34)}<i>${kanaW(t)}</i></span>`).join('')}</span>`;
+          introTx.className = 'mem on'; await wait(st.ms || 3000); introTx.classList.remove('on'); await wait(900); introTx.textContent = ''; break;
+        }
       }
     }
     if (intro.classList.contains('on')) await hideIntro();
@@ -2855,7 +3429,7 @@ const M = (() => {
     render();
   }
   function startRun() {
-    runNo++; S = L.newGame(); bar = null; sampleCount = 0; sel = null; firstHint = null; langAuto = false; noteFlash = null; lastSay = null; newNote = 0; newLog = 0; runCounted = false; escapeHow = null; prevConf = {}; seenSamples = new Set(); comp = { cls: null, el: [] };
+    runNo++; S = L.newGame(); bar = null; qToks = []; sampleCount = 0; sel = null; firstHint = null; langAuto = false; noteFlash = null; lastSay = null; newNote = 0; newLog = 0; runCounted = false; escapeHow = null; prevConf = {}; seenSamples = new Set(); comp = { cls: null, el: [] };
     M.apply(m => { if (m.runsStarted >= 1) m.replayed = true; m.runsStarted++; });
     show('game'); innerTx = []; render();
     if (!TEST_NOINTRO) playIntro();
@@ -2863,10 +3437,11 @@ const M = (() => {
   }
   const WANT = ['もっと遊びたい', '少し遊びたい', 'もういい'];
   function finishRun() {
+    $('#endTtl').textContent = '森へ、逃げきった'; $('#nextBtn').style.display = '';
     if (!runCounted) { runCounted = true; M.apply(m => { m.runsCompleted++; m.bestScore = Math.max(m.bestScore || 0, S.confirmed.length); m.wordsConfirmed = Math.max(m.wordsConfirmed || 0, S.confirmed.length); }); }
     $('#stats').innerHTML = `<span>解読した言葉</span><b>${S.confirmed.length} / ${L.N_WORDS}</b><span>真実に気づいた時点</span><b>${S.twistAt != null ? S.twistAt + '語目' : '気づかないまま'}</b><span>意味を書いた回数</span><b>${S.guesses}回</b><span>試した組み合わせ</span><b>${S.combos.length}種類</b><span>かかった日数</span><b>${S.day}日</b>`;
     $('#truthList').innerHTML = ['h6', 's1', 's2', 'n2'].filter(id => S.heard.some(h => h.id === id)).map(id => {
-      const ln = L.LINES[id], v = L.view(ln.s, knownOf(), { lang: LANG, revealed: S.revealed, speaker: ln.who }), tx = v.natural || v.literal;
+      const ln = L.LN[id], v = L.view(ln.s, knownOf(), { lang: LANG, revealed: S.revealed, speaker: ln.who }), tx = v.natural || v.literal;
       return `<div>${lineHtml(ln.s, ln.wish, 20)}<br>${ln.cap} → ${tx ? '「' + tx + '」' : '（まだ読めない）'}</div>`;
     }).join('');
     // 終了画面は引き（L.STORY.camera.end）：森へ逃げた主人公の後ろ姿を映す
@@ -2875,6 +3450,20 @@ const M = (() => {
     if (endWide && !$('#endHero').getAttribute('src')) $('#endHero').src = A('hero_back');
     renderOpts(); $('#thanks').textContent = ''; show('end'); M.flush();
   }
+  // 第2章の終わり：町を出る。記録は第1章と同じ系統（気づいた時点＝その時点で解読していた第2章の語数）
+  function finishRun2() {
+    M.apply(m => { m.ch2Cleared = true; });
+    const c = S.c2, n2 = L.WORDS2.filter(w => S.confirmed.includes(w.id)).length;
+    $('#endTtl').textContent = '町を出た';
+    $('#stats').innerHTML = `<span>第2章で解読した言葉</span><b>${n2} / ${L.N_WORDS2}</b><span>問いで気づいた時点</span><b>${c.twist2At != null ? c.twist2At + '語目（' + c.twist2Round + '手目）' : '―'}</b><span>口にした問い・言葉</span><b>${c.asks}回</b><span>やり直し</span><b>${c.retries}回</b>`;
+    $('#truthList').innerHTML = ['a4', 'a3', 'a1', 'a2', 'a6'].filter(id => S.heard.some(h => h.id === id)).map(id => {
+      const ln = L.LN[id], v = viewOf(ln.s, ln.who), tx = v.natural || v.literal;
+      return `<div>${lineHtml(ln.s, false, 20)}<br>${ln.cap} → ${tx ? '「' + tx + '」' : '（まだ読めない）'}</div>`;
+    }).join('') + '<div>（第3章へ、つづく）</div>';
+    $('#nextBtn').style.display = 'none';
+    renderOpts(); $('#thanks').textContent = ''; show('end'); M.flush();
+  }
+  $('#nextBtn').addEventListener('click', () => { if (busy) return; VO.unlock(); show('game'); lastSay = null; innerTx = []; bar = null; qToks = []; escapeHow = null; render(); dispatch({ t: 'chapter2' }); });
   function renderOpts() {
     const box = $('#opts'), cur = M.get().wantMore; box.innerHTML = '';
     WANT.forEach(v => {
