@@ -2119,7 +2119,117 @@ const L = (() => {
 if (typeof module !== 'undefined') module.exports = L;
 </script>
 
+<script id="verify">
+/* ===== 検証モードの手順データ（2026-11-14）。画面で使うのは ?verify=1 のときだけ。通常プレイでは参照されない =====
+   正規ルート＝tests/logic.test.js の通しプレイ2本（A＝回収の流れ、B＝入力。どちらも twistAt=16）の行為列をそのまま写したもの。
+   状態はすべて L.act だけで進める（ゲームのロジックには手を入れない）。Node でも取り出して検証できる（tests の verify 節） */
+const KV = (() => {
+  const tap = obj => ({ t: 'tap', obj });
+  const guess = (w, text) => ({ t: 'guess', w, text });
+  const wish = (words, target) => ({ t: 'cast', words, target, wish: true });
+  const speak = (words, target) => ({ t: 'cast', words, target, wish: false });
+  // 手順の1歩：{a}＝そのまま行う手／collect＝聞いた文といまこの場の字をすべて書きとめる／unwatched＝ミラがこちらを見ていたら像を見て1手やりすごす／
+  // name＝語の表記（日本語）で当てる／parts＝小辞4つを当てる／mark＝場面ジャンプの位置（手は行わない）
+  const A = a => ({ a }), C = { k: 'collect' }, UW = { k: 'unwatched' }, PARTS = { k: 'parts' };
+  const NM = ws => ws.map(w => ({ k: 'name', w }));
+  const G = pairs => pairs.map(([w, x]) => A(guess(w, x)));
+  const MK = id => ({ k: 'mark', id });
+  const MORNING = (L, how) => [A({ t: 'wake' }), MK('s3'), A({ t: 'reply', how })].concat(L.MORNING_SEQ.map((id, i) => i === 5 ? [MK('s4'), A(tap('mira'))] : [A(tap('mira'))]).flat());
+  function routes(L) {
+    // A：回収の流れで通しクリア（tests の「回収の流れで通しクリア」）。場面ジャンプの位置もこのルートに置く
+    const a = [MK('s0'), MK('s2'), A({ t: 'wake' }), C].concat(MORNING(L, 'shake'), [C, MK('s5')],
+      NM(['ka', 'mi', 'na']), [A(tap('book')), C], NM(['wa', 'to', 'kome', 'nai']), [A(wish(['kome', 'nai'], 'door')), MK('s6'), A(tap('door'))],
+      [MK('s7'), A(tap('merchant')), A(tap('merchant')), A(tap('merchant')), A(tap('statue')), A(tap('jarL')), UW, A(tap('mira')), C, MK('m1')],
+      NM(['uru', 'hira', 'oo', 'hito', 'uso', 'maho', 'shin']), [UW, MK('s8'), A(tap('mira')), C], NM(['nemu', 'yo']),
+      [A(wish(['kome', 'nai'], 'door')), A(wish(['hira'], 'door')), MK('s10'), A({ t: 'move', to: 'square' })],
+      [UW, A(tap('mira')), C, PARTS, MK('m2'), UW, A(tap('cage')), MK('m3')],
+      [UW, A(wish(['oo', 'mi'], 'trough')), MK('s11'), A({ t: 'move', to: 'gate' }), A(wish(['oo', 'ka'], 'thorns')), A({ t: 'compose', cls: '物', el: ['熱', '流'] }), A(guess('yu', 'hot water')),
+        A(wish(['yu'], 'gate')), MK('s12'), A(wish(['hira'], 'gate')), MK('m4')],
+      [A(speak(['na', 'uru'], 'mira')), A(wish(['nemu', 'nai'], 'self'))]);
+    // B：入力で通しクリア（tests の「入力で通しクリア」。外れ・近い・保留の入力も含む。檻の札を先に読む）。mark は場面名の表示にだけ使う（ジャンプはルートA）
+    const b = [MK('s2'), A({ t: 'wake' }), C].concat(MORNING(L, 'nod'), [C, MK('s5')],
+      G([['ka', '光'], ['ka', 'たき火'], ['ka', '火'], ['mi', 'みず'], ['na', '君']]), [A(tap('book')), C], G([['wa', 'わたし'], ['to', 'ドア'], ['kome', '閉める'], ['kome', 'protect'], ['nai', 'not']]),
+      [A(wish(['kome', 'nai'], 'door')), MK('s6'), A(tap('door')), MK('s7'), A(tap('merchant')), A(tap('merchant')), A(tap('merchant')), A(tap('statue')), A(tap('jarL')), UW, A(tap('mira')), C, MK('m1')],
+      G([['uru', 'sold'], ['hira', '開けて'], ['oo', 'big'], ['hito', 'people'], ['uso', 'うそ'], ['maho', 'Magic'], ['shin', '信じて'], ['pe', 'が'], ['pk', 'object'], ['ph', '〜せよ']]),
+      [UW, MK('s8'), A(tap('mira')), C], G([['nemu', '眠れ'], ['yo', '夜']]),
+      [A(wish(['kome', 'nai'], 'door')), A(wish(['hira'], 'door')), MK('s10'), A({ t: 'move', to: 'square' }), A(tap('cage')), MK('m3'), UW, A(tap('mira')), C], G([['pl', 'when']]),
+      [UW, A(wish(['oo', 'mi'], 'trough')), MK('s11'), A({ t: 'move', to: 'gate' }), A(wish(['oo', 'ka'], 'thorns')), A({ t: 'compose', cls: '物', el: ['熱', '流'] }), A(guess('yu', 'お湯')),
+        A(wish(['yu'], 'gate')), MK('s12'), A(wish(['hira'], 'gate')), MK('m4'), A(speak(['na', 'uru'], 'mira')), A(wish(['nemu', 'nai'], 'self'))]);
+    return { A: a, B: b };
+  }
+  const ROUTE_NAME = { A: 'ルートA（字を集めて読む）', B: 'ルートB（入力のゆれ込み）' };
+  // 1歩を、いまの状態に合わせて具体的な手の列にする（tests の collectAll・unwatched・name3 と同じ）
+  function expand(L, s, st) {
+    if (st.a) return [st.a];
+    if (st.k === 'collect') {
+      const acts = [];
+      s.heard.forEach(h => L.LINES[h.id].s.forEach(w => acts.push({ t: 'collect', w, src: 'L:' + h.id })));
+      L.objectsAt(s).forEach(o => { const lb = L.LABELS[o]; if (lb) lb.s.forEach((ln, i) => ln.forEach(w => acts.push({ t: 'collect', w, src: `B:${o}:${i}` }))); });
+      return acts;
+    }
+    if (st.k === 'unwatched') return s.place === 'square' && s.mira === 'square' && s.miraLook ? [tap('statue')] : [];
+    if (st.k === 'name') return [guess(st.w, L.W[st.w].jp)];
+    if (st.k === 'parts') return L.PARTS.map(p => guess(p.id, p.gl.ja));
+    return [];
+  }
+  // 場面ジャンプの一覧（13場面＋主要な中間状態）。mode：intro＝冒頭の演出から／play＝前提の状態に置いて、場面を始める手を1つ行う／
+  // from＝その手の出来事のうち ev の型から後だけ見せる／land＝その状態に置くだけ
+  const JUMPS = [
+    { id: 's0', no: 0, label: '前日譚（暗転）', mode: 'intro', story: 'all' },
+    { id: 's1', no: 1, label: '野原・朝', mode: 'intro', story: 'prologue', at: 's0' },
+    { id: 's2', no: 2, label: '家・朝（目覚めの問い）', mode: 'play' },
+    { id: 's3', no: 3, label: '家・朝（返事の身ぶり〜火・水）', mode: 'play' },
+    { id: 's4', no: 4, label: '家・朝（抱擁と扉の鍵）', mode: 'play' },
+    { id: 's5', no: 5, label: '家・ひとり（最初の魔法の前）', mode: 'land' },
+    { id: 's6', no: 6, label: '広場・昼（扉を出る）', mode: 'play' },
+    { id: 's7', no: 7, label: '広場・昼（村の触れ合い）', mode: 'play' },
+    { id: 'm1', label: '1日目の広場（字を書きとめたところ）', mode: 'land' },
+    { id: 's8', no: 8, label: '家・夕〜夜', mode: 'play' },
+    { id: 's9', no: 9, label: '家・2日目の朝', mode: 'from', from: 'morning', at: 's8' },
+    { id: 's10', no: 10, label: '広場・2日目（荷車が来る）', mode: 'play' },
+    { id: 'm2', label: '2日目の広場（耳打ちを読んだところ）', mode: 'land' },
+    { id: 'm3', label: '反転後（檻の札のあと）', mode: 'land' },
+    { id: 's11', no: 11, label: '広場→森の門', mode: 'play' },
+    { id: 's12', no: 12, label: '最後の夜（門を開ける）', mode: 'play' },
+    { id: 'm4', label: '最後の夜の開始', mode: 'land' },
+  ];
+  // ルートを newGame から mark の位置まで進めた状態。idx＝その位置（次に行う歩の番号）
+  function stateAt(L, route, mark) {
+    let s = L.newGame();
+    for (let i = 0; i < route.length; i++) {
+      const st = route[i];
+      if (st.k === 'mark' && st.id === mark) return { s, idx: i + 1 };
+      expand(L, s, st).forEach(a => { s = L.act(s, a).s; });
+    }
+    return null;
+  }
+  // 次に行う歩（mark・空になる歩は飛ばす）
+  function nextStep(L, route, idx, s) {
+    for (let i = idx; i < route.length; i++) { const acts = expand(L, s, route[i]); if (acts.length) return { i, st: route[i], acts }; }
+    return null;
+  }
+  // 場面ジャンプの前提の状態を組み立てる：{ s＝置く状態, idx＝自動再生を続ける位置, step＝場面を始める手 }
+  function jumpState(L, id) {
+    const j = JUMPS.find(x => x.id === id); if (!j) return null;
+    const R = routes(L).A, at = stateAt(L, R, j.at || j.id); if (!at) return null;
+    const out = { j, s: at.s, idx: at.idx, step: null };
+    if (j.mode === 'play' || j.mode === 'from') { const n = nextStep(L, R, at.idx, at.s); out.step = n; }
+    return out;
+  }
+  // ルートを最後まで（Node のテスト用）。marks＝各 mark の位置での状態
+  function runRoute(L, route) {
+    let s = L.newGame(); const ev = [], marks = {};
+    route.forEach(st => { if (st.k === 'mark') { marks[st.id] = JSON.parse(JSON.stringify(s)); return; } expand(L, s, st).forEach(a => { const r = L.act(s, a); s = r.s; ev.push(...r.ev); }); });
+    return { s, ev, marks };
+  }
+  return { routes, ROUTE_NAME, expand, JUMPS, stateAt, nextStep, jumpState, runRoute };
+})();
+if (typeof module !== 'undefined') module.exports.KV = KV;
+</script>
+
 <script>
+// 検証モード（?verify=1 のときだけ）。通常プレイでは false のまま、以下の分岐はすべて元の動きになる
+const VERIFY = (() => { try { return new URLSearchParams(location.search).get('verify') === '1'; } catch (e) { return false; } })();
 /* ===== 計測（db があればそこへ、無ければ localStorage だけ） ===== */
 const M = (() => {
   const KEY = 'kotodama.metrics.v1';
@@ -2140,6 +2250,7 @@ const M = (() => {
     Promise.resolve().then(() => ref.set(Object.assign({}, m))).catch(() => {}).finally(() => { inflight = false; if (again) { again = false; write(); } });
   }
   function apply(op, lazy) {
+    if (VERIFY) return;   // 検証モードの再生・ジャンプは、遊んだ記録に入れない
     const before = JSON.stringify(m);
     op(m); if (!m.firstPlayAt) m.firstPlayAt = new Date().toISOString();
     if (JSON.stringify(m) === before) return;
@@ -2150,6 +2261,7 @@ const M = (() => {
   }
   function flush() { if (timer) write(); }
   async function init() {
+    if (VERIFY) return;
     try {
       const c = window.claude; if (!c || !c.use) return;
       const [db, user] = await Promise.all([c.use('db'), c.use('user')]);
@@ -2175,7 +2287,13 @@ const M = (() => {
   const TEST = (() => { try { return new URLSearchParams(location.search).get('test') === '1'; } catch (e) { return false; } })();
   let TEST_NOINTRO = (() => { try { return new URLSearchParams(location.search).get('intro') === '0'; } catch (e) { return false; } })();
   let FAST = false;
-  const wait = ms => FAST ? Promise.resolve() : new Promise(r => setTimeout(r, reduced ? Math.min(ms, 500) : ms));
+  // 検証モードだけ：速度（VQ.speed）に追従し、スキップ（VQ.skip）で待ちを即時に終える。通常プレイは元の wait のまま
+  const VQ = { speed: 1, skip: false, off: 0, pend: new Set() };
+  const wait = !VERIFY ? (ms => FAST ? Promise.resolve() : new Promise(r => setTimeout(r, reduced ? Math.min(ms, 500) : ms)))
+    : (ms => (FAST || VQ.skip) ? Promise.resolve() : new Promise(r => {
+      const f = () => { clearTimeout(id); VQ.pend.delete(f); r(); };
+      const id = setTimeout(f, (reduced ? Math.min(ms, 500) : ms) / (VQ.off ? 1 : VQ.speed)); VQ.pend.add(f);
+    }));
 
   /* ---- 声：セリフの音節ごとに短い合成音（Web Audio）。声色は人物ごとに少し変える。最初のタップのあとだけ鳴る ---- */
   const VO = (() => {
@@ -3208,7 +3326,7 @@ const M = (() => {
         if (n >= 3 && firstSession && runNo === 1 && Date.now() - openedAt <= 180000) m.firstRunCleared = true;
       });
     }
-    if (S.combos.length) {
+    if (S.combos.length && !VERIFY) {   // 検証モードの操作は、組み合わせの履歴（kotodama.combos）にも残さない
       let all = [];
       try { all = JSON.parse(localStorage.getItem('kotodama.combos') || '[]'); } catch (e) {}
       const set = new Set(all.concat(S.combos));
@@ -3687,6 +3805,217 @@ const M = (() => {
   $('#sndBtn').addEventListener('click', () => { VO.toggle(); renderBtns(); });
   renderBtns();
   M.init();
+
+  /* ===== 検証モード（?verify=1 のときだけ。通常プレイでは、この中は一切動かず、画面にも何も足さない） =====
+     自動再生（正規ルートの行為列を、実際の画面の dispatch で順に行う）・場面ジャンプ・スキップ。状態は L.act だけで進め、判定は通常プレイと同じ */
+  if (VERIFY) (() => {
+    const RT = KV.routes(L);
+    const V = { route: 'A', idx: null, at: null, on: false, req: 0, gen: 0, playReq: null, task: Promise.resolve(), depth: 0, gauge: null, msg: '', fold: false, skipWatch: null, jumped: null, jopen: false };
+    const sleep = ms => new Promise(r => setTimeout(r, ms));   // 実時間（速度・スキップの影響を受けない）
+    // 物語の演出は busy の外でも動く（冒頭など）ので、入れ子の深さを数える
+    const _runStory = runStory; runStory = async steps => { V.depth++; try { await _runStory(steps); } finally { V.depth--; } };
+    // カード（気づき・反転・碑文）：スキップ中は出さずに進む。自動再生中は少し見せてから閉じる
+    const _modal = modal; modal = html => {
+      if (VQ.skip) return Promise.resolve();
+      const p = _modal(html), btn = $('#mOk');
+      if (V.on && btn) wait(1800).then(() => { if (btn.isConnected && $('#modal').classList.contains('on')) btn.click(); });
+      return p;
+    };
+    // 暗転・まぶた・引きの場面：CSS の時間も速度に合わせる（待ちとずれないよう、その間は wait 側で二重に縮めない）
+    const scaled = fn => async (a, ms) => { if (VQ.speed === 1 || VQ.skip) return fn(a, ms); VQ.off++; try { return await fn(a, ms / VQ.speed); } finally { VQ.off--; } };
+    veil = scaled(veil); lidsTo = scaled(lidsTo);
+    const _playShot = playShot; playShot = async step => {
+      if (VQ.speed === 1 || VQ.skip) return _playShot(step);
+      VQ.off++; try { return await _playShot(Object.assign({}, step, { ms: (step.ms || 2400) / VQ.speed })); } finally { VQ.off--; }
+    };
+    const modalOn = () => $('#modal').classList.contains('on');
+    const idle = () => !busy && !V.depth && !modalOn() && !drag && !V.gauge && !VQ.skip;
+    const untilIdle = async () => { while (!idle()) { if (S.phase === 'lost' && modalOn() && !busy) return; await sleep(40); } };
+
+    /* ---- スキップ：表示中の会話・演出を即時に終える。願いのゲージは即時に満たす（成功・失敗は act の判定のまま） ---- */
+    function skip() {
+      if (drag && drag.moved && drag.tgt) { const ws = words(), ok = L.conf(S, ws) >= L.needOf(S, drag.tgt); if (drag.fill) drag.fill.done = true; finishWish(ws, ok); return; }
+      if (V.gauge) { V.gauge.done(); return; }
+      if (!busy && !V.depth && !modalOn()) return;
+      VQ.skip = true; [...VQ.pend].forEach(f => f());
+      if (modalOn() && $('#mOk')) $('#mOk').click();
+      if (!V.skipWatch) V.skipWatch = (async () => { await sleep(0); while (busy || V.depth) await sleep(30); VQ.skip = false; V.skipWatch = null; render(); vRender(); })();
+    }
+    /* ---- 自動再生の願い：運んで離さず待つのと同じゲージを、対象の上で満たしてから唱える ---- */
+    // g＝始めたときの世代。ゲージの途中でジャンプ・最初から・ルート変更が来たら、唱えずに片づける（古い処理の手を残さない）
+    function gaugeWish(a, g) {
+      return new Promise(res => {
+        const p = objPos(a.target), gh = document.createElement('div'), c = L.conf(S, a.words), need = L.needOf(S, a.target);
+        const to = Math.min(1, need ? c / need : 1), ok = c >= need;
+        gh.className = 'card ghostCard c' + c;
+        gh.innerHTML = a.words.map((w, i) => glyph(w, i === a.words.length - 1 ? 28 : 18)).join('') + ringSvg();
+        gh.style.left = (p.box.left + p.x) + 'px'; gh.style.top = (p.box.top + p.y) + 'px';
+        document.body.appendChild(gh); setHot(a.target);
+        const ring = gh.querySelector('.ring'), fgs = ring.querySelectorAll('.rfg,.rfg2'), halo = ring.querySelector('.halo');
+        let done = false, t0 = 0;
+        const show = v => { fgs.forEach(f => { f.style.strokeDashoffset = CIRC * (1 - v); }); halo.style.transform = `scale(${.2 + v * .9})`; };
+        const fin = () => {
+          if (done) return; done = true; show(to); V.gauge = null; gh.remove(); setHot(null);
+          if (g != null && V.gen !== g) return res();
+          if (!ok) toast('…できない気がする', true);
+          res(dispatch(a));
+        };
+        V.gauge = { done: fin };
+        if (VQ.skip) return fin();
+        setTimeout(() => {
+          if (done) return; ring.classList.add('on'); ring.classList.toggle('weak', !ok); t0 = performance.now();
+          (function step(now) { if (done) return; const k = Math.min(1, (now - t0) / (FILL_MS / VQ.speed)); show(Math.min(k, to)); if (k >= to) return fin(); requestAnimationFrame(step); })(t0);
+        }, HOLD_START / VQ.speed);
+      });
+    }
+    // 1歩ぶんの手を、実際の画面の操作と同じ dispatch で行う（字の書きとめはまとめて1回で演出する）
+    // g＝この手を始めたときの世代。途中で世代が変わったら（ジャンプ・最初から・ルート変更）、残りの手は行わない。全部行えたら true
+    async function doStep(n, g) {
+      if (n.acts.length > 1 && n.acts.every(a => a.t === 'collect')) { await untilIdle(); if (V.gen !== g) return false; await dispatchMany(n.acts); return true; }
+      for (const a of n.acts) { await untilIdle(); if (V.gen !== g) return false; if (a.t === 'cast' && a.wish) await gaugeWish(a, g); else await dispatch(a); }
+      return true;
+    }
+    // 新しい周回（冒頭の演出は流さない）。画面の途中の状態も初めに戻す
+    function freshRun() {
+      const keep = TEST_NOINTRO; TEST_NOINTRO = true; startRun(); TEST_NOINTRO = keep;
+      glowTo = null; SHOT = null; $('#modal').classList.remove('on'); $('#intro').classList.remove('on'); $('#note').classList.remove('on'); $('#log').classList.remove('on');
+      $('#sceneBox').classList.remove('wide', 'omen', 'dragging'); const vl = $('#veil'); vl.style.transition = 'opacity 0ms'; vl.style.opacity = 0; lidsFree();
+    }
+    const lastHeard = st => { const h = st.heard[st.heard.length - 1]; return h ? { id: h.id } : null; };
+    // ルートの位置からいまの場面名（ルートAの mark を手前へさかのぼる）
+    function sceneName() {
+      if (V.idx == null) return '―';
+      if (V.jumped && V.jumped.idx === V.idx) { const j = V.jumped.j; return (j.no != null ? j.no + ' ' : '') + j.label; }
+      const r = RT[V.route]; let id = null;
+      for (let i = Math.min(V.idx, r.length) - 1; i >= 0; i--) if (r[i].k === 'mark') { id = r[i].id; break; }
+      const j = KV.JUMPS.find(x => x.id === id); return j ? (j.no != null ? j.no + ' ' : '') + j.label : '―';
+    }
+    async function settle() { if (!idle()) { V.on = false; skip(); await untilIdle(); } }
+
+    /* ---- 操作の直列化：再生・ジャンプ・最初から は、前の処理が本当に終わってから中身を始める ----
+       V.req＝操作の世代（停止も含め、操作のたびに増える。再生のループは自分の世代のあいだだけ次の手へ進む）
+       V.gen＝手順位置の世代（ジャンプ・最初から・ルート変更で増える。古い処理は、手の途中で止まり、状態・手順位置を書かない）
+       停止は V.gen を変えないので、いま行っている手は終えて、その位置を書いてから止まる（そのあとの「続きから」はその位置から） */
+    function enqueue(fn) {
+      const prev = V.task;
+      const t = (async () => {
+        let done = false; prev.then(() => { done = true; });
+        while (!done) { if (!idle()) skip(); await sleep(30); }   // 前の処理の演出は即時に終えて、終わりを待つ
+        return fn();
+      })();
+      V.task = t.catch(() => {});
+      return t;
+    }
+
+    /* ---- 自動再生 ---- */
+    function autoPlay() {
+      if (V.playReq != null && V.playReq === V.req) return V.task;   // 再生（待ち・実行中）のあいだの二度押しは無視
+      const r = ++V.req; V.playReq = r;
+      return enqueue(async () => {
+        try {
+          if (V.req !== r) return;   // 待っているあいだに別の操作が来た
+          await settle(); if (V.req !== r) return;
+          const g = V.gen, live = () => V.req === r && V.gen === g;
+          V.on = true; V.msg = ''; vRender();
+          const route = RT[V.route];
+          if (V.idx == null || V.at !== S) { V.idx = 0; freshRun(); V.at = S; vRender(); await playIntro(); }
+          while (live()) {
+            await untilIdle(); if (!live()) break;
+            const n = KV.nextStep(L, route, V.idx, S);
+            if (!n) break;
+            const full = await doStep(n, g); await untilIdle();
+            if (!full || V.gen !== g) break;
+            V.idx = n.i + 1; V.at = S; vRender();
+            if (S.phase === 'lost') { V.msg = '負けの画面で止まった（手順から外れている）'; break; }
+            await sleep(220 / VQ.speed);
+          }
+          if (V.gen === g && S.phase === 'won') V.msg = '最終場面まで到達：森へ逃げきった';
+        } finally { V.on = false; if (V.playReq === r) V.playReq = null; vRender(); }
+      });
+    }
+    function stop() { ++V.req; V.on = false; V.msg = '停止（いまの手が終わったところで止まる）'; vRender(); }
+    // 最初から：手順位置を捨て、前の処理が終わってから最初の周回で再生する
+    function restart() { ++V.req; ++V.gen; V.on = false; V.idx = null; V.at = null; vRender(); return autoPlay(); }
+    // ルート変更：古い処理は手の途中で止まり、新しいルートの手順位置を書かない
+    function setRoute(rt) { ++V.req; ++V.gen; V.on = false; V.route = rt; V.idx = null; V.at = null; vRender(); }
+
+    /* ---- 場面ジャンプ：ルートAをその位置まで L.act で進めた状態に置き、場面を始める手を1つ行う ---- */
+    function jump(id) {
+      ++V.req; const g = ++V.gen; V.on = false;
+      const alive = () => V.gen === g;   // あとからジャンプ等が来たら、このジャンプは状態も手順位置も書かずに終わる
+      return enqueue(async () => {
+        if (!alive()) return;
+        await settle(); if (!alive()) return;
+        const x = KV.jumpState(L, id); if (!x) return;
+        const j = x.j; V.route = 'A'; V.msg = ''; freshRun();
+        if (j.mode === 'intro') {
+          V.idx = x.idx; vRender();
+          await runStory(j.story === 'all' ? L.STORY.before.concat(L.STORY.prologue) : L.STORY.prologue); if (!alive()) return;
+          if (!S.heard.length) await dispatch({ t: 'wake' });
+          if (!alive()) return;
+          render();
+        } else {
+          S = JSON.parse(JSON.stringify(x.s)); lastSay = lastHeard(S); innerTx = []; render();
+          V.idx = x.idx; V.at = S; vRender();
+          if (j.mode === 'play' && x.step) { const full = await doStep(x.step, g); await untilIdle(); if (!alive() || !full) return; V.idx = x.step.i + 1; }
+          if (j.mode === 'from' && x.step) {
+            // 前の場面の出来事は飛ばし、j.from の出来事から見せる（状態は手を1つ行ったあとと同じ）
+            await lidsTo(0, 0); await veil(1, 0); if (!alive()) return;
+            const r = L.act(S, x.step.acts[0]), k = Math.max(0, r.ev.findIndex(e => e.type === j.from));
+            S = r.s; await play(r.ev.slice(k)); await untilIdle(); if (!alive()) return; V.idx = x.step.i + 1;
+          }
+        }
+        V.at = S; V.jumped = { j, idx: V.idx }; vRender();
+      });
+    }
+    function setSpeed(n) { VQ.speed = n; vRender(); }
+
+    /* ---- 検証パネル（画面の左上に重ねる。v キーで畳む／s キーでスキップ） ---- */
+    const css = document.createElement('style');
+    css.textContent = '#vPanel{position:fixed;left:6px;top:6px;z-index:90;width:212px;max-height:calc(100vh - 12px);overflow:auto;background:rgba(14,12,26,.9);color:#eee;'
+      + 'font:12px/1.35 system-ui,sans-serif;border:1px solid #6a5a9a;border-radius:8px;padding:6px 7px;box-shadow:0 4px 14px rgba(0,0,0,.5)}'
+      + '#vPanel.fold{width:auto;padding:3px 6px}#vPanel.fold .vb{display:none}#vPanel .vh{display:flex;align-items:center;gap:6px;font-weight:700}#vPanel .vh span{flex:1}'
+      + '#vPanel button,#vPanel select{font:inherit;color:#eee;background:#2c2648;border:1px solid #6a5a9a;border-radius:5px;padding:2px 6px;cursor:pointer}'
+      + '#vPanel button.on{background:#7a5ad0;border-color:#c9b6ff}#vPanel .vr{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;align-items:center}'
+      + '#vPanel .vs{margin-top:5px;color:#cfc6ee;font-size:11px}#vPanel .vj{display:flex;flex-direction:column;gap:2px;margin-top:5px}#vPanel .vj button{text-align:left}'
+      + '#vPanel .vj button.mid{padding-left:16px;color:#d8cfa8}#vPanel .vd{margin-top:5px}#vPanel .vd summary{cursor:pointer;color:#cfc6ee;font-size:11px}';
+    document.head.appendChild(css);
+    const pn = document.createElement('div'); pn.id = 'vPanel'; pn.setAttribute('role', 'region'); pn.setAttribute('aria-label', '検証モード');
+    document.body.appendChild(pn);
+    function vRender() {
+      const r = RT[V.route], cont = V.idx != null && V.at === S && V.idx > 0;
+      pn.classList.toggle('fold', V.fold);
+      pn.innerHTML = `<div class="vh"><span>検証モード</span><button type="button" data-v="fold" aria-label="畳む">${V.fold ? '＋' : '－'}</button></div><div class="vb">`
+        + `<div class="vr"><select data-v="route" aria-label="手順">${Object.keys(RT).map(k => `<option value="${k}"${k === V.route ? ' selected' : ''}>${KV.ROUTE_NAME[k]}</option>`).join('')}</select></div>`
+        + `<div class="vr"><button type="button" data-v="play"${V.on ? ' class="on"' : ''}>▶ ${cont ? '続きから' : '再生'}</button><button type="button" data-v="stop">■ 停止</button><button type="button" data-v="restart">最初から</button></div>`
+        + `<div class="vr">速度 ${[1, 2, 4].map(n => `<button type="button" data-v="speed" data-n="${n}"${VQ.speed === n ? ' class="on"' : ''}>${n}x</button>`).join('')}</div>`
+        + `<div class="vr"><button type="button" data-v="skip">スキップ（S）</button></div>`
+        + `<div class="vs">手順 ${V.idx == null ? '―' : Math.min(V.idx, r.length) + ' / ' + r.length}<br>場面：${sceneName()}${V.msg ? '<br>' + V.msg : ''}</div>`
+        + `<details class="vd"${V.jopen ? ' open' : ''}><summary>場面ジャンプ（${KV.JUMPS.length}）</summary><div class="vj">${KV.JUMPS.map(j => `<button type="button" data-v="jump" data-id="${j.id}"${j.no == null ? ' class="mid"' : ''}>${j.no != null ? j.no + '　' : '・'}${j.label}</button>`).join('')}</div></details></div>`;
+    }
+    pn.addEventListener('click', e => {
+      const b = e.target.closest('[data-v]'); if (!b) return; const k = b.dataset.v;
+      if (k === 'fold') { V.fold = !V.fold; vRender(); }
+      else if (k === 'play') autoPlay();
+      else if (k === 'stop') stop();
+      else if (k === 'restart') restart();
+      else if (k === 'speed') setSpeed(+b.dataset.n);
+      else if (k === 'skip') skip();
+      else if (k === 'jump') { V.jopen = false; jump(b.dataset.id); }
+    });
+    pn.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('vd')) V.jopen = e.target.open; }, true);
+    pn.addEventListener('change', e => { if (e.target.dataset.v === 'route') setRoute(e.target.value); });
+    addEventListener('keydown', e => {
+      if (e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if (e.key === 's' || e.key === 'S') { e.preventDefault(); skip(); }
+      else if (e.key === 'v' || e.key === 'V') { V.fold = !V.fold; vRender(); }
+    });
+    vRender();
+    // 表示確認のスクリプト用の窓口（検証モードのときだけ）
+    window.__kv = { get state() { return { route: V.route, idx: V.idx, on: V.on, msg: V.msg, scene: sceneName(), speed: VQ.speed, skip: VQ.skip, busy, phase: S.phase, idle: idle() }; },
+      get S() { return S; }, play: autoPlay, stop, skip, jump, restart, setSpeed, setRoute, get task() { return V.task; }, get gen() { return V.gen; }, KV, L, idle };
+  })();
 
   // テスト用の窓口（?test=1 のときだけ）
   if (TEST) window.__k = {
