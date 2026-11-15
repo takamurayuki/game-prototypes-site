@@ -140,6 +140,12 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
   -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%),linear-gradient(180deg,#000 var(--fb),transparent 100%);-webkit-mask-composite:source-in;
   mask-image:linear-gradient(90deg,transparent 0,#000 var(--fl),#000 calc(100% - var(--fr)),transparent 100%),linear-gradient(180deg,#000 var(--fb),transparent 100%);mask-composite:intersect}
 .fig.on{display:block}
+/* 話者の出し分け（fix1 スライスB）：ほかの人物が話すあいだ、目の前の人物（立ち絵）は少し退いて暗くなる。
+   話している小さい人物は、輪郭が明るく縁どられる */
+.fig{transition:transform .45s ease,filter .45s ease}
+.fig.aside{transform:translateX(9%) scale(.9);transform-origin:100% 100%;filter:brightness(.6) saturate(.7)}
+.fig.small.spk .mPic{filter:drop-shadow(0 0 1.2px #fff3c4) drop-shadow(0 0 5px rgba(255,226,150,.95))}
+.fig.small.spk img{filter:brightness(calc(var(--br,1) * 1.12)) saturate(var(--sa,1)) sepia(var(--se,0))}
 .fig .mBr,.fig .mSw,.fig .mPic{position:absolute;inset:0}
 .fig .mBr{transform-origin:50% 100%;animation:mBreath 3.8s ease-in-out infinite}
 .fig.small .mBr{animation-duration:3.2s}
@@ -151,13 +157,6 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 .fig.sleep .mSw{transform:translateY(1.6%) rotate(-1.8deg)}
 .fig.avert .mSw{transform:translate(1.5%,1.2%) rotate(3deg)}
 .fig.avert img{filter:brightness(.88) saturate(.85)}
-/* 終わりの予感：碑文の最後の一文が、一瞬だけ途切れずに強く灯る */
-.omenG{opacity:0}
-#sceneBox.omen .omenG{animation:omenG 2.6s ease-in-out both}
-#sceneBox.omen .flick{animation:omenF 2.6s ease-in-out both}
-#sceneBox.omen #stage{transition:transform 2.6s ease-out;transform-origin:49.4% 50.6%;transform:scale(1.9)}
-@keyframes omenG{0%,30%{opacity:0}48%{opacity:1}62%{opacity:.85}100%{opacity:0}}
-@keyframes omenF{0%{opacity:.3}12%{opacity:.8}20%{opacity:.25}34%{opacity:1}64%{opacity:1}74%{opacity:.35}100%{opacity:.5}}
 /* 引きの場面：主人公が駆けていく（位置と大きさは JS で from → to へ。走る上下の揺れ） */
 .fig.run .mBr{animation:runBob .36s ease-in-out infinite}
 @keyframes runBob{0%,100%{transform:translateY(0) rotate(-.7deg)}50%{transform:translateY(-1.8%) rotate(.7deg)}}
@@ -201,8 +200,9 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 @keyframes fxBurn{0%{opacity:0}15%{opacity:1;filter:brightness(2.2)}100%{opacity:1;filter:none}}
 .fxOut{animation:fxOut 1.6s ease-in both}
 @keyframes fxOut{0%{opacity:1}100%{opacity:0}}
-.steam{animation:steam 2.4s ease-out both}
-@keyframes steam{0%{opacity:0;transform:translateY(0) scale(.6)}25%{opacity:.85}100%{opacity:0;transform:translateY(-160px) scale(1.5)}}
+/* 湯気（2026-11-15 fix1 スライスD）：細い筋が揺れながら立ちのぼって消える。1回きり（infinite にしない）で、溶けた直後の 2.6 秒だけ描く */
+.steam{transform-box:fill-box;transform-origin:50% 100%;animation:steam 2.4s ease-out both}
+@keyframes steam{0%{opacity:0;transform:translateY(40px) scaleY(.45) skewX(0)}22%{opacity:.8}55%{transform:translateY(-90px) scaleY(1) skewX(-9deg)}100%{opacity:0;transform:translateY(-230px) scaleY(1.35) skewX(7deg)}}
 .ember{animation:ember 2.6s ease-in-out infinite}
 @keyframes ember{0%,100%{opacity:.25}50%{opacity:1}}
 .doorSwing{transform-box:fill-box;transform-origin:100% 50%;animation:doorSwing .9s ease-out both}
@@ -242,8 +242,10 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 .spark{position:absolute;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff6cf;box-shadow:0 0 6px 2px rgba(255,214,120,.8);animation:spark .9s ease-out forwards}
 @keyframes spark{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.3)}}
 .toast{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:rgba(20,18,40,.9);border:1px solid rgba(232,196,122,.6);
-  color:var(--ink);font-size:13px;padding:6px 12px;border-radius:8px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis;animation:fadeout 2.6s forwards;z-index:3}
-.toast.voice{top:48px;color:#d9d0ff;font-style:italic;border-color:rgba(160,150,255,.5)}
+  color:var(--ink);font-size:13px;padding:6px 12px;border-radius:8px;width:max-content;max-width:88%;text-align:center;line-height:1.45;animation:fadeout 2.6s forwards;z-index:3}
+/* トーストは1枚ずつ（キュー。表示の長さは JS が文の長さで決める）。折り返して全文を見せる */
+.toast.voice{color:#d9d0ff;font-style:italic;border-color:rgba(160,150,255,.5)}
+.toast .src{display:block;font-size:11px;color:var(--ink3)}
 @keyframes fadeout{0%{opacity:0}8%{opacity:1}80%{opacity:1}100%{opacity:0}}
 .veil{position:absolute;inset:0;background:#05040c;opacity:0;transition:opacity .6s;pointer-events:none;z-index:2}
 
@@ -319,6 +321,14 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 #win .full.truth{color:#ffb3c1;text-shadow:0 0 6px rgba(255,90,130,.45)}
 #win .cap{font-size:11px;color:var(--ink3);margin-top:3px}
 #win .nar{font-size:13px;color:var(--ink2);line-height:1.6}
+/* いまの操作の結果（fix1 スライスB）：前の対象の説明に代わって、会話ウィンドウに出す */
+#win .nar.res{color:var(--ink)}
+/* 一手の結果（関所の問い・最後の夜）と、手に入れた札の読み直し（fix1 スライスB 直し） */
+#win .turn.pre{padding-bottom:3px;margin-bottom:4px;border-bottom:1px dashed rgba(232,196,122,.25)}
+#win .turn.post{margin-top:4px}
+#win .turn .nar{font-size:12.5px;line-height:1.5}
+#win .rdTag{position:absolute;right:10px;top:-11px;pointer-events:auto;touch-action:manipulation;cursor:pointer;padding:2px 10px;border-radius:6px;font-size:11px;
+  border:1px solid rgba(232,196,122,.6);background:rgba(28,24,52,.95);color:var(--ink)}
 #win .tear{color:#a9d8f0;font-size:11px}
 .sparks{position:relative;display:inline-block}
 .sparks b{position:absolute;width:4px;height:4px;border-radius:50%;background:#fff4c8;box-shadow:0 0 5px 1px rgba(255,210,110,.9);animation:mote 2.2s ease-in-out infinite;opacity:0}
@@ -366,6 +376,22 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 .card.up{animation:cup .9s ease-out}
 @keyframes cup{0%{transform:scale(1)}30%{transform:scale(1.14);box-shadow:0 0 18px rgba(255,220,130,1)}100%{transform:scale(1)}}
 .card.inbar{opacity:.4}
+.card.kari{border-style:dashed}
+.tile .kr{position:absolute;top:2px;left:4px;font-size:9px;color:#8a7ab0;font-family:var(--hand)}
+.tile.kari.done{border-style:dashed}
+/* 手帳の分散の誘い（fix1 スライスC 項目4）：用例が増えて推しはかれるようになった字。ボタンの左下の小さな点と、字の札の左上の小さな点（控えめ） */
+.tb .iv{position:absolute;left:-3px;bottom:-3px;width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 4px rgba(255,207,110,.8);display:none}
+.tb .iv.on{display:block}
+.tile .iv{position:absolute;top:5px;left:5px;width:6px;height:6px;border-radius:50%;background:#d9a43a;box-shadow:0 0 3px rgba(217,164,58,.7)}
+.stg{display:inline-block;margin-left:6px;padding:0 5px;border-radius:7px;font-size:10.5px;line-height:16px;vertical-align:2px;font-family:var(--hand)}
+.stg.kari{color:#5a5aa0;border:1px dashed #8a88c0;background:rgba(255,255,255,.5)}
+.stg.fix{color:#7a5a10;border:1px solid #d9b360;background:#fff6dc}
+.dh small.now{display:block;font-size:10.5px;color:#9a8470}
+.yobi{display:block;font-size:12px;color:#7a6a58;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.born+.yobi{margin:-2px 0 4px}
+.yobi.prev{white-space:normal;overflow:visible}
+.yobi.prev span{display:inline-block}
+.rrBtn{display:block;margin-top:5px;font-size:12px;padding:3px 9px}
 .ghostCard{position:fixed;z-index:50;pointer-events:none;opacity:.96;transform:translate(-50%,-70%)}
 .ring{position:absolute;left:50%;top:50%;width:96px;height:96px;margin:-48px 0 0 -48px;pointer-events:none;display:none}
 .ring.on{display:block}
@@ -483,6 +509,13 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 .mc .arrow{color:var(--ink3)}
 .mc .boost{font-size:12px;color:var(--glow)}
 .mc .ln{justify-content:center}
+/* 読み直し（fix1 スライスB）：反転のあと、抱きしめながらの一文を 前の読み → いまの読み で1回だけ見せる */
+.mc .rrd{display:flex;flex-direction:column;gap:6px;width:100%}
+.mc .rrd>div{display:flex;align-items:baseline;gap:8px;justify-content:center;flex-wrap:wrap}
+.mc .rrd .lb{font-size:11px;color:var(--ink3);flex:0 0 auto}
+.mc .rrd .old{font-size:14px;color:var(--ink3);text-decoration:line-through}
+.mc .rrd .down{font-size:12px;color:var(--ink3);line-height:1}
+.mc .more{font-size:11px;color:var(--ink3)}
 
 /* ===== 冒頭（暗転 → まぶたが開く → 一文 → 木の天井から部屋へ）と、記憶のかけら ===== */
 #intro{position:absolute;inset:0;z-index:35;background:#000;display:none;overflow:hidden;opacity:1;transition:opacity .9s ease}
@@ -516,8 +549,8 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
 #end h2{font-family:var(--logo);font-size:26px;color:#fff1c4;letter-spacing:.06em;text-shadow:0 0 12px rgba(255,200,110,.5)}
 #endBox{position:relative;width:100%;max-width:360px;border-radius:12px;flex:0 0 auto;overflow:hidden}
 #endArt{width:100%;display:block}
-#endHero{position:absolute;left:32%;width:36%;top:36%;max-width:none;filter:brightness(.7) saturate(.8) drop-shadow(0 0 4px rgba(150,165,255,.5));
-  -webkit-mask-image:linear-gradient(180deg,#000 30%,transparent 46%);mask-image:linear-gradient(180deg,#000 30%,transparent 46%)}
+/* 主人公の後ろ姿は endArt の中の単色シルエット（g#endHero）。月の側から淡い縁の光 */
+#endHero{filter:drop-shadow(.6px -.4px .8px rgba(190,200,255,.75))}
 .stats{display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:13px;color:var(--ink2);text-align:left}
 .stats b{color:var(--ink)}
 .truths{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--ink2);max-width:330px}
@@ -538,8 +571,6 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
   #intro .lid,#intro .iv img,#introTx,.fly{transition-duration:.2s}
   #flash.go{animation:none}
   #sight.heavy .lw.t,#sight.heavy .lw.b,#sceneBox.sway #stage,#selfT .sGlow,#selfT.call .sWave,.fig.run .mBr{animation:none}
-  #sceneBox.omen .omenG,#sceneBox.omen .flick{animation:none;opacity:1}
-  #sceneBox.omen #stage{transition:none}
 }
 </style>
 
@@ -555,6 +586,11 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
   <linearGradient id="gWet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3428"/><stop offset=".6" stop-color="#3a2a22"/><stop offset="1" stop-color="#2a2430"/></linearGradient>
   <radialGradient id="gSelf" cx=".5" cy="1" r=".7"><stop offset="0" stop-color="#fff2c4" stop-opacity=".95"/><stop offset=".45" stop-color="#ffc46a" stop-opacity=".45"/><stop offset="1" stop-color="#ffc46a" stop-opacity="0"/></radialGradient>
   <linearGradient id="gWater" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe8ff"/><stop offset="1" stop-color="#5aa6d6"/></linearGradient>
+  <!-- 門の先の森（2026-11-15 fix1 スライスD）：アーチの内側で切り抜く。空は夜（月明かり）／昼 -->
+  <clipPath id="cpGateArch"><path d="M276 1078 V610 Q525 400 774 610 V1078Z"/></clipPath>
+  <linearGradient id="gWoodN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0e2c"/><stop offset=".55" stop-color="#232a62"/><stop offset="1" stop-color="#3a3f80"/></linearGradient>
+  <linearGradient id="gWoodD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6f8f86"/><stop offset=".6" stop-color="#a9bfa2"/><stop offset="1" stop-color="#c8d4ae"/></linearGradient>
+  <radialGradient id="gMoonFloor"><stop offset="0" stop-color="#dfe6ff" stop-opacity=".55"/><stop offset=".6" stop-color="#9fb0ff" stop-opacity=".18"/><stop offset="1" stop-color="#9fb0ff" stop-opacity="0"/></radialGradient>
 </defs></svg>
 
 <div class="wrap">
@@ -580,7 +616,7 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
           <button type="button" data-to="gate">森の門</button>
         </nav>
         <button class="tb" id="logBtn" type="button">ログ<span class="bd" id="logBd"></span></button>
-        <button class="tb" id="noteBtn" type="button">手帳<span class="bd" id="noteBd"></span></button>
+        <button class="tb" id="noteBtn" type="button">手帳<span class="bd" id="noteBd"></span><span class="iv" id="noteIv" aria-hidden="true"></span></button>
       </header>
       <div id="sceneBox">
         <div id="scene" role="img" aria-label="場面"><div id="stage"><img class="bg" id="bgA" alt="" draggable="false"><img class="bg" id="bgB" alt="" draggable="false"><div id="bgTone"></div></div></div>
@@ -650,7 +686,7 @@ button:focus-visible{outline:2px dashed var(--gold);outline-offset:2px}
   </div>
 
   <section id="end" class="screen">
-    <div id="endBox" aria-hidden="true"><svg id="endArt" viewBox="0 0 360 200"></svg><img id="endHero" alt="" draggable="false"></div>
+    <div id="endBox" aria-hidden="true"><svg id="endArt" viewBox="0 0 360 200"></svg></div>
     <h2 id="endTtl">森へ、逃げきった</h2>
     <div class="stats" id="stats"></div>
     <div class="truths" id="truthList"></div>
@@ -1255,11 +1291,13 @@ const L = (() => {
     return { r: 'miss', lang };
   }
   // 外れが続いたときの手がかり：3回目＝用例をもう一度強調、5回目＝ひらがなの文字数、7回目＝最初の1文字（読みが1文字なら英語の頭文字）。答えそのものは出さない
+  // 例外：最初の語（pila）だけは、3回目の枠で心の声が正解を名指しする（fix1 スライスC：入力欄を開いた時点の心の声からここへ移した）
   const HINT_AT = { uses: 3, len: 5, first: 7 };
+  const USES_NAME = { ka: '……たぶん、これは『火』だ' };
   function hintsOf(w, misses) {
     const A = ANSWERS[w]; if (!A) return [];
     const out = [];
-    if (misses >= HINT_AT.uses) out.push({ k: 'uses', text: '用例を、もう一度よく見る' });
+    if (misses >= HINT_AT.uses) out.push({ k: 'uses', text: '用例を、もう一度よく見る' + (USES_NAME[w] ? '。' + USES_NAME[w] : '') });
     if (misses >= HINT_AT.len) out.push({ k: 'len', text: `ひらがなで ${[...A.yomi].length} 文字の言葉らしい` });
     if (misses >= HINT_AT.first) {
       const y = [...A.yomi];
@@ -1274,6 +1312,84 @@ const L = (() => {
     if (PART[w]) return lang === 'en' ? PART_EN[w] : PART[w].gl.ja;
     return LANGS[lang === 'en' ? 'en' : 'ja'].gloss(w, { revealed });
   }
+  /* ---- 読みの段階（2026-11-15 fix1 スライスA）。訳は「主人公のいまの読み」であって、辞書の認定ではない。
+     kari＝仮の読み（用例が少ない／まだ確信が足りない）、fix＝確定（用例が2つ以上あって確信2以上、または自分で使えた）。
+     確信（●）は魔法の確信のまま。段階は語の読みの確かさで、●が増えれば段階も進む向き（矛盾しない）。カードになっていない語は null。
+     例外：kome を疑い直した（doubtEarly）あとは、檻の札で確かめるまで仮の読みに戻る（使えることと、意味を信じられることは別） ---- */
+  function readingOf(s, w) {
+    if (!knows(s, w)) return null;
+    if (w === 'kome' && s.doubtEarly && !s.revealed) return 'kari';
+    if ((s.wordsDone || []).includes(w)) return 'fix';
+    return (s.uses[w] || []).length >= 2 && conf(s, [w]) >= 2 ? 'fix' : 'kari';
+  }
+  // あなたの呼び方：意味を当てたときに書いた言葉（そのまま。長すぎる分は切る）。状態の項目は増やさず、当てたときにだけ足す（komeAlt と同じ）
+  // 画面にそのまま出すので、記号（< > & " ' `）は落とす（判定は記号を除いて行うので、落としても同じ読み）
+  const yobiText = text => String(text == null ? '' : text).replace(/[<>&"'`]/g, '').replace(/[\s　]+/g, ' ').trim().slice(0, 16);
+  const yobiOf = (s, w) => (s.yobi && s.yobi[w]) || null;
+  /* 表示の読み（fix1 スライスA 直し。画面はこの3つだけを使う。lang＝その語を当てた言語がないときの既定）
+     faceOf＝カードの面：仮の読みのあいだは保存した呼び方をそのまま（正規化で訳と同じになる「FIRE」「ｆｉｒｅ」も書いたとおり）。確定・反転後は正規の訳
+     nowReading＝手帳の「いまの読み」：ふだんは正規の訳。kome を疑い直したあと（檻の開示まで）は、付け直した読みが主で、旧訳は prev（前の読み）
+     yobiDiff＝「あなたの呼び方」の併記：呼び方が訳と違うとき（正規化して比べる）。いまの読みとして主表示している呼び方は併記しない */
+  const doubting = (s, w) => w === 'kome' && !!s.doubtEarly && !s.revealed && !!yobiOf(s, w);
+  function faceOf(s, w, lang) {
+    const y = yobiOf(s, w), lb = labelOf(w, (s.lang && s.lang[w]) || lang, s.revealed);
+    return y && readingOf(s, w) === 'kari' && !(w === 'kome' && s.revealed) ? y : lb;
+  }
+  function nowReading(s, w, lang) {
+    const lb = labelOf(w, (s.lang && s.lang[w]) || lang, s.revealed);
+    return doubting(s, w) ? { label: yobiOf(s, w), prev: lb } : { label: lb, prev: null };
+  }
+  function yobiDiff(s, w, lang) {
+    const y = yobiOf(s, w);
+    return y && !doubting(s, w) && norm(y) !== norm(labelOf(w, (s.lang && s.lang[w]) || lang, s.revealed)) ? y : null;
+  }
+  // 檻の開示の文面（疑い直していたとき）。きっかけが札でなければ、札の字を根拠に語らない
+  const revealDoubtCap = by => STORY.revealDoubt[by === 'kome' ? 'kome' : 'cage'];
+  /* ---- 現在の出来事を一つの流れで見せる判定（2026-11-15 fix1 スライスB）。画面はこれを呼ぶだけ（テストで状態・出来事から確かめる） ---- */
+  // 反転（reveal）と同じ操作で訳が変わった言葉の見せ方。「ログの訳が変わった」を何枚も出さず、「守る」を含む一文（抱擁 h6 を優先）を
+  // 前の読み → いまの読み で1回だけ読み直させる。twist があればその表示の中で（at:'twist'）、なければ最初の truth で（at:'truth'）。
+  // 自分で「閉じ込める」と当てていた（komeAlt）ときは前の読みがないので読み直しは出さない。反転と関係なく訳が変わったときは通知1枚（toast＝変わった数）
+  function retransPlan(ev) {
+    const reveal = ev.some(e => e.type === 'reveal'), tw = ev.find(e => e.type === 'twist'), tr = ev.filter(e => e.type === 'truth'), ids = tr.map(e => e.id);
+    const can = (id, snap) => reveal && LN[id].t.includes('kome') && !snap.komeAlt;
+    if (tw) return { reread: can(tw.id, tw.snap) ? { id: tw.id, at: 'twist' } : null, more: ids.length, toast: 0 };
+    if (!ids.length) return { reread: null, more: 0, toast: 0 };
+    const id = ids.includes('h6') ? 'h6' : ids[0];
+    if (can(id, tr[0].snap)) return { reread: { id, at: 'truth' }, more: ids.length - 1, toast: 0 };
+    return { reread: null, more: 0, toast: ids.length };
+  }
+  // 話し手の名前（会話ウィンドウの名札・書きとめの出どころ・案内文）
+  const SPEAKER = { mira: 'ミラ', merchant: '商人', woman: '窓の人', official: '役人', traveler: '旅人', clerk: '配給所の人', child: '子ども' };
+  // 話者の出し分け：spk＝いま話している人物、figs＝場面にいる人物 { id: { ground＝目の前の立ち絵, small＝離れた小さい人物 } }。
+  // ほかの人物が話すあいだ、目の前の立ち絵は退いて暗くなる（aside）。話している小さい人物は縁どる（lit）。主人公（hero）は対象外
+  function figFocus(spk, figs) {
+    const out = { aside: [], lit: null };
+    if (!spk || !figs[spk]) return out;
+    Object.keys(figs).forEach(id => { if (id !== spk && id !== 'hero' && figs[id].ground) out.aside.push(id); });
+    if (figs[spk].small) out.lit = spk;
+    return out;
+  }
+  // 案内文を話者に合わせる：ほかの人物が話しているのに案内が別の人物に「触れる」と言うときは、話している人物の字を書きとめる案内を前に置く
+  function followHint(h, spkName) {
+    const m = /(\S+?)に触れる/.exec(h || '');
+    if (!spkName || !m) return h;
+    const to = m[1].replace(/^(もう一度|路地の)/, '');
+    if (to === spkName || !Object.values(SPEAKER).includes(to)) return h;
+    return `${spkName}の字はタップで書きとめる／${h.replace(/（[^）]*）/g, '')}`;
+  }
+  // 書きとめた字の出どころ：L:id＝その人の言葉／B:物:行＝その物の字／D:dream＝夢の声
+  const SRC_OBJ = { torch: '松明の字', door: '扉の字', jarL: '大がめの字', statue: '像の碑文の字', book: '歴史書の字', cage: '荷車の檻の札の字', tag: '約束の札の字', gate: '門の字' };
+  function srcLabel(src) {
+    const m = /^L:(\w+)$/.exec(src || ''); if (m) return LN[m[1]] ? (SPEAKER[LN[m[1]].who] || '') + 'の言葉' : '';
+    if (src === 'D:dream') return '夢の声';
+    const b = /^B:(\w+):\d+$/.exec(src || ''); if (!b) return '';
+    return SRC_OBJ[b[1]] || (LB[b[1]] ? LB[b[1]].cap.replace(/（.*$/, '') + 'の字' : '');
+  }
+  /* 疑い直し（kome だけ・1回だけ）：檻の開示（revealed）より前、場面8（夜の再封印の「おやすみ」n2）のあと、耳打ち s1 を聞いたあと */
+  const canReread = (s, w) => w === 'kome' && s.ch !== 2 && s.confirmed.includes('kome') && !s.revealed
+    && s.heard.some(h => h.id === 'n2') && s.heard.some(h => h.id === 's1') && !(s.asked || []).includes('reread');
+  // 結果画面の「真実に気づいた時点」：ふだんは twistAt。早く疑い直した（doubtEarly）なら、その時点の語数（twistAt のほうが早ければ twistAt）
+  const noticedAt = s => s.doubtEarly && s.doubtAt != null ? (s.twistAt != null ? Math.min(s.doubtAt, s.twistAt) : s.doubtAt) : s.twistAt;
 
   /* ---- 魔法の形：1語、大きい＋語、語＋ない ---- */
   function spellOf(words) {
@@ -1299,6 +1415,11 @@ const L = (() => {
      真実に気づいたら「眠る＋ない」は3 ---- */
   // 自分で書いた言葉は、書いたあとに意味を当ててはじめてカードになる（named）
   const knows = (s, w) => s.confirmed.includes(w) || (s.named || []).includes(w);
+  /* 推しはかれる語（fix1 スライスC 項目4）：書きとめた字で、まだ読み解いておらず、用例が READY_USES 以上ある（手帳の「ほかの場面でも見つけると、推しはかりやすい」と同じ境目）。
+     第1章の疑問の印（pq）は読み解けないので除く */
+  const READY_USES = 2;
+  const guessReady = (s, w) => !!(PART[w] || W[w]) && !(W[w] && W[w].made) && s.seen.includes(w) && !(w === 'pq' && s.ch !== 2)
+    && !s.confirmed.includes(w) && !s.pconf.includes(w) && (s.uses[w] || []).length >= READY_USES;
   // 「見た言葉の逆」が確信2になる形（いまは「守る＋ない」だけ）
   const WITNESS_NEG = ['kome+nai'];
   // 自分で成功させた言葉に含まれる、中の形
@@ -1349,6 +1470,15 @@ const L = (() => {
     if (s.place === 'square' && s.tag && a.includes('tag')) a.splice(a.indexOf('tag'), 1);
     if (s.mira === s.place) a.push('mira');
     return a;
+  }
+  // ヘッダーの日付・時間帯（fix1 スライスD 項目5）：状態だけから決まる純粋関数。状態の項目は増やさない。
+  // 夕は「空を指して手を引く（s3）を今日聞いたのに、まだ夜になっていない」間だけ。日付は s.day そのまま（切り替えは morning() の中だけ）。
+  function dayLabel(s) {
+    if (s.ch === 2) return (s.phase === 'trial' || s.phase === 'lost2') ? '関所の問い' : '印の町';
+    if (s.phase === 'final' || s.phase === 'lost') return '最後の夜';
+    const day = s.day || 1;
+    const tod = s.night ? '夜' : (s.heard || []).some(h => h.id === 's3' && h.day === day) ? '夕' : (s.place === 'square' || s.place === 'gate') ? '昼' : '朝';
+    return day + '日目 ' + tod;
   }
   /* 場所タブに出す場所（2026-11-14 第1章の移動の案内）。
      第1章：日数にかかわらず、家にいてミラが家にいるあいだ・扉が封じられているあいだは「家」だけ。封印が解けてミラが出かけたあとに「広場」が出る。
@@ -1429,16 +1559,16 @@ const L = (() => {
       }
       case 'dog': case 'merchant': {
         const st = o[tgt], up = tgt === 'dog' ? 'awake' : 'idle';
-        if (w === 'nemu' && !neg) return st === up ? ok({ [tgt]: 'asleep' }, tgt === 'dog' ? '犬が眠った' : '商人が眠りこんだ') : no('いまは効かない');
+        if (w === 'nemu' && !neg) return st === up ? ok({ [tgt]: 'asleep' }, tgt === 'dog' ? '狐が眠った' : '商人が眠りこんだ') : no('いまは効かない');
         if (w === 'nemu' && neg) return st === 'asleep' ? ok({ [tgt]: up }, '目を覚ました') : no('眠ってはいない');
         // 1日目は、主人公はまだ「守る」と読んでいる（光の格子が囲んだ、と見える）。反転につながるのは2日目から（act の cast）
-        if (w === 'kome' && !neg) return st !== 'caged' ? ok({ [tgt]: 'caged' }, !lat ? '光の檻に閉じ込めた' : tgt === 'dog' ? '光の格子が、犬を囲んだ' : '光の格子が、商人を囲んだ', { kome: true }) : no(lat ? 'もう光の格子の中だ' : 'もう檻の中だ');
+        if (w === 'kome' && !neg) return st !== 'caged' ? ok({ [tgt]: 'caged' }, !lat ? '光の檻に閉じ込めた' : tgt === 'dog' ? '光の格子が、狐を囲んだ' : '光の格子が、商人を囲んだ', { kome: true }) : no(lat ? 'もう光の格子の中だ' : 'もう檻の中だ');
         if (w === 'kome' && neg) return st === 'caged' ? ok({ [tgt]: up }, lat ? '光の格子が消えた' : '檻が消えた') : no(lat ? '光の格子はない' : '檻はない');
         if (w === 'ka') return no('生きものに火は向けられない');
         break;
       }
       case 'trough':
-        if (w === 'mi' && !neg) return o.trough === 'full' ? no('もう満ちている') : big ? ok({ trough: 'full', dog: o.dog === 'awake' ? 'drinking' : o.dog }, '水桶があふれ、犬が水を飲みに来た') : no('桶の底がぬれただけ…');
+        if (w === 'mi' && !neg) return o.trough === 'full' ? no('もう満ちている') : big ? ok({ trough: 'full', dog: o.dog === 'awake' ? 'drinking' : o.dog }, '水桶があふれ、狐が水を飲みに来た') : no('桶の底がぬれただけ…');
         if (w === 'mi' && neg) return o.trough === 'full' ? ok({ trough: 'dry', dog: o.dog === 'drinking' ? 'awake' : o.dog }, '水が消えた') : no('もう空だ');
         break;
       case 'cage':
@@ -1471,7 +1601,66 @@ const L = (() => {
         break;
     }
     if (W[w].pos === 'n' && w !== 'ka' && w !== 'mi') return no('名前を呼んだだけ…');
-    return no('何も起きない');
+    return no(s.ch !== 2 ? observed(s, sp, tgt) : '何も起きない');
+  }
+  /* ---- 願いが効かなかったときの「観察できた反応」（2026-11-15 fix1 スライスC 項目2）。
+     第1章で、前は「何も起きない」だった場面だけに使う。何が起きて、何が起きなかったかを書く。
+     後の組み合わせの連想（火＋水→湯 など）を否定する言い方はしない（「〜では〜ならない」と言い切らない）。
+     OBS_AT＝対象（と状態）ごとの反応。なければ OBS_W（言葉ごとの型）に対象の名前を入れる ---- */
+  const OBS_NAME = { torch: '松明', door: '扉', bed: '寝床', book: '歴史書', self: '自分', statue: '像', merchant: '商人', jarL: '大がめ', cage: '荷車の檻',
+    tag: '約束の札', trough: '水桶', dog: '狐', woman: '窓の人', child: '子ども', thorns: '茨', gate: '門', mira: 'ミラ' };
+  const OBS_AT = {
+    'door:sealed': { ka: '炎が扉の封印の字をなでて走った。字は焦げずに、光ったまま浮かんでいる',
+      'ka+': '大きな炎が扉をなめた。封印の字は焦げずに、光ったまま浮かんでいる',
+      mi: '水が扉を伝って床に落ちた。封印の字は、ぬれても光ったまま' },
+    door: { ka: '炎が扉の板をなでて、消えた。焦げ跡は残らない', mi: '扉がぬれて、しずくが床に落ちた' },
+    'trough:dry': { ka: '炎が乾いた桶の底をなでて、消えた。木は焦げていない', 'ka+': '大きな炎が桶の中で渦を巻いて、消えた。木は焦げていない' },
+    'trough:full': { ka: '炎が水面に映って揺れた。水面から、うっすら湯気が立って、消えた',
+      'ka+': '大きな炎が水面をなめた。湯気がふわりと立って、すぐに消えた。水は桶に満ちたまま' },
+    torch: { 'mi-': '松明の柄が、少し乾いた気がした', hira: '炎がひらくように揺れて、また元に戻った' },
+    gate: { ka: '炎が門の扉をなでて、消えた。焦げ跡は残らない', mi: '門がぬれて、しずくが地面に落ちた' },
+    'gate:frozen': { '': '光が氷の上をすべって、霜がわずかに舞った。氷は門を閉ざしたまま' },
+    bed: { nemu: '寝床のまわりに、まどろむような静けさが降りて、すぐに引いた。いまは誰も寝ていない' },
+    book: { hira: '歴史書の頁が、風に吹かれたようにめくれて、また閉じた' },
+    thorns: { hira: '茨がきしんで少しほどけ、また絡みついた' },
+    jarL: { mi: '大がめの口から、水があふれかけて、すぐに引いた' },
+    self: { ka: '手のひらの上に小さな炎が灯って、消えた。熱くはない', mi: '手のひらが、しっとりぬれた', hira: '胸の奥で、何かがひらきかけた気がした',
+      shin: '胸のあたりが、少しだけ温かくなった', 'ka-': '指先が、少しひんやりした', 'mi-': '唇が、少し乾いた気がした', 'hira-': '胸の奥で、何かが静かに閉じた気がした' },
+    woman: { ka: '生きものに火は向けられない', mi: '窓の人の足もとに、水しぶきが散った。窓の人は不思議そうに足もとを見た' },
+    child: { ka: '生きものに火は向けられない', mi: '子どもの手に水しぶきがかかった。子どもは目を丸くした' },
+    mira: { ka: '生きものに火は向けられない', mi: 'ミラの手前で、水しぶきが光って消えた。ミラは何も言わない' },
+  };
+  const OBS_W = {
+    ka: n => `${n}の前に小さな炎が灯って、ふっと消えた`, 'ka+': n => `${n}の前で大きな炎が上がり、すぐにしぼんだ`,
+    mi: n => `${n}に水しぶきが散って、しみこんだ`, 'mi+': n => `${n}に水が大きく跳ねて、流れ落ちた`,
+    hira: n => `${n}のまわりで光がひらきかけて、何もひらかずに消えた`,
+    nemu: n => `${n}のまわりに、まどろむような静けさが降りて、すぐに引いた`,
+    uru: n => `言葉の光が${n}の上をすべって、消えた`,
+    kome: n => `淡い光が${n}を囲んで、そのまま消えた`,
+    shin: n => `胸のあたりが少しだけ温かくなった。${n}は前のまま`,
+    'ka-': n => `${n}のまわりが少しひんやりした。もともと火の気はない`,
+    'mi-': n => `${n}の表面が、少し乾いた気がした`,
+    'hira-': n => `光が${n}のまわりで縮んで、消えた。${n}は前のまま`,
+    'nemu-': n => `${n}のまわりの空気が、少しだけ冴えた`,
+    'same-': n => `${n}のまわりの空気が、少し重く沈んで、すぐに戻った`,
+    'toku-': n => `光の糸が${n}のまわりで結ばれかけて、ほどけた`,
+  };
+  // 生きもの（人・動物）には「表面」「しみこむ」と書かない
+  const OBS_LIVE = {
+    mi: n => `${n}に水しぶきがかかった。${n}は少し身じろぎした`, 'mi+': n => `${n}に水が大きく跳ねかかった。${n}は身をすくめた`,
+    'mi-': n => `${n}のまわりの空気が、少し乾いた気がした`, hira: n => `${n}のまわりで光がひらきかけて、消えた`,
+  };
+  function observed(s, sp, tgt) {
+    const k = sp.w + (sp.neg ? '-' : sp.big ? '+' : ''), kb = sp.w + (sp.neg ? '-' : '');
+    const st = s.obj[tgt], n = OBS_NAME[tgt];
+    const live = ['dog', 'merchant', 'woman', 'child', 'mira'].includes(tgt) && (OBS_LIVE[k] || OBS_LIVE[kb]);
+    for (const at of [st ? tgt + ':' + st : null, tgt]) {
+      const t = at && OBS_AT[at]; if (!t) continue;
+      if (t[k] || t[kb]) return t[k] || t[kb];
+      if (t['']) return t[''];
+    }
+    const f = live || OBS_W[k] || OBS_W[kb];
+    return n && f ? f(n) : n ? `言葉の光が${n}の上をすべって、消えた` : '何も起きない';
   }
 
   /* ---- 最後の夜：ターン制の頭脳戦。
@@ -1607,6 +1796,7 @@ const L = (() => {
   }
   const clone = o => JSON.parse(JSON.stringify(o));
   const SQUARE_WORDS = ['uru', 'oo', 'hito', 'maho', 'shin'];
+  const CART_LB = ['cage', 'tag'];
 
   function act(s0, a) {
     const s = clone(s0), ev = [];
@@ -1621,6 +1811,8 @@ const L = (() => {
       const b = /^B:(\w+):(\d+)$/.exec(src || ''); if (!b) return null;
       const lb = LB[b[1]]; if (!lb || !lb.s[+b[2]]) return null;
       if (!(objectsAt(s).includes(b[1]) || (b[1] === 'tag' && s.tag))) return null;
+      // 荷車の檻の札・約束の札（2日目の広場の小さな札）は、触れて読んだあとにだけ字を書きとめられる（fix1 スライスB：札に触れる前に用例へ入らない）
+      if (CART_LB.includes(b[1]) && !s.labels.includes(b[1])) return null;
       if (isDark(s) && b[1] !== 'torch') return null;
       return lb.s[+b[2]];
     }
@@ -1641,8 +1833,9 @@ const L = (() => {
       if (first) { s.truths.push(first); s.twistAt = s.confirmed.length; s.twistLine = first; E('twist', { id: first }); }
       fresh.filter(id => id !== first).forEach(id => { s.truths.push(id); E('truth', { id }); });
     }
-    function checkReveal() {
-      if (!s.revealed && s.confirmed.includes('kome') && (s.cageSeen || s.komeCast)) { s.revealed = true; E('reveal'); checkTwist('h6'); }
+    // by＝開示のきっかけ（'cage'＝檻の札を読んだ／'kome'＝生きものへ kome を使った）。開示の文面を、実際に得た証拠で分ける（fix1 スライスA 直し）
+    function checkReveal(by) {
+      if (!s.revealed && s.confirmed.includes('kome') && (s.cageSeen || s.komeCast)) { s.revealed = true; E('reveal', { by: by || (s.cageSeen ? 'cage' : 'kome') }); checkTwist('h6'); }
     }
     function say(id) {
       const ln = LN[id];
@@ -1655,7 +1848,7 @@ const L = (() => {
     function label(id, quiet) {
       if (!s.labels.includes(id)) s.labels.push(id);
       E('label', quiet ? { id, quiet: true } : { id });
-      if (id === 'cage') { s.cageSeen = true; checkReveal(); }
+      if (id === 'cage') { s.cageSeen = true; checkReveal('cage'); }
       // 約束の札「夜に あなたを 売る」：気づく一文は、夜の「おやすみ」（眠らせる言葉）を先にする
       if (id === 'tag') checkTwist('n2');
       checkBelief();
@@ -1836,13 +2029,13 @@ const L = (() => {
         // 凍った森の門（場面11）：氷の手ざわり → 前の晩のスープの湯気を思い出す（自作の「湯」の手がかり。最初の1回だけ）
         if (o === 'gate' && s.obj.gate === 'frozen') { label('gate'); E('msg', { text: '分厚い氷。火だけでも、水だけでも溶けそうにない' }); steamMemory(); break; }
         if (LABELS[o]) { label(o); afterAction(); break; }
-        const flavor = { woman: '窓の人は、窓辺の花に水をやっている', bed: 'まだ温かい寝床', self: '胸に手を当てた。自分の鼓動が聞こえる', dog: '犬がうなって、路地をふさいでいる', trough: '空っぽの水桶', thorns: '鋭い茨が門をふさいでいる' };
+        const flavor = { woman: '窓の人は、窓辺の花に水をやっている', bed: 'まだ温かい寝床', self: '胸に手を当てた。自分の鼓動が聞こえる', dog: '狐がうなって、路地をふさいでいる', trough: '空っぽの水桶', thorns: '鋭い茨が門をふさいでいる' };
         E('msg', { text: o === 'dog' && s.obj.dog !== 'awake' ? '路地が通れる' : flavor[o] || '…' });
         afterAction(); break;
       }
       case 'move': {
         const r = canMove(s, a.to);
-        if (r !== true) { if (r) E('msg', { text: r === 'door' ? '扉が閉まっている' : r === 'mira' ? 'ミラが、まだ家にいる' : r === 'official' ? '役人が門の前に立っている' : '犬が路地をふさいでいる' }); break; }
+        if (r !== true) { if (r) E('msg', { text: r === 'door' ? '扉が閉まっている' : r === 'mira' ? 'ミラが、まだ家にいる' : r === 'official' ? '役人が門の前に立っている' : '狐が路地をふさいでいる' }); break; }
         s.place = a.to; if (a.to === 'square') s.miraLook = false; E('move'); if (a.to === 'square') arriveSquare(); break;
       }
       // 目覚め：ミラの問い「眠れた？」から始まる
@@ -1859,7 +2052,8 @@ const L = (() => {
         if (!toks || !toks.includes(a.w)) break;
         const isNew = !s.seen.includes(a.w); if (isNew) s.seen.push(a.w);
         const u = s.uses[a.w] || (s.uses[a.w] = []), fresh = !u.includes(a.src); if (fresh) u.push(a.src);
-        E('collect', { w: a.w, src: a.src, isNew, fresh }); break;
+        // 用例が新しく増えて、その語が推しはかれる数（READY_USES）に届いた瞬間だけ ready（手帳への控えめな誘い。fix1 スライスC 項目4）
+        E('collect', { w: a.w, src: a.src, isNew, fresh, ready: fresh && u.length === READY_USES && guessReady(s, a.w) }); break;
       }
       case 'guess': {
         // 意味を入力して判定する（1語ずつ）。回収した語・小辞・自分で書いた字だけ
@@ -1872,6 +2066,7 @@ const L = (() => {
         s.guesses++;
         if (g.r === 'ok') {
           s.lang[w] = g.lang;
+          if (!PART[w]) (s.yobi = s.yobi || {})[w] = yobiText(a.text);
           if (PART[w]) { s.pconf.push(w); E('pconfirm', { w, lang: g.lang }); }
           else if (made) { s.named.push(w); E('named', { w, lang: g.lang }); }
           else { if (g.alt) s.komeAlt = true; s.confirmed.push(w); E('confirm', { words: [w], w, lang: g.lang, alt: g.alt }); checkReveal(); checkBelief(); checkTwist(); }
@@ -1890,6 +2085,22 @@ const L = (() => {
         if (!w.made) { E('composeKnown', { w: w.id }); break; }
         if (!s.made.includes(w.id)) s.made.push(w.id);
         E('composed', { w: w.id }); break;
+      }
+      case 'reread': {
+        /* 疑い直し（2026-11-15 fix1 スライスA）：手帳から kome の読みを1回だけ付け直す。判定は意味の入力と同じ（檻の札を見る前の文脈）。
+           「守る」系（ok）＝読みはそのまま／「閉じ込める」系（alt・lock の保留）＝内心の反応と doubtEarly の記録。
+           どちらにも当たらない入力は、付け直しに数えない（意味の入力の外れと同じく、何も変わらない）。カードの効果・確信・反転の条件は変えない */
+        const w = a.w;
+        if (!canReread(s, w)) break;
+        const g = guessOf(w, a.text, {});
+        if (g.r === 'empty') break;
+        s.guesses++;
+        if (g.r !== 'ok' && g.r !== 'hold') { E('rereadNo', { w, r: g.r }); break; }
+        once('reread');
+        (s.yobi = s.yobi || {})[w] = yobiText(a.text);
+        if (g.r === 'hold') { s.doubtEarly = true; s.doubtAt = s.confirmed.length; E('reread', { w, kind: 'doubt' }); }
+        else E('reread', { w, kind: 'keep' });
+        break;
       }
       case 'cast': {
         const words = a.words || [], tgt = a.target;
@@ -1952,7 +2163,7 @@ const L = (() => {
         if (unsealHome) E('unseal', { to: 'square' });
         if (watched()) { s.wary = true; E('wary'); }
         // 生きものに「守れ」：反転（守る＝閉じ込める）につながるのは2日目から。1日目は光の格子が囲んだだけに見える
-        if (r.kome && (s.ch === 2 || s.day >= 2)) { s.komeCast = true; checkReveal(); }
+        if (r.kome && (s.ch === 2 || s.day >= 2)) { s.komeCast = true; checkReveal('kome'); }
         if (r.then === 'final') { startFinal(); break; }
         if (s.ch === 2) checkChild();
         afterAction(); break;
@@ -2011,6 +2222,20 @@ const L = (() => {
     pot: 'ミラは水だけの鍋をのぞいて、窓の外を指さした',
     // 作中最初の魔法（ひとりの家で、扉の封印をとく）のあとの心の声
     firstMagic: [{ k: 'inner', text: '……まねしたら、できた。' }],
+    /* 読みの段階と疑い直し（2026-11-15 fix1 スライスA）。
+       komeRead＝抱擁と扉の用例から「守る」と読んだ瞬間の心の声（断定ではなく、いまの用例からの読み）／
+       reread＝手帳での付け直し（doubt＝閉じ込める系。まだ証拠はない、という留保つき／keep＝守る系のまま／no＝どちらにも当たらない）／
+       revealDoubt＝檻の札の開示で、疑い直していた読みが確かになる */
+    komeRead: '……抱きしめながらも、扉に向かっても、同じ言葉。いまの用例からは、そうとしか読めない。',
+    reread: {
+      doubt: '……まだ、証拠は何もない。でも、抱きしめながらのあの言葉も、そう読めてしまう。',
+      keep: '……書き直そうとして、手が止まった。いまの用例からは、やはりそう読むしかない。',
+      no: '……その読みでは、どの用例にも当てはまらない気がする。',
+    },
+    // cage＝檻の札を読んで開示／kome＝生きものへ使って開示（札はまだ見ていない。観察した現象だけを根拠にする）
+    revealDoubt: { h: 'あの読みは、思い過ごしではなかった',
+      cage: '書き直したときから、薄々そう読んでいた。檻の札の字が、それを確かにした',
+      kome: '書き直したときから、薄々そう読んでいた。この字で願った相手が、光の檻に閉じ込められた。それが、確かにした' },
     /* 場面6〜8の短い所作（2026-11-14 スライスB。act の beat で差し込む）。
        buy＝広場でミラが買い物（このあと振り向いて s0）／childFizzle＝子どもの「火」は灯らない／soup＝帰宅のあとの夕食（森の門の「湯」の記憶の元）／
        worry＝夜の鍵の前の所作／same＝鍵のあとの心の声。朝と同じ言葉を、今度は笑わずに言う（用心から危惧へ。悪意はまだ見せない） */
@@ -2059,8 +2284,9 @@ const L = (() => {
         after: [{ k: 'inner', text: '……魔法を使うのは、ミラと、あの商人だけ？' }],
       },
     },
-    /* 終わりの予感：逃げきったあと、終了画面の前に一瞬だけ。広場の像の碑文の、途切れ途切れの光が強く灯る（文字は出さない） */
-    omen: [{ k: 'omen', place: 'square', ms: 2600 }],
+    /* 逃げきったあとの余韻（2026-11-15〜）：門の場面（引き）のまま、主人公が消えた門の向こうを少し見せてから、ゆっくり暗転して終了画面へ。
+       別の場所の一枚は挟まない（場所が飛ばないように）。文字は出さない */
+    linger: [{ k: 'linger', ms: 1800 }],
   };
   /* ---- 第2章「印の町」の物語の進行（データ）。手順の種類は STORY と同じ（black / text / inner / memory）に、dream（夢の声の字と音）を足した。
      arrive：第1章の逃避行の先で町に着く。memories / at：第2章の記憶のかけら（子どもが光を灯した直後）。
@@ -2111,7 +2337,8 @@ const L = (() => {
   }
 
   return { WORDS, MADE, W, PARTS, PART, CASE, ANSWERS, norm, jaForms, enForms, ansOf, guessOf, hintsOf, HINT_AT, labelOf, KANA, syllables, kanaOf, roOf, isPart, contentOf, LANGS, translate, view, romaji, STORY, CLS, EL, MEMO, glyphInner, glyphOf, partsOf, radicalsKnown, wordFromParts, parse, sentenceJp, gloss, wordJp, LINES, LABELS, BELIEF_LINE, N_WORDS,
-    spellOf, knows, RADFX, radFx, witnessKey, conf, needOf, RESIST, isDark, objectsAt, canMove, effect, finalReady, notYetBeat, placesOf, MORNING_SEQ, awaitingReply, WITNESS_NEG,
+    readingOf, yobiOf, canReread, noticedAt, faceOf, nowReading, yobiDiff, revealDoubtCap, retransPlan, SPEAKER, figFocus, followHint, srcLabel, CART_LB,
+    spellOf, knows, READY_USES, guessReady, observed, OBS_AT, RADFX, radFx, witnessKey, conf, needOf, RESIST, isDark, objectsAt, canMove, effect, finalReady, notYetBeat, placesOf, dayLabel, MORNING_SEQ, awaitingReply, WITNESS_NEG,
     strengthOf, finalInit, finalStep, finalCtx, INTENT_LINE, newGame, act, SQUARE_WORDS, CAMS, camOf, cutsOf, sightOf, selfCall,
     // 第2章
     WORDS2, PARTS2, FINAL, LINES2, LABELS2, LN, LB, N_WORDS2, STORY2, PLACES, PLACE_NAME, dreamView, questionOf, TRIAL_Q, TRIAL_FACT, trialInit, trialStep, newChapter2 };
@@ -2490,7 +2717,7 @@ const M = (() => {
     d.style.setProperty('--rdx', lt.dx + 'px'); if (!st.night) d.querySelector('.mPic').style.setProperty('--rim', lt.rim); else d.querySelector('.mPic').style.removeProperty('--rim');
     setFace(d, f, was);
   }
-  function hideFig(d) { d.classList.remove('on', 'talk'); d.dataset.face = ''; }
+  function hideFig(d) { d.classList.remove('on', 'talk', 'aside', 'spk'); d.dataset.face = ''; }
   function setBg(st) {
     const key = st.place === 'house' ? (st.night ? 'houseN' : 'house') : st.place, src = A(BG[key]);
     const a = $('#bgA'), b = $('#bgB'), night = !!st.night && st.place !== 'house';
@@ -2675,6 +2902,8 @@ const M = (() => {
     return g;
   }
 
+  // 荷車の檻の置き場所（x, 足もとの y, 大きさ）。以前は (352, 968, .6)
+  const CAGE_AT = [378, 1012, .76];
   /* ---- 広場：中央に像と無地の銘板、左に果物の屋台、右に井戸、両脇に2階建ての家 ---- */
   function squareSVG(st, line) {
     const o = st.obj, N = st.night;
@@ -2689,9 +2918,7 @@ const M = (() => {
     const rows = L.LABELS.statue.s, sc0 = 0.3, wOf = (n, sc) => (n * 27 - 3) * sc;
     const insc = labelG(rows[0], -wOf(rows[0].length, sc0) / 2, 0, sc0, 'ink', true) + labelG(rows[1], -wOf(rows[1].length, .34) / 2, 10.6, 0.34, 'ink', true)
       + `<g class="flick">${labelG(rows[2], -wOf(rows[2].length, .38) / 2, 22.4, 0.38, 'lit', true)}</g>`
-      + '<path d="M-12 35 q-2 4 0 6.5 q2 -2.5 0 -6.5Z M0 36 q-1.6 3.4 0 5.6 q1.6 -2.2 0 -5.6Z" fill="#a9daf2" stroke="#5a8aa8" stroke-width=".6"/>'
-      // 終わりの予感（L.STORY.omen）のときだけ、最後の一文のまわりが一瞬強く灯る。ふだんは見えない
-      + '<g class="omenG"><ellipse cx="0" cy="26" rx="34" ry="12" fill="url(#gHalo)"/><ellipse cx="0" cy="26" rx="58" ry="26" fill="url(#gHalo)" opacity=".5"/></g>';
+      + '<path d="M-12 35 q-2 4 0 6.5 q2 -2.5 0 -6.5Z M0 36 q-1.6 3.4 0 5.6 q1.6 -2.2 0 -5.6Z" fill="#a9daf2" stroke="#5a8aa8" stroke-width=".6"/>';
     g += obj('statue', place(insc, 506, 742, U), hit(300, 150, 440, 720), [700, 200]);
     // 屋台（遠く）：子どもと商人は台の後ろに立ち、果物の台（y 746）より下は隠れる。遠近に合わせて小さく
     g += figG('child', { talk: !!(line && L.LN[line] && L.LN[line].who === 'child') }, { x: 214, y: 714, H: 40, clip: [0, 0, 1024, 746] });
@@ -2714,10 +2941,10 @@ const M = (() => {
     if (o.jar === 'full') jar += `<g${fxA('jar', 'fxIn')}><ellipse cx="0" cy="-41" rx="10" ry="3" fill="url(#gWater)"/></g>`;
     jar += labelG(['oo', 'mi'], -11, -28, 0.3);
     g += obj('jarL', place(jar, 226, 990, U * 1.0), hit(160, 850, 130, 150), [282, 862]);
-    // 人が入る大きさの空の檻（荷車の上。屋台と像のあいだ）
+    // 人が入る大きさの空の檻（荷車の上。屋台と像のあいだ）。反転の証拠なので、手前（下）に寄せて大きく、札も大きくする（fix1 スライスB。既存の線画の拡大・前面化）
     if (day2) g += obj('cage', place(Ln('M-22 0 V-124 Q0 -154 22 -124 V0', OL, 5) + Ln('M-22 0 V-124 Q0 -154 22 -124 V0', N ? '#8a88b0' : '#8a8296', 3) + Ln('M-28 0 H28 M-11 0 V-138 M0 0 V-142 M11 0 V-138', N ? '#8a88b0' : '#8a8296', 2.4)
       + Ln('M-30 2 H30', '#6a4a30', 4) + `<circle cx="-20" cy="8" r="6" fill="#7a5a3a" stroke="${OL}" stroke-width="1.2"/><circle cx="20" cy="8" r="6" fill="#7a5a3a" stroke="${OL}" stroke-width="1.2"/>`
-      + `<rect x="-20" y="-68" width="40" height="18" rx="2" fill="#fbf1dc" stroke="${OL}" stroke-width="1.1"/>` + labelG(L.LABELS.cage.s[0], -18, -66, 0.27, 'ink'), 352, 968, U * .6), hit(300, 700, 110, 290), [400, 712]);
+      + `<rect x="-25" y="-74" width="50" height="23" rx="2" fill="#fbf1dc" stroke="${OL}" stroke-width="1.3"/>` + labelG(L.LABELS.cage.s[0], -22.5, -72, 0.35, 'ink'), CAGE_AT[0], CAGE_AT[1], U * CAGE_AT[2]), hit(CAGE_AT[0] - 52, CAGE_AT[1] - 330, 104, 344), [CAGE_AT[0] + 52, CAGE_AT[1] - 300]);
     if (line && L.LN[line].wish && L.LN[line].who === 'merchant') g += castFx(L.LN[line].s, 260, 560);
     // 水桶と犬（像の前。犬が森へ抜ける路地をふさいでいる）
     let tr = `<path d="M-26 -16 L26 -16 L22 0 L-22 0Z" fill="${N ? '#4a4a7c' : '#a8683e'}" stroke="${OL}" stroke-width="1.2"/><path d="M-26 -16 H26" stroke="${OL}" stroke-width="2"/>`;
@@ -2745,6 +2972,55 @@ const M = (() => {
   const THORNS = ['M150 470 Q200 372 330 398 Q450 356 525 376 Q640 356 760 398 Q860 386 905 470 L884 506 Q800 432 700 442 Q600 404 525 420 Q430 404 330 442 Q232 432 172 506Z',
     'M104 480 Q172 520 150 640 Q118 760 170 880 Q138 960 190 1012 L252 1000 Q210 900 242 780 Q210 650 262 524Z',
     'M946 480 Q878 520 900 640 Q932 760 880 880 Q912 960 860 1012 L798 1000 Q840 900 808 780 Q840 650 788 524Z'];
+  /* ---- 木立のシルエット（2026-11-15 fix1 スライスD）。門の先の森と、終了画面の森で使う。乱数は固定（毎回同じ形） ---- */
+  const rnd = (i, s) => { const v = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return v - Math.floor(v); };
+  // 針葉樹：枝の段が垂れ下がる、ぎざぎざの輪郭。(x, y)＝根もと、h＝高さ、w＝いちばん下の段の半幅
+  function pineD(x, y, h, w) {
+    const T = 5, n = v => Math.round(v * 10) / 10, tw = Math.max(2, w * .09);
+    const yy = t => y - h + h * .95 * t / T, ow = t => w * (.28 + .72 * t / T);
+    const P = (sx, X, Y) => `${n(x + sx * X)} ${n(Y)}`;
+    const notch = (sx, t) => t === 0 ? P(sx, 0, y - h) : P(sx, ow(t) * .5, yy(t) - h * .02);
+    let d = `M${P(-1, 0, y - h)}`;
+    // 左：前の段のくびれ → 垂れた枝先 → くびれ
+    for (let t = 1; t <= T; t++) { d += ` Q${P(-1, ow(t) * .6, yy(t) - h * .05)} ${P(-1, ow(t), yy(t))}`; if (t < T) d += ` L${notch(-1, t)}`; }
+    d += ` L${P(-1, tw, yy(T))} L${P(-1, tw, y + 4)} L${P(1, tw, y + 4)} L${P(1, tw, yy(T))}`;
+    // 右：左の鏡写しを下からたどる
+    for (let t = T; t >= 1; t--) d += ` L${P(1, ow(t), yy(t))} Q${P(1, ow(t) * .6, yy(t) - h * .05)} ${notch(1, t - 1)}`;
+    return d + 'Z';
+  }
+  // 一列の木立（1つの path にまとめる）。n 本を x0〜x1 に、高さは hMin〜hMax のばらつき
+  const woodRow = (seed, n, x0, x1, base, hMin, hMax, fill, op) => {
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const x = x0 + (x1 - x0) * (i + .2 + rnd(i, seed) * .6) / n, h = hMin + (hMax - hMin) * rnd(i + 7, seed);
+      d += pineD(x, base + rnd(i + 3, seed) * 14, h, h * (.2 + rnd(i + 11, seed) * .07));
+    }
+    // 根もとの地面はゆるい起伏（木と同じ path に入れて、継ぎ目の線を出さない）
+    const a = x0 - 40, b = x1 + 40, m = (a + b) / 2, k = (b - a) / 4;
+    d += `M${a} ${base + 2} Q${a + k} ${base - 6} ${m} ${base + 3} T${b} ${base + 1} V${base + 400} H${a}Z`;
+    return `<path d="${d}" fill="${fill}"${op ? ` opacity="${op}"` : ''}/>`;
+  };
+  // 門の先の森：アーチの内側。夜は月と月明かり、昼は明るい木立。奥ほど淡く、手前ほど濃い
+  function woodsArt(N) {
+    const c = N ? ['#2c3474', '#1b2152', '#0e1232', '#06081c'] : ['#8ea692', '#6a8670', '#4a6450', '#2a3a2e'];
+    return `<g clip-path="url(#cpGateArch)"><rect x="270" y="400" width="510" height="690" fill="url(#${N ? 'gWoodN' : 'gWoodD'})"/>`
+      + (N ? '<circle cx="612" cy="610" r="120" fill="url(#gMoon)" opacity=".75"/><circle cx="612" cy="610" r="24" fill="#f4f2ff"/>' : '<circle cx="612" cy="600" r="150" fill="#fff6d8" opacity=".35"/>')
+      + woodRow(3, 9, 270, 780, 900, 150, 250, c[0], N ? '.9' : '')
+      + woodRow(5, 7, 270, 780, 960, 220, 330, c[1])
+      // 月明かりが落ちる小道（奥へ細くなる、うねった帯）
+      + `<path d="M462 1078 C486 1030 548 1010 540 978 C534 960 506 952 516 938 L530 938 C548 950 566 962 566 984 C566 1020 528 1044 600 1078Z" fill="${N ? '#c8d2ff' : '#efe6c4'}" opacity="${N ? '.22' : '.35'}"/>`
+      + `<ellipse cx="530" cy="1010" rx="170" ry="54" fill="url(#gMoonFloor)"/>`
+      + woodRow(8, 2, 270, 380, 1080, 420, 560, c[2]) + woodRow(13, 2, 676, 786, 1080, 420, 560, c[2])
+      + woodRow(21, 1, 250, 300, 1100, 640, 700, c[3]) + woodRow(34, 1, 760, 810, 1100, 640, 700, c[3])
+      + '</g>';
+  }
+  // 湯気：揺れながら立ちのぼる細い筋（el＝溶けてからの経過 ms。描き直しても動きが途切れないよう、遅れを負にして続きから）
+  const steamArt = el => [0, 1, 2, 3, 4, 5, 6].map(i => {
+    const x = 330 + i * 64 + (i % 2) * 18, y = 1040 - (i % 3) * 40, s = i % 2 ? 1 : -1;
+    const d = `M${x} ${y} c${-26 * s} -46 ${26 * s} -92 0 -138 s${-26 * s} -92 0 -138`;
+    return `<g class="steam" opacity="0" style="animation-delay:${(i * .16 - el / 1000).toFixed(3)}s"><path d="${d}" fill="none" stroke="#f4f6ff" stroke-width="46" stroke-linecap="round" opacity=".16"/>`
+      + `<path d="${d}" fill="none" stroke="#fbfcff" stroke-width="16" stroke-linecap="round" opacity=".32"/></g>`;
+  }).join('');
   function gateSVG(st, line) {
     const o = st.obj, N = st.night, f = st.fin;
     let g = '', gate = '';
@@ -2753,9 +3029,9 @@ const M = (() => {
     else {
       gate += `<g${fxA('gate', 'fxIn', 2000)}><path d="${ICE}" fill="url(#gWet)"/>` + Ln('M330 790 V1076 M390 794 V1076 M455 786 V1076 M525 786 V1076 M592 790 V1076 M655 786 V1076 M718 790 V1076', '#1e140f', 4, ' opacity=".7"')
         + Ln('M350 820 v60 M470 800 v90 M610 812 v70 M700 806 v50', '#a9c8dc', 3, ' opacity=".35"') + '<ellipse cx="525" cy="1094" rx="290" ry="22" fill="url(#gWater)" opacity=".45"/></g>';
-      if (fxT.gate != null && performance.now() - fxT.gate < 2600) gate += [0, 1, 2, 3, 4, 5].map(i => `<circle class="steam" cx="${320 + i * 80}" cy="${1000 - (i % 2) * 60}" r="${50 + (i % 3) * 14}" fill="#f4f6ff" opacity="0" style="animation-delay:${i * .18 - (performance.now() - fxT.gate) / 1000}s"/>`).join('');
+      if (fxT.gate != null && performance.now() - fxT.gate < 2600) gate += steamArt(performance.now() - fxT.gate);
     }
-    if (o.gate === 'open') gate += `<g${fxA('gate', 'fxIn', 2000)}><path d="${DOOR_ARCH}" fill="${N ? '#0c1024' : '#2a3a2e'}"/><path d="M450 1078 Q510 820 525 640 Q540 820 600 1078Z" fill="${N ? '#2a3070' : '#5a7a5a'}" opacity=".8"/>`
+    if (o.gate === 'open') gate += `<g${fxA('gate', 'fxIn', 2000)}>${woodsArt(N)}`
       + [0, 1, 2, 3, 4].map(i => `<circle class="mote" cx="${430 + i * 45}" cy="${760 + (i * 67) % 200}" r="4.5" fill="#e8ff9a" style="animation-delay:${i * .6}s"/>`).join('')
       + `<path class="doorSwing" d="M276 610 L236 640 V1100 L276 1078Z" fill="#7a4a2c" stroke="${OL}" stroke-width="3"/><path class="doorSwing" d="M774 610 L814 640 V1100 L774 1078Z" fill="#7a4a2c" stroke="${OL}" stroke-width="3"/></g>`;
     if (o.gate === 'sealed') gate += place(sealArt, 525, 700, U);
@@ -2855,6 +3131,8 @@ const M = (() => {
   M.apply(m => { m.sessions++; });
   let anyInput = false, stuckTimer = 0;
   addEventListener('pointerdown', () => { anyInput = true; clearTimeout(stuckTimer); }, { capture: true });
+  // 手帳の分散の誘い：用例が増えて推しはかれるようになった字（invite）と、ボタンの点を出すか（inviteBtn。手帳を開くと消える）
+  let invite = new Set(), inviteBtn = false;
   let newNote = 0, newLog = 0, lastSay = null, prevConf = {}, seenSamples = new Set();
 
   function renderScene(st, line) {
@@ -2864,10 +3142,18 @@ const M = (() => {
     const html = (SCENES[st.place] || gateSVG)(st, line);
     // 目印 <!--F:id--> で SVG の層を分け、そのあいだに人物の画像を挟む（描いた順に重ねる）
     const parts = html.split(/<!--F:(\w+)-->/);
+    // 話者の出し分け（fix1 スライスB）：いま話している人物（このセリフ、なければ会話ウィンドウのセリフ）がほかにいるあいだ、
+    // 目の前の人物（立ち絵）は退いて暗くなり（aside）、話している小さい人物は縁どられる（spk）
+    const spk = line ? whoOf(line) : st.place === S.place ? speakerNow() : null;
+    const figs = {}; Object.keys(FIG_AT).forEach(id => { figs[id] = { ground: !!FIG_AT[id].ground, small: !!FIG[id].small }; });
+    const fo = L.figFocus(spk, figs);
     let z = 3, si = 0;
     parts.forEach((p, i) => {
       if (i % 2 === 0) { const sv = seg(si++); sv.innerHTML = p; sv.style.zIndex = z++; sv.style.display = ''; }
-      else { const r = rigOf(p); r.style.zIndex = z++; showFig(r, FIG_AT[p], st); }
+      else {
+        const r = rigOf(p); r.style.zIndex = z++; showFig(r, FIG_AT[p], st);
+        r.classList.toggle('aside', fo.aside.includes(p)); r.classList.toggle('spk', fo.lit === p);
+      }
     });
     for (; si < segs.length; si++) { segs[si].innerHTML = ''; segs[si].style.display = 'none'; }
     Object.keys(rigs).forEach(id => { if (!(id in FIG_AT)) hideFig(rigs[id]); });
@@ -2903,7 +3189,8 @@ const M = (() => {
     renderScene(); renderTop(); renderHand(); renderWin(); renderHint(); renderFinal(); renderTrial();
   }
   function renderTop() {
-    $('#day').textContent = S.ch === 2 ? (S.phase === 'trial' || S.phase === 'lost2' ? '関所の問い' : '印の町') : S.phase === 'final' || S.phase === 'lost' ? '最後の夜' : `${S.day}日目 ${S.night ? '夜' : '昼'}`;
+    // 日付・時間帯は L.dayLabel（fix1 スライスD 項目5）。出来事の再生中は、その出来事の時点の写し（daySnap）で出す。暗転（#intro）のあいだは出さない
+    $('#day').textContent = document.querySelector('#intro.on') ? '' : L.dayLabel(daySnap || S);
     // 地図のボタンは章ごとの場所（第1章：家・広場・森の門／第2章：関所・配給所・町並み）
     const mp = $('#map'), chK = String(S.ch || 1);
     if (mp.dataset.ch !== chK) { mp.dataset.ch = chK; mp.innerHTML = L.PLACES[S.ch || 1].map(p => `<button type="button" data-to="${p}">${L.PLACE_NAME[p]}</button>`).join(''); }
@@ -2914,8 +3201,12 @@ const M = (() => {
     });
     const nb = $('#noteBd'), lb = $('#logBd');
     nb.textContent = newNote; nb.classList.toggle('on', newNote > 0);
+    // 推しはかれるようになった字があれば、手帳のボタンに小さな点（開くまで）。読み解いたら消える
+    const iv = inviteBtn && [...invite].some(w => L.guessReady(S, w));
+    $('#noteIv').classList.toggle('on', iv); $('#noteBtn').title = iv ? '用例がそろってきた字がある' : '';
     lb.textContent = newLog; lb.classList.toggle('on', newLog > 0);
   }
+  let daySnap = null;  // play() で再生中の出来事の写し（ヘッダーの #day だけが読む。地図・バッジは従来どおり大域 S）
   let glowTo = null;   // 光らせる場所タブ（家の扉の封印がとけた瞬間から、外へ出るまで）
   const cold = st => st.twistAt != null || st.wary;
   // 顔の切り抜き（ログ・演出カード用）
@@ -2971,19 +3262,25 @@ const M = (() => {
       if (S.place === 'machi') return '……町並み。家々に灯りがともっている。右の路地だけが、暗い。';
     }
     if (S.phase === 'final') return '月が出ている。ミラが、ゆっくり近づいてくる。';
-    if (S.day === 1 && S.place === 'house' && S.miraStep === 0) return '……知らない部屋。知らない言葉。<br>目の前の人が、やさしく笑っている。';
+    // 冒頭の一文は、まだ何も聞いていないあいだだけ（返事の身ぶりのあとに再び出さない。fix1 スライスB）
+    if (S.day === 1 && S.place === 'house' && S.miraStep === 0 && !S.heard.length) return '……知らない部屋。知らない言葉。<br>目の前の人が、やさしく笑っている。';
+    if (S.place === 'house') return S.mira === 'house' ? '……ミラの家。' : '……ひとりの家。';
     if (S.place === 'square') return '……にぎやかな広場。知らない言葉が、あちこちから聞こえる。';
-    if (S.place === 'gate') return '……森の門。冷たい空気が流れてくる。';
+    // 凍っているあいだは、氷が溶けきらない事情を見せる（fix1 スライスC）：表面を水が伝っては、その場で凍りなおしている
+    if (S.place === 'gate') return S.obj.gate === 'frozen' ? '……森の門。冷たい空気が流れてくる。<br>扉を覆う氷の表面を、水が細く伝っては、そのまま凍りついていく。' : '……森の門。冷たい空気が流れてくる。';
     return '……';
   }
   let innerTx = [];
   // 話し手の名札（ミラ・商人・窓の人）
-  const WHO = { mira: 'ミラ', merchant: '商人', woman: '窓の人', official: '役人', traveler: '旅人', clerk: '配給所の人', child: '子ども' };
+  const WHO = L.SPEAKER;
   const whoName = w => WHO[w] || FIG[w] && FIG[w].name || '';
+  /* 手に入れた約束の札は、場面から消えたあとも読み直せる（fix1 スライスB 直し）：会話ウィンドウの右上の「約束の札を読む」で、札をもう一度ウィンドウに出す。
+     字はそこからタップして書きとめられる（ロジックは札を持っていれば受け付ける）。最後の夜は「札を見せる」があり、ミラの言葉を隠さないので出さない */
+  const tagBtn = () => S.ch !== 2 && S.tag && S.phase === 'play' && !(lastSay && lastSay.label === 'tag') ? '<button type="button" class="rdTag" data-rdtag="1">約束の札を読む</button>' : '';
   function renderWin() {
     const b = $('#win');
-    const inner = innerTx.map(t => `<div class="inner">${t}</div>`).join('');
-    if (!lastSay || lastSay.nar) { b.innerHTML = `<div class="nar">${lastSay ? lastSay.nar : narration()}</div>` + inner; return; }
+    const inner = innerTx.map(t => `<div class="inner">${t}</div>`).join('') + tagBtn();
+    if (!lastSay || lastSay.nar != null) { b.innerHTML = turnPre() + `<div class="nar${lastSay && lastSay.res ? ' res' : ''}">${lastSay ? lastSay.nar : narration()}</div>` + turnPost() + inner; return; }
     // 夢の声（第2章の記憶のかけら）：字をタップして手帳に書きとめられる。抜け落ちた語は空欄
     if (lastSay.dream) {
       const d = L.STORY2.dream;
@@ -2994,8 +3291,8 @@ const M = (() => {
       const lb = L.LB[lastSay.label], h = lb.s.length > 1 ? 18 : 24;
       b.innerHTML = `<span class="np lab">${lb.cap}</span><div class="lbls">` + lb.s.map((ln, i) => {
         const fl = lb.flicker === i;
-        return `<div class="row">${lineHtml(ln, fl, h, fl, `B:${lastSay.label}:${i}`)}${fl && lb.tear ? '<span class="tear">涙の跡</span>' : ''}${transHtml(ln, null, false, 'span')}</div>`;
-      }).join('') + '</div>' + inner;
+        return `<div class="row">${lineHtml(ln, fl, h, fl, `B:${lastSay.label}:${i}`, lastSay.hl)}${fl && lb.tear ? '<span class="tear">涙の跡</span>' : ''}${transHtml(ln, null, false, 'span')}</div>`;
+      }).join('') + '</div>' + (lastSay.res || []).map(t => `<div class="nar res">${t}</div>`).join('') + inner;
       return;
     }
     const ln = L.LN[lastSay.id];
@@ -3004,9 +3301,9 @@ const M = (() => {
     const face = isM ? '' : `<span class="wf">${faceCrop(ln.who, ln.who === 'merchant' ? { face: merchantOpts(S, lastSay.id).face } : {})}</span>`;
     // 続けて話された直前のセリフも、小さく残す（字を書きとめられるように）
     const pv = lastSay.prev && L.LN[lastSay.prev], prev = pv ? `<div class="prev"><span class="pn">${whoName(pv.who)}</span>${lineHtml(pv.s, pv.wish, 18, false, 'L:' + lastSay.prev)}${transHtml(pv.s, pv.who, isTruthShown(lastSay.prev), 'span')}</div>` : '';
-    b.innerHTML = np + face + prev + `<div class="row">${lineHtml(ln.s, ln.wish, 26, false, 'L:' + lastSay.id)}</div>`
+    b.innerHTML = np + face + turnPre() + prev + `<div class="row">${lineHtml(ln.s, ln.wish, 26, false, 'L:' + lastSay.id)}</div>`
       + `<div class="ro">「${L.romaji(ln.s)}」<span class="cp">（${ln.cap}）${ln.wish ? '✦光っている' : ''}</span></div>`
-      + transHtml(ln.s, ln.who, isTruthShown(lastSay.id)) + inner
+      + transHtml(ln.s, ln.who, isTruthShown(lastSay.id)) + turnPost() + inner
       // 「眠れた？」への返事は身ぶりで（言葉はまだ話せない）
       + (lastSay.id === 'q0' && L.awaitingReply(S) ? '<div class="reply"><button type="button" data-reply="nod">うなずく</button><button type="button" data-reply="shake">首を振る</button></div>' : '');
   }
@@ -3049,8 +3346,12 @@ const M = (() => {
     else if (s.day >= 2 && s.place === 'gate' && s.obj.gate !== 'frozen' && s.obj.thorns === 'burnt' && !L.finalReady(s)) h = '広場へ戻って、まだ確かめていないものに触れる';
     else if (s.place === 'gate' && s.obj.gate === 'frozen' && s.obj.thorns === 'burnt' && !s.made.includes('yu')) h = '村の言葉では溶けない。手帳の余白の形で、字を書いてみる？';
     else if (s.made.some(w => !s.named.includes(w))) h = '書いた字に、手帳で名前（意味）をつける';
-    $('#hint').textContent = h;
+    $('#hint').textContent = followSpeaker(h);
   }
+  /* 案内文を、いまの話者に合わせる（fix1 スライスB。判定は L.followHint）：会話ウィンドウでほかの人物が話しているのに「ミラに触れる」等と
+     別の人物を指すときは、まず話している人物の字を書きとめる案内を前に置く（もとの案内は残す。括弧の補足は省く） */
+  const speakerNow = () => lastSay && lastSay.id && L.LN[lastSay.id] ? L.LN[lastSay.id].who : null;
+  const followSpeaker = h => { const sp = speakerNow(); return sp && FIG_AT[sp] ? L.followHint(h, whoName(sp)) : h; };
   /* 第2章：関所の問い。役人の確信（崩すと勝ち）と、子どもを引く手（3つで連れて行かれる）。並べた言葉（qToks）を問う／言う */
   let qToks = [];
   function renderTrial() {
@@ -3083,7 +3384,14 @@ const M = (() => {
   }
   // カードの表記：当てたときの言語（日本語で当てたら日本語、英語なら英語）。自作の字は、うまく使えるまで「？」つき。
   // plain＝「？」を付けない（口にした言葉のトースト）
-  const cardLabel = (w, plain) => L.labelOf(w, S.lang[w] || LANG, S.revealed) + (!plain && L.W[w] && L.W[w].made && !S.wordsDone.includes(w) ? '？' : '');
+  /* カードの面（2026-11-15 fix1 スライスA）：仮の読みのあいだは、自分で書いた呼び方をそのまま。確定したら正規の訳を主に出す
+     （呼び方が訳と違えば、手帳に「あなたの呼び方」として残る）。「守る」が反転したあとは、反転した訳（閉じ込める） */
+  const clip = t => { const a = [...t], n = /^[\x00-\x7f]+$/.test(t) ? 8 : 5; return a.length > n ? a.slice(0, n - 1).join('') + '…' : t; };
+  // カードの面・手帳のいまの読み・あなたの呼び方は、ロジックの L.faceOf / L.nowReading / L.yobiDiff で決める（テストで同じ仮説を示すことを確かめる）
+  const faceOf = (st, w) => L.faceOf(st, w, LANG);
+  const yobiDiff = (st, w) => L.yobiDiff(st, w, LANG);
+  const nowLabel = w => L.nowReading(S, w, LANG).label;
+  const cardLabel = (w, plain) => (plain ? faceOf(S, w) : clip(faceOf(S, w))) + (!plain && L.W[w] && L.W[w].made && !S.wordsDone.includes(w) ? '？' : '');
   function renderHand() {
     const h = $('#hand');
     const ids = S.ch === 2 ? L.WORDS2.concat(L.WORDS) : L.WORDS.concat(L.WORDS2);
@@ -3093,7 +3401,7 @@ const M = (() => {
       const c = L.conf(S, bar ? [bar, w] : [w]);
       const up = !bar && prevConf[w] != null && c > prevConf[w];
       if (!bar) prevConf[w] = c;
-      return `<button type="button" class="card c${c}${bar === w ? ' inbar' : ''}${up ? ' up' : ''}" data-w="${w}">${glyph(w, 24)}<i>${cardLabel(w)}</i><span class="cf">${[1, 2, 3].map(i => `<b class="${i <= c ? 'f' : ''}"></b>`).join('')}</span></button>`;
+      return `<button type="button" class="card c${c}${L.readingOf(S, w) === 'kari' ? ' kari' : ''}${bar === w ? ' inbar' : ''}${up ? ' up' : ''}" data-w="${w}">${glyph(w, 24)}<i>${cardLabel(w)}</i><span class="cf">${[1, 2, 3].map(i => `<b class="${i <= c ? 'f' : ''}"></b>`).join('')}</span></button>`;
     }).join('');
     const sl = $('#slot'); sl.innerHTML = bar ? glyph(bar, 24) : ''; sl.classList.toggle('on', !!bar);
     $('#slotTxt').textContent = bar ? `「${cardLabel(bar)}」＋ 次に運ぶカード` : 'カードをタップ → 前に置く語';
@@ -3111,14 +3419,72 @@ const M = (() => {
   }
 
   /* ---- 演出 ---- */
-  function toast(text, voice) {
-    const d = document.createElement('div'); d.className = 'toast' + (voice ? ' voice' : ''); d.textContent = text;
-    // 重ならないように、出ているトーストの下に積む
-    // 3つより多くは積まない（古いものから消す）
-    const ts = [...document.querySelectorAll('#fx .toast')]; if (ts.length >= 3) { ts[0].remove(); ts.slice(1).forEach((t, i) => { t.style.top = (10 + i * 38) + 'px'; }); }
-    const n = Math.min(ts.length, 2); if (n) d.style.top = (10 + n * 38) + 'px';
-    $('#fx').appendChild(d); setTimeout(() => d.remove(), 2700);
+  /* トーストのキュー（fix1 スライスB）：同時に重ねず、1枚ずつ、文の長さに応じて読める時間だけ出す。
+     演出カード（#modal）が開いているあいだは次を出さない。手帳・ログを開いているあいだの通知は、場面が隠れていて読めないので積まない。
+     続けて同じ文は1枚にまとめ、同じ出どころの書きとめ（o.merge）は1枚の字の列に足す */
+  /* fix1 スライスB 直し：
+     ・破棄してよい通知は、次の3種だけ（o.drop で指定）。ほかの通知（行動の結果・人の反応・場面の出来事）は待ちの上限でも捨てない。
+         'collect'＝書きとめの通知（手帳のバッジと飛ぶ字が残る）／'note'＝手帳での読み解きの通知（手帳の中に同じ結果が出る）／
+         'place'＝日付・章の見出し・外へ出た・返事を待っている・もう一度（ヘッダー・場面・ボタンに同じことが出ている）
+     ・待ちが3枚を超えたら、いちばん古い「破棄してよい通知」だけを捨てる。捨てられるものがなければ、捨てずに待つ
+     ・手帳・ログ・演出カード・暗転（#intro）が場面を覆っているあいだは、表示中の通知を止めて待ちの先頭へ戻し（残りの時間を保つ）、待ちも出さない。
+       覆いが外れたら、そこから再開する。覆われているあいだに来た通知は、破棄してよい種類なら積まず、ほかは積んで再開後に出す
+     ・覆いの確認（200ms ごと）より先に表示期限が来た場合も、覆われていれば消さずに止めて待ちの先頭へ戻す（読める長さで出し直す） */
+  const TQ = []; let tCur = null, tTimer = 0, tWatch = 0;
+  const TOAST_DROP = ['collect', 'note', 'place'];
+  const sheetOn = () => !!document.querySelector('.sheet.on');
+  const coverOn = () => sheetOn() || $('#modal').classList.contains('on') || !!document.querySelector('#intro.on');
+  // 検証モードだけ：速度（VQ.speed）に合わせて短くし、スキップ中は出さない。通常プレイは元の長さ
+  const toastMs = (t, backlog) => Math.max(backlog > 1 ? 1200 : 1600, Math.min(3600, 1000 + [...t.text].length * 75)) / (VERIFY ? VQ.speed : 1);
+  function toastText(t) { return t.items ? t.items.map(k => `「${k}」`).join('') + t.verb : t.text; }
+  function toast(text, voice, o) {
+    o = o || {};
+    if (o.merge && !o.drop) o = Object.assign({ drop: 'collect' }, o);   // まとめる書きとめの通知（o.merge）は 'collect'
+    if (FAST || (VERIFY && VQ.skip)) return;
+    if (sheetOn() && TOAST_DROP.includes(o.drop)) return;
+    const last = TQ.length ? TQ[TQ.length - 1] : tCur;
+    if (o.merge && last && last.merge === o.merge && last.items.length < 4 && !last.items.includes(o.item)) {
+      last.items.push(o.item); last.text = toastText(last);
+      if (last === tCur && tCur.el) { tCur.el.firstChild.textContent = last.text; clearTimeout(tTimer); const rem = Math.max(1400, tCur.until - performance.now(), toastMs(last, TQ.length) - (performance.now() - tCur.at)); tCur.until = performance.now() + rem; tTimer = setTimeout(nextToast, rem); tCur.el.style.animation = 'none'; tCur.el.style.opacity = 1; }
+      return;
+    }
+    if (last && !o.merge && last.text === text && last.voice === !!voice) return;
+    const t = { text, voice: !!voice, merge: o.merge || null, items: o.merge ? [o.item] : null, verb: o.verb || '', src: o.src || '', drop: TOAST_DROP.includes(o.drop) ? o.drop : null };
+    if (t.items) t.text = toastText(t);
+    // 待ちは3枚まで：溢れたら、いちばん古い「破棄してよい通知」だけを捨てる（行動の結果・反応は捨てない）
+    TQ.push(t);
+    while (TQ.length > 3) { const k = TQ.findIndex(x => x.drop); if (k < 0) break; TQ.splice(k, 1); }
+    if (!tCur) nextToast();
   }
+  // 表示中の通知を止めて、待ちの先頭へ戻す（残りの時間を保つ。短すぎれば読める長さに戻す）
+  // watchCover が覆いを見つけたときのほか、覆われたまま表示期限が来たとき（nextToast の先頭）にも使う
+  function pauseToast() {
+    if (!tCur || !tCur.el) return;
+    clearTimeout(tTimer); clearTimeout(tWatch);
+    const t = tCur; t.el.remove(); t.el = null; t.rest = Math.max(1200 / (VERIFY ? VQ.speed : 1), t.until - performance.now());
+    TQ.unshift(t); tCur = null;
+  }
+  // 覆いが外れるのを待つ（250ms ごとに確かめる）
+  function waitCover() { tCur = { wait: true }; tTimer = setTimeout(() => { tCur = null; nextToast(); }, 250); }
+  // 表示中も、覆われたら止める
+  function watchCover() { clearTimeout(tWatch); tWatch = setTimeout(() => { if (!tCur || !tCur.el) return; if (coverOn()) { pauseToast(); waitCover(); } else watchCover(); }, 200); }
+  function nextToast() {
+    // 表示期限が watchCover の確認より先に来ても、覆われていれば消さずに止めて待ちの先頭へ戻す（境界での取りこぼしを防ぐ）
+    if (tCur && tCur.el && coverOn()) { pauseToast(); waitCover(); return; }
+    clearTimeout(tTimer); clearTimeout(tWatch);
+    if (tCur && tCur.el) tCur.el.remove();
+    tCur = null;
+    if (!TQ.length) return;
+    if (coverOn()) { waitCover(); return; }
+    const t = TQ.shift(), d = document.createElement('div'), ms = t.rest || toastMs(t, TQ.length);
+    t.rest = 0;
+    d.className = 'toast' + (t.voice ? ' voice' : ''); d.appendChild(document.createTextNode(t.text));
+    if (t.src) { const s = document.createElement('span'); s.className = 'src'; s.textContent = t.src; d.appendChild(s); }
+    d.style.animationDuration = ms + 'ms';
+    $('#fx').appendChild(d); t.el = d; t.at = performance.now(); t.until = t.at + ms; tCur = t;
+    tTimer = setTimeout(nextToast, ms); watchCover();
+  }
+  function clearToasts() { TQ.length = 0; clearTimeout(tTimer); clearTimeout(tWatch); if (tCur && tCur.el) tCur.el.remove(); tCur = null; }
   let talkTimer = 0;
   function talkMark(who) {
     clearTimeout(talkTimer);
@@ -3153,46 +3519,88 @@ const M = (() => {
   }
 
   let chain = [];   // 1回の操作で続けて話されたセリフ（直前の1つを会話ウィンドウに小さく残す）
+  // 状態の写し（出来事の時点）で描く。反転の前の札は、反転の前の訳で読ませる（描き終えたら元の S に戻す）
+  function withSnap(st, fn) { const keep = S; S = st; try { fn(); } finally { S = keep; } }
+  /* いまの操作の結果を、会話ウィンドウに出す（fix1 スライスB）。前の対象の説明（札・歴史書・前のセリフ）は、ここで消える。
+     1回の操作で続けて起きた結果は、同じウィンドウに行を足す */
+  let resBox = null;
+  function result(text) {
+    if (!text) return;
+    // 同じ操作で読んだ札（約束の札・凍った門・檻の札など）は消さず、結果をその下に足す（fix1 スライスB 直し：札の字を落ち着いて書きとめられるように）
+    if (lastSay && lastSay === resBox && lastSay.label) lastSay.res.push(text);
+    else if (lastSay && lastSay === resBox) lastSay.nar += '<br>' + text;
+    else { lastSay = resBox = { nar: text, res: true }; innerTx = []; }
+    renderWin(); renderHint();
+  }
+  /* 関所の問い・最後の夜の一手（fix1 スライスB 直し）：問うた内容・相手の反応・子どもの移動・眠りがしみこむ、などの一手の結果は、
+     トーストに流さず会話ウィンドウに残す（次の一手まで消えない）。pre＝相手のセリフの前（自分の行為・その結果）、post＝セリフのあと（相手の反応） */
+  let turn = null;
+  const turnPre = () => turn && turn.pre.length ? `<div class="turn pre">${turn.pre.map(t => `<div class="nar res">${t}</div>`).join('')}</div>` : '';
+  const turnPost = () => turn && turn.post.length ? `<div class="turn post">${turn.post.map(t => `<div class="nar res">${t}</div>`).join('')}</div>` : '';
+  // 手帳の操作（読み解き・書きとめ・字を書く）だけの出来事では、一手の結果は消さない
+  const KEEP_TURN = new Set(['confirm', 'pconfirm', 'named', 'near', 'miss', 'hold', 'sound', 'reread', 'rereadNo', 'collect', 'composed', 'composeKnown', 'composeFail', 'twist', 'truth', 'reveal', 'belief', 'dreamShow']);
+  // 反転のあとの読み直し（fix1 スライスB）：抱きしめながらの一文（h6）を、前の読み → いまの読み で1回だけ見せる。
+  // 「ログの訳が変わった」を何枚も出す代わり。ほかに訳が変わった言葉は、数だけ添える（ログで読み直せる）
+  function rereadRows(id, snap) {
+    const ln = L.LN[id], kn = snap.confirmed.concat(snap.pconf || []);
+    const tr = rv => { const v = L.view(ln.s, kn, { lang: LANG, revealed: rv, speaker: ln.who }); return v.natural || v.literal || ''; };
+    return `<div class="rrd"><div><span class="lb">前の読み</span><span class="old">「${tr(false)}」</span></div><div class="down">↓</div><div><span class="lb">いまの読み</span><span class="full truth">「${tr(true)}」</span></div></div>`;
+  }
+  const moreTx = n => n ? `<div class="more">ほかに${n}つの言葉も、訳が変わった（ログで読み直せる）</div>` : '';
   async function play(ev) {
-    busy = true; chain = [];
+    busy = true; chain = []; resBox = null;
+    if (ev.some(x => !KEEP_TURN.has(x.type))) turn = null;
+    // 反転（reveal）と同じ操作で訳が変わった言葉：読み直しの表示は1回だけ（twist があればその場で、なければ最初の truth で）
+    const revealIn = ev.some(x => x.type === 'reveal'), plan = L.retransPlan(ev);
+    let truthShown = false;
     for (const e of ev) {
+      daySnap = e.snap || null;   // dispatchMany は S を最終状態にしてから再生するので、ヘッダーは出来事の時点で出す（夜の帰宅で先に「2日目」にしない）
       switch (e.type) {
-        case 'say': { const ln = L.LN[e.id]; lastSay = { id: e.id, prev: chain.length ? chain[chain.length - 1] : null }; chain.push(e.id); innerTx = []; renderScene(e.snap, e.id); renderWin(); talkMark(ln.who); newLog++; renderTop(); const vd = VO.speak(ln.s, ln.who, ln.wish); await wait(Math.max(ln.wish ? 1400 : 1000, vd + 200)); break; }
-        case 'label': if (e.quiet) break; lastSay = { label: e.id }; innerTx = []; renderWin(); renderTop(); await wait(600); break;
+        case 'say': { const ln = L.LN[e.id]; lastSay = { id: e.id, prev: chain.length ? chain[chain.length - 1] : null }; chain.push(e.id); innerTx = []; renderScene(e.snap, e.id); renderWin(); renderHint(); talkMark(ln.who); newLog++; renderTop(); const vd = VO.speak(ln.s, ln.who, ln.wish); await wait(Math.max(ln.wish ? 1400 : 1000, vd + 200)); break; }
+        case 'label': {
+          if (e.quiet) break;
+          // 檻の札で反転するとき：まず札を、反転の前の訳のまま読ませる（「守る」の字を強調）。そのあとで意味が変わる
+          const ev0 = e.id === 'cage' && revealIn;
+          // 同じ操作の結果（「商人の目が光っている」「約束の札を手に入れた」など）は、札の下に足す（札は消さない）
+          lastSay = resBox = { label: e.id, hl: ev0 ? 'kome' : null, res: [] }; innerTx = [];
+          if (ev0) { withSnap(e.snap, renderWin); flashAt('cage', true); } else renderWin();
+          renderTop(); await wait(ev0 ? 2200 : 600); break;
+        }
         // 問いかけ（L.STORY.ask）：身ぶりと心の声 → 村人の答え（say）→ 余韻の心の声
         case 'ask': { const a = L.STORY.ask[e.id]; lastSay = { nar: a.nar }; innerTx = []; renderScene(e.snap); renderWin(); await runStory(a.before); break; }
         case 'askEnd': await runStory(L.STORY.ask[e.id].after); break;
         case 'collect': collectFx(e); break;
-        case 'pconfirm': case 'named': case 'near': case 'miss': case 'hold': case 'sound': noteEvent(e); break;
+        case 'pconfirm': case 'named': case 'near': case 'miss': case 'hold': case 'sound': case 'reread': case 'rereadNo': noteEvent(e); break;
         // 返事の身ぶり（L.STORY.reply）：身ぶり → ミラの「眠れていないのね」（say）→ 心の声
         case 'reply': lastSay = null; innerTx = []; renderWin(); await runStory(L.STORY.reply[e.how]); break;
         case 'replyEnd': await runStory(L.STORY.reply.after); break;
-        case 'awaitReply': toast('ミラが、返事を待っている'); break;
+        case 'awaitReply': toast('ミラが、返事を待っている', false, { drop: 'place' }); break;
         case 'firstMagic': await runStory(L.STORY.firstMagic); break;
         // 場面6〜8の短い所作（L.STORY.beats）
         case 'beat': await runStory(L.STORY.beats[e.id]); break;
         // 帰宅のあと、日が沈む（家の背景が夜になる）
-        case 'dusk': await veil(.7, 600); renderScene(e.snap); await veil(0, 600); break;
+        case 'dusk': await veil(.7, 600); renderScene(e.snap); renderTop(); await veil(0, 600); break;
         case 'unseal': glowTo = e.to; renderTop(); break;
-        case 'doorOut': toast('扉を開けて、外へ出た'); glowTo = null; break;
-        case 'msg': toast(e.text); break;
-        case 'fizzle': toast(e.why); break;
-        case 'misfire': toast('ことばがもつれて、光がはじけた（並べ方…？）'); flashAt(e.target || 'self', true); $('#scene').classList.add('shake'); await wait(700); $('#scene').classList.remove('shake'); break;
+        case 'doorOut': toast('扉を開けて、外へ出た', false, { drop: 'place' }); glowTo = null; break;
+        // 物に触れた・言葉を運んだ結果は、会話ウィンドウへ（前の対象の説明に代わって出る）
+        case 'msg': result(e.text); break;
+        case 'fizzle': result(e.why); break;
+        case 'misfire': result('ことばがもつれて、光がはじけた（並べ方…？）'); flashAt(e.target || 'self', true); $('#scene').classList.add('shake'); await wait(700); $('#scene').classList.remove('shake'); break;
         case 'composed': toast('見よう見まねで書いた字が、ほのかに光った。……なんという言葉だろう'); if (!sel || S.confirmed.includes(sel) || S.named.includes(sel)) sel = e.w; newNote++; renderTop(); if ($('#note').classList.contains('on')) renderNote(); break;
         case 'composeKnown': toast(S.confirmed.includes(e.w) ? `見覚えのある字だ…「${cardLabel(e.w, true)}」` : '見覚えのある字だ'); break;
         case 'composeFail': toast(e.why); break;
-        case 'doubt': toast('…できない気がする', true); break;
-        case 'speak': toast('「' + e.words.map(w => cardLabel(w, true)).join(' ') + '」と口にした'); break;
-        case 'fx': renderScene(e.snap); flashAt(e.target); toast(e.msg); await wait(800); break;
-        case 'wary': toast('ミラの目つきが変わった'); renderScene(e.snap); await wait(1700); break;
-        case 'take': toast('約束の札を手に入れた'); renderScene(e.snap); break;
+        case 'doubt': result('…できない気がする'); break;
+        case 'speak': result('「' + e.words.map(w => cardLabel(w, true)).join(' ') + '」と口にした'); break;
+        case 'fx': result(e.msg); renderScene(e.snap); flashAt(e.target); await wait(800); break;
+        case 'wary': result('ミラの目つきが変わった'); renderScene(e.snap); await wait(1700); break;
+        case 'take': result('約束の札を手に入れた'); renderScene(e.snap); break;
         case 'miraLeave': renderScene(e.snap); await wait(500); break;
         case 'move': lastSay = null; innerTx = []; glowTo = null; renderScene(e.snap); renderWin(); renderTop(); break;
         case 'goHome': await veil(1, 500); renderScene(e.snap); await veil(0, 500); break;
         case 'sleep': await lidsTo(0, 1100); await veil(1, 400); if (e.snap.sleeps === 1) await runStory([].concat(...(L.STORY.at.sleep1 || []).map(id => L.STORY.memories[id]))); break;
         case 'morning': {
           // 冒頭と同じく、まぶたが開く（少し開く → まばたき → 開く）
-          sightHold = 0; renderScene(e.snap); await veil(0, 500); toast(`${e.snap.day}日目の朝`);
+          sightHold = 0; renderScene(e.snap); renderTop(); await veil(0, 500); toast(`${e.snap.day}日目の朝`, false, { drop: 'place' });
           await lidsTo(.4, 700); await lidsTo(.08, 200); await lidsTo(1, 900); lidsFree(); break;
         }
         case 'nightfall': await veil(.85, 600); renderScene(e.snap); await veil(0, 600); toast('日が沈んだ。ミラが追ってきた'); break;
@@ -3202,22 +3610,34 @@ const M = (() => {
           // カードの表記が「守る」→「閉じ込める」に変わる（当てたときの言語のまま）
           const lg = S.lang.kome || 'ja', a = L.labelOf('kome', lg, false), b = L.labelOf('kome', lg, true);
           const cd = t => `<span class="card c1" style="width:64px;height:76px">${glyph('kome', 30)}<i style="font-size:11px">${t}</i></span>`;
+          // 早く疑い直していた（doubtEarly）なら、薄々気づいていた読みが確かになる調子に
+          const dq = L.STORY.revealDoubt, y = L.yobiOf(e.snap, 'kome'), dcap = L.revealDoubtCap(e.by);
           renderHand(); await modal(S.komeAlt ? `<h3>抱きしめながらの、あの言葉は</h3><div class="faces">${cd(b)}</div><div class="full truth">${b}</div><div class="cap">檻の札と、同じ字だった</div>`
-            : `<h3>この言葉は「${a}」ではなかった</h3><div class="faces">${cd(a)}<span class="arrow">→</span>${cd(b)}</div><div class="full truth">${b}</div>`); break;
+            : e.snap.doubtEarly ? `<h3>${dq.h}</h3><div class="faces">${cd(a)}<span class="arrow">→</span>${cd(b)}</div><div class="full truth">${b}</div><div class="cap">${y ? `「${y}」と` : ''}${dcap}</div>`
+            : `<h3>この言葉は「${a}」ではなかった</h3>${e.by === 'cage' ? '<div class="cap">荷車の檻の札にも、同じ字が書かれていた</div>' : ''}<div class="faces">${cd(a)}<span class="arrow">→</span>${cd(b)}</div><div class="full truth">${b}</div>`); break;
         }
         case 'belief': await modal(`<h3>碑文の最後の一行</h3>${lineHtml(L.BELIEF_LINE, true, 36, true)}<div class="full">「魔法は ない」</div><div class="cap">涙の跡。……なのに、途切れ途切れに光っている</div><div class="boost">胸の奥で、何かがほどけた</div>`); renderHand(); break;
         case 'twist': case 'truth': {
           const ln = L.LN[e.id], g = L.gloss(ln.t, e.snap.confirmed, e.snap.revealed);
           newLog++; renderTop();
-          if (e.type === 'truth') { toast('ログの訳が変わった'); break; }
+          // 読み直し・通知の出し方は L.retransPlan（反転で読みが裏返った一文を、前の読み → いまの読み で1回だけ）
+          const rr = plan.reread && plan.reread.at === 'twist' && plan.reread.id === e.id;
+          if (e.type === 'truth') {
+            if (plan.reread && plan.reread.at === 'twist' || truthShown) break;
+            truthShown = true;
+            if (!plan.reread) { if (plan.toast) toast(plan.toast > 1 ? `ログの訳が変わった（${plan.toast}つ）` : 'ログの訳が変わった'); break; }
+            const id = plan.reread.id, l2 = L.LN[id];
+            await modal(`<h3>${id === 'h6' ? '抱きしめながらの、あの一文を読み直す' : 'あの言葉を、読み直す'}</h3>${lineHtml(l2.s, l2.wish, 24, false, null, 'kome')}<div class="cap">（${l2.cap}）</div>${rereadRows(id, e.snap)}${moreTx(plan.more)}`);
+            break;
+          }
           M.apply(m => { if (m.twistAt == null) m.twistAt = e.snap.twistAt; });
           renderScene(e.snap);
-          await modal(`<h3>あの言葉が、訳せてしまった</h3><div class="faces">${faceCrop('mira', { face: 'smile' })}<span class="arrow">→</span>${faceCrop('mira', { face: 'true', from: 'smile' })}</div>${lineHtml(ln.s, ln.wish, 26)}<div class="cap">（${ln.cap}）</div><div class="full truth">「${g.full}」</div>${e.snap.confirmed.includes('nemu') && e.snap.confirmed.includes('nai') ? '<div class="boost">もう眠らされない。「眠る＋ない」の確信が満ちた</div>' : '<div class="boost">確信が胸に灯った</div>'}`);
+          await modal(`<h3>あの言葉が、訳せてしまった</h3><div class="faces">${faceCrop('mira', { face: 'smile' })}<span class="arrow">→</span>${faceCrop('mira', { face: 'true', from: 'smile' })}</div>${lineHtml(ln.s, ln.wish, 26, false, null, rr ? 'kome' : null)}<div class="cap">（${ln.cap}）</div>${rr ? rereadRows(e.id, e.snap) : `<div class="full truth">「${g.full}」</div>`}${moreTx(plan.more)}${e.snap.confirmed.includes('nemu') && e.snap.confirmed.includes('nai') ? '<div class="boost">もう眠らされない。「眠る＋ない」の確信が満ちた</div>' : '<div class="boost">確信が胸に灯った</div>'}`);
           renderHand(); break;
         }
         case 'fturn': await finalTurn(e); break;
         /* ---- 第2章 ---- */
-        case 'chapter2': await runStory(L.STORY2.arrive); lastSay = null; innerTx = []; renderScene(e.snap); renderWin(); renderTop(); toast('第2章　印の町'); await wait(600); break;
+        case 'chapter2': await runStory(L.STORY2.arrive); lastSay = null; innerTx = []; renderScene(e.snap); renderWin(); renderTop(); toast('第2章　印の町', false, { drop: 'place' }); await wait(600); break;
         case 'gesture': toast(e.text); await wait(900); break;
         case 'pass': toast('手で、通っていいと示された'); renderScene(e.snap); renderTop(); break;
         case 'childGo': toast('子どもが、町並みの方へ駆けていった'); renderScene(e.snap); await wait(600); break;
@@ -3227,7 +3647,9 @@ const M = (() => {
         case 'dreamShow': lastSay = { dream: true }; innerTx = ['胸の奥に、あの声が残っている。']; renderWin(); break;
         case 'arrest': await veil(1, 400); renderScene(e.snap); await veil(0, 400); toast('役人が駆けつけてきた'); break;
         case 'trial': qToks = []; toast('役人は、問いにだけ答えるようだ'); break;
-        case 'askQ': toast('「' + e.toks.filter(t => t !== 'pq').map(t => t === 'pp' ? 'の' : cardLabel(t, true)).join(' ') + (e.mode === 'ask' ? '？' : '') + '」と' + (e.mode === 'ask' ? '問うた' : '言った')); break;
+        // 問うた内容は、この一手の結果として会話ウィンドウに残す（役人の答えの上。次の一手まで消えない）
+        case 'askQ': turn = { pre: ['「' + e.toks.filter(t => t !== 'pq').map(t => t === 'pp' ? 'の' : cardLabel(t, true)).join(' ') + (e.mode === 'ask' ? '？' : '') + '」と' + (e.mode === 'ask' ? '問うた' : '言った')], post: [] };
+          lastSay = { nar: '', res: true }; innerTx = []; renderWin(); break;
         case 'tturn': await trialTurn(e); break;
         case 'cut': await runStory(L.STORY2.cuts[e.id]); break;
         case 'lost2': renderScene(e.snap); await lostPanel2(); break;
@@ -3242,46 +3664,56 @@ const M = (() => {
         case 'leave':
           bar = null; qToks = []; renderHand(); renderHint(); renderTrial();
           await wait(1200); await runStory(L.STORY2.outro); finishRun2(); busy = false; return;
-        case 'retry': toast('もう一度'); break;
+        case 'retry': toast('もう一度', false, { drop: 'place' }); break;
         case 'lost': renderScene(e.snap); await lostPanel(); break;
         case 'escape': escapeHow = e.how; renderScene(e.snap); flashAt('mira'); toast(e.how === 'crumble' ? 'ミラの確信が崩れ、眠りの言葉が消えた' : 'ミラの魔法が止まった'); await wait(1600);
           // 引きの場面：門の向こうへ駆け出す（L.STORY.cutAt.escape）。カード欄・ヒントは逃げきった状態に
           bar = null; renderHand(); renderHint(); renderFinal();
-          await runStory(L.cutsOf('escape')); await runStory(L.STORY.omen); finishRun(); busy = false; return;
+          await runStory(L.cutsOf('escape').concat(L.STORY.linger)); finishRun(); busy = false; return;
       }
       // 出来事のあとに挟む引きの場面（L.STORY.cutAt に書くと、ここで見せる）
       { const cut = L.cutsOf(e.type); if (cut.length) await runStory(cut); }
     }
+    daySnap = null;
     busy = false;
     render();
   }
   function collectFx(e) {
     const k = L.kanaOf(L.roOf(e.w)) || '字';
     if (e.isNew || e.fresh) { flyGlyph(e.w); newNote++; }
-    toast(e.isNew ? `「${k}」を手帳に書きとめた` : e.fresh ? `「${k}」の用例が増えた` : 'もう書きとめてある');
+    if (e.ready) { invite.add(e.w); inviteBtn = true; }
+    // 出どころ（誰の言葉から／どの物の字から）を添える。同じ出どころから続けて書きとめた字は、1枚の通知にまとめる（fix1 スライスB）
+    const src = L.srcLabel(e.src), verb = e.isNew ? 'を手帳に書きとめた' : 'の用例が増えた';
+    if (e.isNew || e.fresh) toast(`「${k}」${verb}`, false, { merge: verb + '|' + e.src, item: k, verb, src: src ? src + 'から' : '' });
+    else toast('もう書きとめてある', false, { drop: 'collect' });
     renderWin(); renderTop(); if ($('#note').classList.contains('on')) renderNote();
   }
   async function finalTurn(e) {
     const o = e.out, msg = { countered: '眠りの言葉を、目の前で打ち消した', doubt: '…できない気がする（ミラの確信が強すぎる）', wasted: 'まだ何も唱えていない。理解していると気づかれた',
       shaken: 'ミラの顔から笑みが消えた。確信が揺らいでいる', smile: 'ミラは首をかしげて微笑んだ', feign: '寝たふりをした。ミラが油断した', seen: '寝たふりは見抜かれている',
       bound: '', repelled: 'ミラの確信にはじかれた', wait: '様子を見た', none: '…' }[o.r];
-    if (msg) toast(msg, o.r === 'doubt');
+    // 一手の結果は会話ウィンドウに残す（次のミラの言葉の上に。次の一手まで消えない）。トーストの待ちには流さない（fix1 スライスB 直し）
+    turn = { pre: msg ? [msg] : [], post: [] }; renderWin();
     renderScene(e.snap); renderFinalSnap(e.snap);
     if (o.r === 'countered') { flashAt('self'); wakeFx(); }
     await wait(900);
     // 眠りがしみこむ：まぶたが一度深く落ちてから、少しだけ持ち上がる
-    if (o.hit) { toast('眠りの言葉がしみこむ…'); await lidsTo(.05, 380); await wait(220); lidsFree(); await wait(500); }
+    if (o.hit) { turn.pre.push('眠りの言葉がしみこむ…'); renderWin(); await lidsTo(.05, 380); await wait(220); lidsFree(); await wait(500); }
   }
   async function trialTurn(e) {
     const o = e.out, msg = { answer: '役人が答えた。確信が揺らいでいる', crack: '', guard: '役人の目つきが険しくなった', lie: '役人は、目をそらした',
       again: '同じことを聞いても、もう答えない', commit: '役人は、胸を張って答えた', reconfirm: '役人は、苛立ったように同じことを認めた',
       refuse: '役人は答えなかった。もう、その問いには乗らない', muddle: '役人は眉をひそめた（並べ方…？）', shrug: '役人は肩をすくめた', dismiss: '役人は聞き流した',
       deflect: '役人は、こちらをにらんだ', wait: '様子を見た' }[o.r];
-    if (msg) toast(msg);
+    // 役人の反応・子どもの移動は、問うた内容と同じ会話ウィンドウに残す（答えのセリフの下。fix1 スライスB 直し）
+    if (!turn) turn = { pre: [], post: [] };
+    if (msg) turn.post.push(msg);
+    if (!o.held && !e.trial.done) turn.post.push('子どもが、一歩引きずられた');
+    renderWin();
     renderScene(e.snap);
     $('#ocP').innerHTML = [0, 1, 2].map(i => `<b class="${i < e.trial.oc ? 'f' : ''}"></b>`).join('');
     $('#plP').innerHTML = [0, 1, 2].map(i => `<b class="${i < e.trial.pull ? 'f' : ''}"></b>`).join('');
-    if (!o.held && !e.trial.done) { toast('子どもが、一歩引きずられた'); $('#scene').classList.add('shake'); await wait(500); $('#scene').classList.remove('shake'); }
+    if (!o.held && !e.trial.done) { $('#scene').classList.add('shake'); await wait(500); $('#scene').classList.remove('shake'); }
     await wait(700);
   }
   function lostPanel2() {
@@ -3337,10 +3769,13 @@ const M = (() => {
 
   /* ---- 手帳：説明はしない。同じ形が光り、2語でたしかめた形は余白に書きとめられる。
      意味は1語ずつ入力して当てる（日本語か英語。外れが続くと手がかりが増える） ---- */
-  let noteFlash = null, sampleCount = 0, firstHint = null, langAuto = false;
+  let noteFlash = null, sampleCount = 0, firstHint = null, langAuto = false, rereadOpen = false;
   // 初めて入力欄が出たときだけの、心の声のひとこと（最初の1語）
-  const FIRST_HINT = { ka: '……たぶん、これは『火』だ。', mi: '……器を差し出していた。『水』かもしれない。', na: '……こちらを指さしていた。『あなた』のことだ。',
-    wa: '……自分の胸に手を当てていた。『私』だろうか。', to: '……扉に書いてあった字だ。', hira: '……扉を開けて、出ていった。',
+  // ka（pila）は正解を名指ししない（fix1 スライスC）。名指しは3回目の手がかり（L.hintsOf）に移した
+  // mi／na／wa も名指ししない（スライスC直し）：pila を書きとめずに別の語を最初に開いても答えが先に出ないように
+  // to も名指ししない（スライスC直し2）：場面（ミラが手をかざし、字が光って浮かんだ）だけを思い出す
+  const FIRST_HINT = { ka: '……ミラが松明を指さして、口にした言葉だ。', mi: '……ミラが器を差し出して、口にした言葉だ。', na: '……ミラがこちらを指さして、口にした言葉だ。',
+    wa: '……ミラが胸に手を当てて、口にした言葉だ。', to: '……ミラが手をかざした先に、光って浮かんだ字だ。', hira: '……扉を開けて、出ていった。',
     nemu: '……ミラが、うなされる真似をしてみせたときの言葉だ。', nai: '……首を振ったとき、ミラもこの言葉を口にしていた。', pe: '……小さな字。言葉と言葉のあいだに挟まっている。' };
   const isDoneW = w => S.confirmed.includes(w) || S.pconf.includes(w) || S.named.includes(w);
   // 手帳での表記（当てた言語）。小辞は役割の名前も添える
@@ -3351,13 +3786,16 @@ const M = (() => {
     langAuto = true; LANG = lang; renderBtns(); renderWin();
   }
   function noteEvent(e) {
+    if (['confirm', 'named', 'pconfirm', 'reread'].includes(e.type)) decodedInNote = true;
     if (e.type === 'confirm') {
       const nk = L.radicalsKnown(e.snap.confirmed).length;
-      if (nk > sampleCount) { sampleCount = nk; setTimeout(() => { toast('手帳の余白に、形を書きとめた'); const b = $('#noteBtn'); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }, 900); }
+      if (nk > sampleCount) { sampleCount = nk; setTimeout(() => { toast('手帳の余白に、形を書きとめた', false, { drop: 'note' }); const b = $('#noteBtn'); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); }, 900); }
       noteFlash = { k: 'ok', w: e.w }; followLang(e.lang);
-      toast(`「${L.labelOf(e.w, e.lang, e.snap.revealed)}」——カードになった`);
-    } else if (e.type === 'named') { noteFlash = { k: 'ok', w: e.w }; followLang(e.lang); toast(`書いた字が「${L.labelOf(e.w, e.lang)}」だと分かった。カードになった`); }
-    else if (e.type === 'pconfirm') { noteFlash = { k: 'pok', w: e.w }; followLang(e.lang); toast('小さな字の役わりが分かった。訳がつながる'); }
+      toast(`「${faceOf(e.snap, e.w)}」——カードになった`, false, { drop: 'note' });
+    } else if (e.type === 'named') { noteFlash = { k: 'ok', w: e.w }; followLang(e.lang); toast(`書いた字が「${L.labelOf(e.w, e.lang)}」だと分かった。カードになった`, false, { drop: 'note' }); }
+    else if (e.type === 'pconfirm') { noteFlash = { k: 'pok', w: e.w }; followLang(e.lang); toast('小さな字の役わりが分かった。訳がつながる', false, { drop: 'note' }); }
+    else if (e.type === 'reread') { noteFlash = { k: e.kind === 'doubt' ? 'rrDoubt' : 'rrKeep', w: e.w }; rereadOpen = false; renderHand(); }
+    else if (e.type === 'rereadNo') noteFlash = { k: 'rrNo', w: e.w };
     else noteFlash = { k: e.type === 'hold' && e.kind === 'lock' ? 'holdLock' : e.type, w: e.w, hint: e.hint };
     if ($('#note').classList.contains('on')) renderNote();
   }
@@ -3373,7 +3811,8 @@ const M = (() => {
     const tiles = $('#tiles'), words = S.seen.filter(w => !L.isPart(w)), parts = S.seen.filter(w => L.isPart(w));
     const tile = w => {
       const pt = L.isPart(w), done = isDoneW(w), n = (S.uses[w] || []).length;
-      return `<button type="button" class="tile${pt ? ' pt' : ''}${done ? ' done' : ''}${sel === w ? ' sel' : ''}" data-w="${w}">${n > 1 ? `<span class="uc">×${n}</span>` : ''}${glyph(w, pt ? 22 : 26)}<span class="kn">${kanaW(w)}</span><i>${done ? noteLabel(w) : '?'}</i></button>`;
+      const kari = !pt && L.readingOf(S, w) === 'kari', iv = invite.has(w) && sel !== w && L.guessReady(S, w);
+      return `<button type="button" class="tile${pt ? ' pt' : ''}${done ? ' done' : ''}${kari ? ' kari' : ''}${sel === w ? ' sel' : ''}" data-w="${w}">${kari ? '<span class="kr">仮</span>' : ''}${n > 1 ? `<span class="uc">×${n}</span>` : ''}${glyph(w, pt ? 22 : 26)}<span class="kn">${kanaW(w)}</span>${iv ? '<span class="iv" title="用例がそろってきた"></span>' : ''}<i>${done ? (pt ? noteLabel(w) : nowLabel(w)) : '?'}</i></button>`;
     };
     tiles.innerHTML = (words.map(tile).join('') || '<div class="empty">まだ何も書きとめていない。聞こえた言葉や、書かれた字をタップする</div>')
       + (parts.length ? `<div class="nsec" style="grid-column:1/-1">小さな字</div>` + parts.map(tile).join('') : '')
@@ -3388,24 +3827,33 @@ const M = (() => {
   }
   const GMSG = { miss: ['ng', '違う気がする……'], near: ['near', '近い……。でも、少し違う気がする'], hold: ['hold', '……今はまだ、そうは思えない'],
     holdLock: ['hold', '……扉には、そう見えた。でも、抱きしめながらも同じ言葉だった'],
-    sound: ['hold', '……それは、この字の音だ。意味じゃない'], pok: ['', '小さな字が読めた'] };
+    sound: ['hold', '……それは、この字の音だ。意味じゃない'], pok: ['', '小さな字が読めた'], rrNo: ['hold', L.STORY.reread.no] };
+  // 読みの段階（仮の読み／確定）と、あなたの呼び方（当てたときに書いた言葉が訳と違うとき）
+  const stageTag = w => { const r = L.readingOf(S, w); return r ? `<span class="stg ${r}">${r === 'kari' ? '仮の読み' : '確定'}</span>` : ''; };
+  const yobiLine = w => { const y = yobiDiff(S, w); return y ? `<span class="yobi">あなたの呼び方：「${y}」</span>` : ''; };
   function renderDetail() {
     const d = $('#detail'), fl = noteFlash && noteFlash.w === sel ? noteFlash : null; noteFlash = null;
     if (!sel || !(S.seen.includes(sel) || S.made.includes(sel))) { d.dataset.key = ''; d.innerHTML = S.seen.length ? '<div class="empty" style="color:var(--inkP2)">文字を選ぶ</div>' : ''; return; }
-    const done = isDoneW(sel), pt = L.isPart(sel), made = !!(L.W[sel] && L.W[sel].made), key = sel + (done ? ':done' : ':open');
+    const done = isDoneW(sel), pt = L.isPart(sel), made = !!(L.W[sel] && L.W[sel].made), rr = done && L.canReread(S, sel);
+    if (!rr) rereadOpen = false;
+    const key = sel + (done ? ':done' : ':open') + (rr && rereadOpen ? ':rr' : '');
     if (d.dataset.key !== key) {
       d.dataset.key = key;
       d.innerHTML = '<div id="dHead"></div><div id="dForm"></div><div class="gmsg" id="dMsg"></div><div class="ghint" id="dHint"></div><div class="nInner" id="dInner"></div><div id="dCtx"></div>';
       if (!done) $('#dForm').innerHTML = `<div class="gf"><input id="gIn" type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="意味を、日本語か英語で" aria-label="この字の意味"><button type="button" class="wbtn" id="gGo">これだ</button></div>`;
+      // 疑い直し（kome だけ・1回だけ）：いまの読みを書き直す欄
+      else if (rr && rereadOpen) $('#dForm').innerHTML = `<div class="gf rr"><input id="rIn" type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="いまの読みを、書き直す" aria-label="この字の読みを書き直す"><button type="button" class="wbtn" id="rGo">書き直す</button></div>`;
     }
     const rd = made ? `<span class="rd">（誰も口にしない字。読みはない）</span>` : `<span class="rd">${kanaW(sel)}<i>${L.roOf(sel) || ''}</i></span>`;
     const lg = S.lang[sel] || LANG, other = lg === 'en' ? 'ja' : 'en';
     let head;
     if (done && fl && fl.k === 'ok' && !pt) {
       // 正解の瞬間：書きとめた字がカードになる
-      head = `<div class="born"><span class="card c${L.conf(S, [sel])}">${glyph(sel, 26)}<i>${cardLabel(sel)}</i><span class="cf">${[1, 2, 3].map(i => `<b class="${i <= L.conf(S, [sel]) ? 'f' : ''}"></b>`).join('')}</span></span><span class="bt">「${noteLabel(sel)}」<small>カードになった。場面の物へ運んで使える</small></span>${nextBtn()}</div>`;
+      head = `<div class="born"><span class="card c${L.conf(S, [sel])}${L.readingOf(S, sel) === 'kari' ? ' kari' : ''}">${glyph(sel, 26)}<i>${cardLabel(sel)}</i><span class="cf">${[1, 2, 3].map(i => `<b class="${i <= L.conf(S, [sel]) ? 'f' : ''}"></b>`).join('')}</span></span><span class="bt">「${noteLabel(sel)}」${stageTag(sel)}<small>カードになった。場面の物へ運んで使える</small></span>${nextBtn()}</div>${yobiLine(sel)}`;
     } else if (done) {
-      head = `<div class="dh"><span style="color:var(--inkP)">${glyph(sel, pt ? 48 : 54)}</span><div>${rd}<br><b>${pt ? L.PART[sel].name + '（' + noteLabel(sel) + '）' : noteLabel(sel)}</b> <small style="color:var(--inkP2)">${L.labelOf(sel, other, S.revealed)}</small></div>${nextBtn()}</div>`;
+      // 疑い直したあと（kome・檻の開示まで）は、付け直した読みが「いまの読み」。旧訳は「前の読み」として添える
+      const nr = pt ? null : L.nowReading(S, sel, LANG);
+      head = `<div class="dh"><span style="color:var(--inkP)">${glyph(sel, pt ? 48 : 54)}</span><div>${rd}<br>${pt ? '' : '<small class="now">いまの読み</small>'}<b>${pt ? L.PART[sel].name + '（' + noteLabel(sel) + '）' : nr.label}</b> ${nr && nr.prev ? '' : `<small style="color:var(--inkP2)">${L.labelOf(sel, other, S.revealed)}</small>`}${pt ? '' : stageTag(sel)}${nr && nr.prev ? `<span class="yobi prev"><span>前の読み：</span><span>「${nr.prev}」</span></span>` : ''}${yobiLine(sel)}${rr && !rereadOpen ? '<button type="button" class="ghost rrBtn" id="rOpen">読みを付け直す（一度だけ）</button>' : ''}</div>${nextBtn()}</div>`;
     } else {
       const ask = pt ? 'どんな役わりの字？' : made ? 'なんという言葉だろう？' : '意味は？';
       head = `<div class="dh"><span style="color:var(--inkP)">${glyph(sel, pt ? 48 : 54)}</span><div>${rd}<br>${ask}</div></div>`;
@@ -3416,7 +3864,10 @@ const M = (() => {
     $('#dHint').innerHTML = done ? '' : L.hintsOf(sel, S.tries[sel] || 0).map(h => `<span>${h.text}</span>`).join('');
     // 最初の1語だけ、心の声のひとこと
     if (!done && !firstHint && !S.confirmed.length) firstHint = { w: sel, text: FIRST_HINT[sel] || '……どんな場面で聞いた言葉だったか、思い出してみる。' };
-    $('#dInner').textContent = !done && firstHint && firstHint.w === sel ? firstHint.text : '';
+    // 心の声：最初の1語の手がかり／「守る」と読んだ瞬間（いまの用例からの読み）／付け直したときの反応
+    const inner = fl && fl.k === 'ok' && sel === 'kome' && !S.revealed && !S.komeAlt ? L.STORY.komeRead
+      : fl && fl.k === 'rrDoubt' ? L.STORY.reread.doubt : fl && fl.k === 'rrKeep' ? L.STORY.reread.keep : '';
+    $('#dInner').textContent = inner || (!done && firstHint && firstHint.w === sel ? firstHint.text : '');
     let ctx = (S.uses[sel] || []).map(src => ctxHtml(src, sel)).join('');
     const n = (S.uses[sel] || []).length;
     if (made) ctx = `<div class="nsec">書いたときの形</div><div class="ctx">${L.partsOf(sel).map(r => L.MEMO[r]).join(' ＋ ')}</div>`;
@@ -3430,6 +3881,7 @@ const M = (() => {
       if (fl.hint === 'uses') { d.querySelectorAll('#dCtx .ctx').forEach(c => c.classList.add('flash')); const c0 = d.querySelector('#dCtx .ctx'); if (c0) setTimeout(() => scrollNoteTo(c0, 90), 50); }
     }
     if (fl && (fl.k === 'hold' || fl.k === 'sound') && inp) inp.select();
+    if (fl && fl.k === 'rrNo' && $('#rIn')) $('#rIn').select();
   }
   const nextOf = () => S.seen.filter(w => !L.isPart(w)).concat(S.seen.filter(w => L.isPart(w)), S.made).find(w => !isDoneW(w));
   const nextBtn = () => nextOf() ? '<button type="button" class="ghost nextW" id="nextW">次の字 →</button>' : '';
@@ -3448,21 +3900,31 @@ const M = (() => {
     const go = () => { if (busy) { setTimeout(go, 60); return; } if (sel === w) dispatch({ t: 'guess', w, text }); };
     go();
   }
+  // 疑い直し：kome の読みを書き直す（1回だけ。判定はロジックの reread）
+  function submitReread() {
+    const inp = $('#rIn'); if (!inp || sel !== 'kome' || composing) return;
+    const text = inp.value;
+    if (!L.norm(text)) { inp.focus(); return; }
+    const go = () => { if (busy) { setTimeout(go, 60); return; } if (sel === 'kome') dispatch({ t: 'reread', w: 'kome', text }); };
+    go();
+  }
   $('#detail').addEventListener('compositionstart', () => { composing = true; });
   $('#detail').addEventListener('compositionend', () => { composing = false; compEndAt = Date.now(); });
   $('#detail').addEventListener('keydown', e => {
-    if (e.target.id !== 'gIn' || e.key !== 'Enter') return;
+    if ((e.target.id !== 'gIn' && e.target.id !== 'rIn') || e.key !== 'Enter') return;
     // Safari は変換確定の Enter を keyCode 229 で送る。確定直後の Enter も無視する
     if (e.isComposing || composing || e.keyCode === 229 || Date.now() - compEndAt < 80) return;
-    e.preventDefault(); submitGuess();
+    e.preventDefault(); if (e.target.id === 'rIn') submitReread(); else submitGuess();
   });
   // 「これだ」を押しても入力欄からフォーカスを外さない（スマホのキーボードを閉じない）
-  $('#detail').addEventListener('pointerdown', e => { if (e.target.closest('#gGo')) e.preventDefault(); });
+  $('#detail').addEventListener('pointerdown', e => { if (e.target.closest('#gGo, #rGo')) e.preventDefault(); });
   $('#detail').addEventListener('click', e => {
     if (e.target.closest('#gGo')) { setTimeout(submitGuess, 0); return; }
+    if (e.target.closest('#rGo')) { setTimeout(submitReread, 0); return; }
+    if (e.target.closest('#rOpen')) { if (busy) return; rereadOpen = true; renderDetail(); const ri = $('#rIn'); if (ri) ri.focus(); return; }
     if (e.target.closest('#nextW')) { const w = nextOf(); if (w) { sel = w; renderNote(); scrollNoteTo($('#detail')); } }
   });
-  $('#detail').addEventListener('focusin', e => { if (e.target.id === 'gIn') setTimeout(() => scrollNoteTo($('#detail')), 320); });
+  $('#detail').addEventListener('focusin', e => { if (e.target.id === 'gIn' || e.target.id === 'rIn') setTimeout(() => scrollNoteTo($('#detail')), 320); });
   // スマホのキーボードの高さだけ、手帳のページの下に余白を足す（場面がキーボードで隠れても、ページをスクロールして操作できる）
   if (window.visualViewport) {
     const vv = window.visualViewport;
@@ -3498,14 +3960,22 @@ const M = (() => {
     if (busy || !e.target.closest('#makeBtn')) return;
     dispatch({ t: 'compose', cls: comp.cls, el: comp.el.slice() }); comp = { cls: null, el: [] }; renderNote();
   });
-  $('#tiles').addEventListener('click', e => { const b = e.target.closest('[data-w]'); if (!b) return; sel = b.dataset.w; renderNote(); scrollNoteTo($('#detail')); });
+  $('#tiles').addEventListener('click', e => { const b = e.target.closest('[data-w]'); if (!b) return; sel = b.dataset.w; invite.delete(sel); renderNote(); scrollNoteTo($('#detail')); });
   $('#noteBtn').addEventListener('click', () => {
-    if (busy) return; newNote = 0;
+    if (busy) return; newNote = 0; inviteBtn = false;
     // 最初は「火」から（いちばん確かめやすい）。選んだ字が解けていたら、次の字へ
     if (!sel || isDoneW(sel)) sel = S.seen.includes('ka') && !isDoneW('ka') ? 'ka' : nextOf() || sel;
+    invite.delete(sel);
     renderNote(); $('#note').classList.add('on'); renderTop();
   });
-  $('#noteX').addEventListener('click', () => { $('#note').classList.remove('on'); render(); });
+  // 手帳で読み解いた（新しい行為の結果が出た）あとに場面へ戻ると、前の対象のセリフ・札は会話ウィンドウから消える（fix1 スライスB）。
+  // 返事を待っている問い（うなずく／首を振る）は残す
+  let decodedInNote = false;
+  $('#noteX').addEventListener('click', () => {
+    $('#note').classList.remove('on');
+    if (decodedInNote && lastSay && !(S.ch !== 2 && L.awaitingReply(S)) && S.phase !== 'final' && S.phase !== 'trial') { lastSay = null; innerTx = []; }
+    decodedInNote = false; render();
+  });
 
   /* ---- ログ ---- */
   function renderLog() {
@@ -3547,6 +4017,11 @@ const M = (() => {
   $('#win').addEventListener('click', e => {
     const b = e.target.closest('[data-reply]'); if (!b || busy || !L.awaitingReply(S)) return;
     dispatch({ t: 'reply', how: b.dataset.reply });
+  });
+  // 手に入れた約束の札を、もう一度会話ウィンドウに出す（表示だけ。状態は変えない）
+  $('#win').addEventListener('click', e => {
+    if (!e.target.closest('[data-rdtag]') || busy || !S.tag) return;
+    lastSay = { label: 'tag', res: [] }; resBox = null; innerTx = []; renderWin(); renderHint();
   });
   // 自分（画面の下の縁）に触れる：胸に手を当てる。最後の夜は寝たふり
   $('#selfT').addEventListener('click', () => { if (busy || drag) return; dispatch({ t: 'tap', obj: 'self' }); });
@@ -3660,14 +4135,22 @@ const M = (() => {
   const preload = () => { const q = ['bg_house_day', 'mira_smile', 'bg_house_night', 'mira_neutral', 'mira_true', 'hero_back', 'bg_square', 'merchant_normal', 'merchant_smirk', 'villager_child', 'villager_woman', 'bg_gate']; (function next() { const n = q.shift(); if (!n) return; const im = new Image(); im.onload = im.onerror = next; im.src = A(n); })(); };
   if (document.readyState === 'complete') setTimeout(preload, 0); else addEventListener('load', preload);
   $('#endArt').innerHTML = '<rect width="360" height="200" fill="url(#gSkyN)"/><circle cx="270" cy="50" r="40" fill="url(#gMoon)"/><circle cx="270" cy="50" r="13" fill="#f8f6ff"/>'
-    + '<path d="M0 120 Q40 80 80 110 Q120 70 160 104 Q200 76 240 106 Q290 72 360 100 V200 H0Z" fill="#1b2150"/><path d="M0 150 Q60 120 120 146 Q200 116 260 144 Q320 126 360 140 V200 H0Z" fill="#121636"/>'
-    + '<path d="M140 200 Q170 150 180 130 Q190 150 220 200Z" fill="#2e3060"/>'
+    + '<path d="M0 120 Q40 80 80 110 Q120 70 160 104 Q200 76 240 106 Q290 72 360 100 V200 H0Z" fill="#1b2150"/>'
+    // 森の木立（2026-11-15 fix1 スライスD）：奥の列は月明かりで淡く、手前は左右だけ濃く（真ん中は月明かりの小道）
+    + woodRow(41, 16, -10, 370, 134, 26, 46, '#262d66') + woodRow(43, 4, -16, 120, 176, 62, 92, '#0f1330') + woodRow(47, 4, 246, 380, 176, 62, 92, '#0f1330')
+    + '<path d="M118 200 C150 182 196 170 186 152 C182 144 172 140 178 134 L186 134 C196 142 206 150 206 162 C206 178 186 188 252 200Z" fill="#c8d2ff" opacity=".15"/>'
+    + '<ellipse cx="186" cy="176" rx="74" ry="22" fill="url(#gMoonFloor)"/>'
+    /* 主人公の後ろ姿（2026-11-15 fix1 スライスD）：単色のシルエット（コード描画）。以前は画像の頭だけを切り抜いて置いていた。
+       足もとを原点に、高さ 72 の単位で描く。ふだんは隠し、第1章の finishRun が終了画面のカメラ（L.STORY.camera.end）で出す（第2章の終了画面は前と同じく出さない） */
+    + '<g id="endHero" transform="translate(186 190) scale(.9)" style="display:none"><path fill="#06071a" d="M0 -72 C5.5 -72 8.6 -68 8 -62.5 C7.6 -58.5 5.6 -55.5 3 -54.5 L3.2 -51.8 C6.5 -51 12 -50.5 15.2 -48.6 C17.6 -47.2 18.3 -44 18.3 -40.5 L18.8 -26.5 C18.9 -23.5 15.8 -22.8 15.4 -25.6 L14.6 -36 L12.6 -27 L10.8 -2.5 C10.8 -.3 9.2 .5 7 .5 L3.4 .5 L2.6 -1.5 L1.4 -20 Q0 -22 -1.4 -20'
+    + ' L-2.6 -1.5 L-3.4 .5 L-7 .5 C-9.2 .5 -10.8 -.3 -10.8 -2.5 L-12.6 -27 L-14.6 -36 L-15.4 -25.6 C-15.8 -22.8 -18.9 -23.5 -18.8 -26.5 L-18.3 -40.5 C-18.3 -44 -17.6 -47.2 -15.2 -48.6 C-12 -50.5 -6.5 -51 -3.2 -51.8 L-3 -54.5 C-5.6 -55.5 -7.6 -58.5 -8 -62.5 C-8.6 -68 -5.5 -72 0 -72Z'
+    + ' M-2.4 -71.4 L.4 -76.5 L2 -71.2Z M-6.4 -68.4 L-10 -69.6 L-7.8 -64.6Z M6.6 -67.4 L9.8 -68 L8 -63.8Z"/></g>'
     + [0, 1, 2, 3, 4, 5].map(i => `<circle class="mote" cx="${60 + i * 50}" cy="${120 + (i * 17) % 50}" r="1.8" fill="#e8ff9a" style="animation-delay:${i * .5}s"/>`).join('');
   /* ---- 物語の演出（L.STORY のデータを順に見せる）。前日譚・記憶のかけらも同じ仕組みで差し込める ---- */
   const intro = $('#intro'), introTx = $('#introTx'), introImg = $('#introImg'), introIv = intro.querySelector('.iv');
   let storySkip = false;
   const setLids = (o, ms) => intro.querySelectorAll('.lid').forEach(l => { l.style.transitionDuration = (FAST ? 0 : ms || 0) + 'ms'; l.style.setProperty('--o', o); });
-  async function hideIntro() { intro.style.opacity = 0; await wait(800); intro.classList.remove('on'); intro.style.opacity = 1; introTx.className = ''; }
+  async function hideIntro() { intro.style.opacity = 0; await wait(800); intro.classList.remove('on'); renderTop(); intro.style.opacity = 1; introTx.className = ''; }
   async function runStory(steps) {
     if (!steps || !steps.length) return;
     storySkip = false;
@@ -3675,7 +4158,7 @@ const M = (() => {
       if (storySkip) break;
       switch (st.k) {
         case 'black':
-          intro.classList.add('on'); intro.style.opacity = 1; introIv.classList.remove('on', 'clear', 'shade'); setLids(0, 0);
+          intro.classList.add('on'); renderTop(); intro.style.opacity = 1; introIv.classList.remove('on', 'clear', 'shade'); setLids(0, 0);
           introImg.style.transition = 'none'; introImg.style.transform = ''; await wait(st.ms || 800); break;
         case 'lids':
           // bg：field＝野原（仮置きの空と草）／house＝家の朝。指定がなければ前のまま
@@ -3699,7 +4182,7 @@ const M = (() => {
         case 'inner': innerTx.push(st.text); renderWin(); await wait(st.ms || 1500); break;
         case 'gesture': toast(st.text); await wait(st.ms || 900); break;
         case 'shot': await playShot(st); break;
-        case 'omen': await playOmen(st); break;
+        case 'linger': await playLinger(st); break;
         case 'dream': {
           // 夢の声：字と、その音（カタカナ）。抜け落ちた語は空欄
           const d = L.STORY2.dream;
@@ -3729,21 +4212,16 @@ const M = (() => {
     if (r) { r.classList.remove('run'); r.style.transition = ''; r.style.opacity = ''; r.style.setProperty('--fb', (FIG.hero.fb || 100) + '%'); }
     box.classList.remove('wide');
   }
-  // 終わりの予感：暗転 → 夜の広場の像の碑文へ寄っていき、最後の一文が一瞬だけ強く灯る → 暗転（文字は出さない）
-  async function playOmen(step) {
-    const box = $('#sceneBox'), ms = FAST ? 0 : reduced ? 900 : step.ms || 2600;
-    await veil(1, 500);
-    box.classList.add('wide');
-    renderScene(Object.assign({}, S, { place: step.place || 'square', night: true }));
-    await veil(0, 500);
-    box.classList.add('omen');
-    await wait(ms);
-    await veil(1, 600);
-    box.classList.remove('omen', 'wide');
-    renderScene(); await veil(0, 0);
+  // 逃げきったあとの余韻：引きの場面（上下の黒い帯）のまま、いまの場所（門）でゆっくり暗転する。場面は差し替えない。
+  // 主人公は門の向こうへ消えたままにする（引きの場面のあと、後ろ姿をもう一度出さない）。暗転は終了画面へ移ってから戻す（finishRun）
+  async function playLinger(step) {
+    const box = $('#sceneBox'), ms = FAST ? 0 : reduced ? 600 : step.ms || 1800;
+    box.classList.add('wide'); if (rigs.hero) rigs.hero.style.opacity = 0;
+    await veil(1, ms);
+    box.classList.remove('wide'); renderScene();
   }
   $('#introSkip').addEventListener('click', () => {
-    storySkip = true; intro.classList.remove('on'); intro.style.opacity = 1;
+    storySkip = true; intro.classList.remove('on'); renderTop(); intro.style.opacity = 1;
     if (S.phase === 'play' && !S.heard.length) { innerTx = L.STORY.prologue.filter(x => x.k === 'inner').map(x => x.text); dispatch({ t: 'wake' }); }
   });
   async function playIntro() {
@@ -3753,7 +4231,7 @@ const M = (() => {
     render();
   }
   function startRun() {
-    runNo++; S = L.newGame(); bar = null; qToks = []; sampleCount = 0; sel = null; firstHint = null; langAuto = false; noteFlash = null; lastSay = null; newNote = 0; newLog = 0; runCounted = false; escapeHow = null; prevConf = {}; seenSamples = new Set(); comp = { cls: null, el: [] };
+    runNo++; clearToasts(); daySnap = null; S = L.newGame(); bar = null; qToks = []; sampleCount = 0; sel = null; firstHint = null; langAuto = false; noteFlash = null; lastSay = null; newNote = 0; newLog = 0; invite = new Set(); inviteBtn = false; runCounted = false; escapeHow = null; prevConf = {}; seenSamples = new Set(); comp = { cls: null, el: [] };
     M.apply(m => { if (m.runsStarted >= 1) m.replayed = true; m.runsStarted++; });
     show('game'); innerTx = []; render();
     if (!TEST_NOINTRO) playIntro();
@@ -3761,9 +4239,10 @@ const M = (() => {
   }
   const WANT = ['もっと遊びたい', '少し遊びたい', 'もういい'];
   function finishRun() {
+    clearToasts();   // 結果画面へ：場面の通知は持ち越さない（暗転のあいだ止めていた通知が、次の章の頭に出ないように）
     $('#endTtl').textContent = '森へ、逃げきった'; $('#nextBtn').style.display = '';
     if (!runCounted) { runCounted = true; M.apply(m => { m.runsCompleted++; m.bestScore = Math.max(m.bestScore || 0, S.confirmed.length); m.wordsConfirmed = Math.max(m.wordsConfirmed || 0, S.confirmed.length); }); }
-    $('#stats').innerHTML = `<span>解読した言葉</span><b>${S.confirmed.length} / ${L.N_WORDS}</b><span>真実に気づいた時点</span><b>${S.twistAt != null ? S.twistAt + '語目' : '気づかないまま'}</b><span>意味を書いた回数</span><b>${S.guesses}回</b><span>試した組み合わせ</span><b>${S.combos.length}種類</b><span>かかった日数</span><b>${S.day}日</b>`;
+    $('#stats').innerHTML = `<span>解読した言葉</span><b>${S.confirmed.length} / ${L.N_WORDS}</b><span>真実に気づいた時点</span><b>${L.noticedAt(S) != null ? L.noticedAt(S) + '語目' + (S.doubtEarly && S.doubtAt != null && (S.twistAt == null || S.doubtAt < S.twistAt) ? '（「' + L.labelOf('kome', S.lang.kome || LANG, false) + '」を疑い直した時点）' : '') : '気づかないまま'}</b><span>意味を書いた回数</span><b>${S.guesses}回</b><span>試した組み合わせ</span><b>${S.combos.length}種類</b><span>かかった日数</span><b>${S.day}日</b>`;
     $('#truthList').innerHTML = ['h6', 's1', 's2', 'n2'].filter(id => S.heard.some(h => h.id === id)).map(id => {
       const ln = L.LN[id], v = L.view(ln.s, knownOf(), { lang: LANG, revealed: S.revealed, speaker: ln.who }), tx = v.natural || v.literal;
       return `<div>${lineHtml(ln.s, ln.wish, 20)}<br>${ln.cap} → ${tx ? '「' + tx + '」' : '（まだ読めない）'}</div>`;
@@ -3771,11 +4250,13 @@ const M = (() => {
     // 終了画面は引き（L.STORY.camera.end）：森へ逃げた主人公の後ろ姿を映す
     const endWide = L.CAMS[L.STORY.camera.end || 'fp'].hero;
     $('#endHero').style.display = endWide ? '' : 'none';
-    if (endWide && !$('#endHero').getAttribute('src')) $('#endHero').src = A('hero_back');
     renderOpts(); $('#thanks').textContent = ''; show('end'); M.flush();
+    // 余韻（playLinger）で暗転したままの場面を、終了画面の裏で戻しておく（次の章の頭が暗いままにならないように）
+    const vl = $('#veil'); vl.style.transition = 'opacity 0ms'; vl.style.opacity = 0;
   }
   // 第2章の終わり：町を出る。記録は第1章と同じ系統（気づいた時点＝その時点で解読していた第2章の語数）
   function finishRun2() {
+    clearToasts();
     M.apply(m => { m.ch2Cleared = true; });
     const c = S.c2, n2 = L.WORDS2.filter(w => S.confirmed.includes(w.id)).length;
     $('#endTtl').textContent = '町を出た';
@@ -3878,8 +4359,8 @@ const M = (() => {
     // 新しい周回（冒頭の演出は流さない）。画面の途中の状態も初めに戻す
     function freshRun() {
       const keep = TEST_NOINTRO; TEST_NOINTRO = true; startRun(); TEST_NOINTRO = keep;
-      glowTo = null; SHOT = null; $('#modal').classList.remove('on'); $('#intro').classList.remove('on'); $('#note').classList.remove('on'); $('#log').classList.remove('on');
-      $('#sceneBox').classList.remove('wide', 'omen', 'dragging'); const vl = $('#veil'); vl.style.transition = 'opacity 0ms'; vl.style.opacity = 0; lidsFree();
+      glowTo = null; SHOT = null; $('#modal').classList.remove('on'); $('#intro').classList.remove('on'); $('#note').classList.remove('on'); $('#log').classList.remove('on'); renderTop();
+      $('#sceneBox').classList.remove('wide', 'dragging'); const vl = $('#veil'); vl.style.transition = 'opacity 0ms'; vl.style.opacity = 0; lidsFree();
     }
     const lastHeard = st => { const h = st.heard[st.heard.length - 1]; return h ? { id: h.id } : null; };
     // ルートの位置からいまの場面名（ルートAの mark を手前へさかのぼる）
